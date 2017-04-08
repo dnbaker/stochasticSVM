@@ -1,7 +1,6 @@
 #include "lib/problem.h"
 #include <getopt.h>
-using blaze::DynamicMatrix;
-
+using namespace svm;
 
 int main(int argc, char *argv[]) {
     int c;
@@ -9,6 +8,8 @@ int main(int argc, char *argv[]) {
         switch(c) {
         }
     }
+    auto pair(parse_problem<float, int>(argv[optind]));
+#if 0
     // Just testing blaze.
     DynamicMatrix<float> m(4000, 10);
     DynamicMatrix<float> n(10, 4000);
@@ -33,4 +34,5 @@ int main(int argc, char *argv[]) {
             std::fprintf(stderr, "zomg %ld, %ld is %f\n", i, j, zomg(i, j));
         }
     }
+#endif
 }
