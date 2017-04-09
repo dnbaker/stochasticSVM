@@ -37,7 +37,7 @@ struct TanhKernelMatrix {
     const FloatType c_;
     template<typename MatrixType>
     blaze::SymmetricMatrix<MatrixType> operator()(MatrixType &a) const {
-        blaze::SymmetricMatrix<MatrixType> ret(a.rows(), a.columns());
+        blaze::SymmetricMatrix<MatrixType> ret(a.rows());
         for(size_t i(0); i < a.rows(); ++i) {
             for(size_t j(i); j < a.rows(); ++j) {
                 ret(i, j) = dot(row(a, i), row(a, j)) + c_;
