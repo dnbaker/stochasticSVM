@@ -3,6 +3,7 @@
 #include "lib/misc.h"
 #include "blaze/Math.h"
 #include "lib/parse.h"
+#include "lib/kernel.h"
 
 namespace svm {
 

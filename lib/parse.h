@@ -1,3 +1,5 @@
+#ifndef _PARSE_H_
+#define _PARSE_H_
 #include "lib/misc.h"
 #include <iostream>
 #include <fstream>
@@ -48,4 +50,6 @@ std::pair<DynamicMatrix<MatrixType>, DynamicVector<VectorType>> parse_problem(co
     return std::pair<DynamicMatrix<MatrixType>, DynamicVector<VectorType>>(std::move(m), std::move(v));
 }
 
-}
+} //namespace svm
+
+#endif // _PARSE_H_
