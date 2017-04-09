@@ -11,6 +11,24 @@
 #include "blaze/Math.h"
 #include "klib/kstring.h"
 
+#ifdef __GNUC__
+#  define likely(x) __builtin_expect((x),1)
+#  define unlikely(x) __builtin_expect((x),0)
+#  define UNUSED(x) __attribute__((unused)) x
+#else
+#  define likely(x) (x)
+#  define unlikely(x) (x)
+#  define UNUSED(x) (x)
+#endif
+
+#ifndef INLINE
+#  if __GNUC__ || __clang__
+#  define INLINE __attribute__((always_inline)) inline
+#  else
+#  define INLINE inline
+#  endif
+#endif
+
 namespace svm {
 
 using std::size_t;

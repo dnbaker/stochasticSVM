@@ -6,12 +6,26 @@
 
 namespace svm {
 
+
+// TODO: Polynomial kernels
+
+template<typename MatrixType, typename FloatType=float>
+INLINE dot(MatrixType &a, MatrixType &b) {
+    return a * trans(b);
+}
+
+template<typename MatrixType, typename FloatType=float>
+INLINE diffnorm(MatrixType &a, MatrixType &b) {
+    const auto norm(a - b);
+    return dot(norm, norm);
+}
+
 template<typename FloatType>
 struct LinearKernel {
     // TODO: Expand this to somehow exploit matrix structure/instrinsics for better performance?
     template<typename MatrixType>
     FloatType operator()(MatrixType &a, MatrixType &b) const {
-        return a * trans(b);
+        return dot<MatrixType, FloatType>(a, b);
     }
 };
 
@@ -21,9 +35,7 @@ struct RBFKernel {
     const FloatType mgamma_;
     template<typename MatrixType>
     FloatType operator()(MatrixType &a, MatrixType &b) const {
-        const auto diff(a - b);
-        const FloatType norm(diff * trans(diff));
-        return std::exp(mgamma_ * norm);
+        return std::exp(mgamma_ * diffnorm<MatrixType, FloatType>(a, b));
     }
     RBFKernel(FloatType gamma): mgamma_(-gamma) {}
 };
@@ -35,8 +47,7 @@ struct TanhKernel {
     const FloatType c_;
     template<typename MatrixType>
     FloatType operator()(MatrixType &a, MatrixType &b) const {
-        const FloatType dot(a * trans(b));
-        return std::tanh(dot * k_ + c_) ;
+        return std::tanh(dot<MatrixType, FloatType>(a, b) * k_ + c_) ;
     }
     TanhKernel(FloatType k, FloatType c): k_(k), c_(c) {}
 };
