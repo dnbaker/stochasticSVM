@@ -39,6 +39,17 @@ using blaze::DynamicMatrix;
 
 std::pair<size_t, unsigned> count_dims(const char *fn, size_t bufsize=1<<16);
 
+template<typename MatrixType, typename FloatType=float>
+INLINE dot(MatrixType &a, MatrixType &b) {
+    return a * trans(b);
+}
+
+template<typename MatrixType, typename FloatType=float>
+INLINE diffnorm(MatrixType &a, MatrixType &b) {
+    const auto norm(a - b);
+    return dot(norm, norm);
+}
+
 } // namespace svm
 
 

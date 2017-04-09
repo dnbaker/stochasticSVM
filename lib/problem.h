@@ -10,48 +10,6 @@ namespace svm {
 // TODO: Polynomial kernels
 // TODO: Gradients
 
-template<typename MatrixType, typename FloatType=float>
-INLINE dot(MatrixType &a, MatrixType &b) {
-    return a * trans(b);
-}
-
-template<typename MatrixType, typename FloatType=float>
-INLINE diffnorm(MatrixType &a, MatrixType &b) {
-    const auto norm(a - b);
-    return dot(norm, norm);
-}
-
-template<typename FloatType>
-struct LinearKernel {
-    // TODO: Expand this to somehow exploit matrix structure/instrinsics for better performance?
-    template<typename MatrixType>
-    FloatType operator()(MatrixType &a, MatrixType &b) const {
-        return dot<MatrixType, FloatType>(a, b);
-    }
-};
-
-template<typename FloatType>
-struct RBFKernel {
-    // TODO: Expand this to somehow exploit matrix structure/instrinsics for better performance?
-    const FloatType mgamma_;
-    template<typename MatrixType>
-    FloatType operator()(MatrixType &a, MatrixType &b) const {
-        return std::exp(mgamma_ * diffnorm<MatrixType, FloatType>(a, b));
-    }
-    RBFKernel(FloatType gamma): mgamma_(-gamma) {}
-};
-
-template<typename FloatType>
-struct TanhKernel {
-    // TODO: Expand this to somehow exploit matrix structure/instrinsics for better performance?
-    const FloatType k_;
-    const FloatType c_;
-    template<typename MatrixType>
-    FloatType operator()(MatrixType &a, MatrixType &b) const {
-        return std::tanh(dot<MatrixType, FloatType>(a, b) * k_ + c_) ;
-    }
-    TanhKernel(FloatType k, FloatType c): k_(k), c_(c) {}
-};
 
 template<class Kernel, typename MatrixType=float, typename VectorType=int>
 class SVM {
