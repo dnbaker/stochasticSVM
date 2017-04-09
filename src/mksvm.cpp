@@ -9,7 +9,16 @@ int main(int argc, char *argv[]) {
         }
     }
     auto pair(parse_problem<float, int>(argv[optind]));
+    auto row1(row(pair.first, 1));
+    auto row2(row(pair.first, 2));
+    LinearKernel<float> lk;
+    RBFKernel<float>    gk(0.2);
+    std::fprintf(stderr, "Kernel result: %f\n", gk(row1, row2));
 #if 0
+    std::fprintf(stderr, "Kernel result: %f\n", lk(row1, row2));
+    float zomg(0);
+    for(u32 i(0); i < row1.size(); ++i) zomg += row1[i] * row2[i];
+    std::fprintf(stderr, "Kernel result: %f\n", zomg);
     // Just testing blaze.
     DynamicMatrix<float> m(4000, 10);
     DynamicMatrix<float> n(10, 4000);
