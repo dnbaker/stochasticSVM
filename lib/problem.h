@@ -8,6 +8,7 @@ namespace svm {
 
 template<typename FloatType>
 struct LinearKernel {
+    // TODO: Expand this to somehow exploit matrix structure/instrinsics for better performance?
     template<typename MatrixType>
     FloatType operator()(MatrixType &a, MatrixType &b) const {
         return a * trans(b);
@@ -16,6 +17,7 @@ struct LinearKernel {
 
 template<typename FloatType>
 struct RBFKernel {
+    // TODO: Expand this to somehow exploit matrix structure/instrinsics for better performance?
     const FloatType mgamma_;
     template<typename MatrixType>
     FloatType operator()(MatrixType &a, MatrixType &b) const {
@@ -24,6 +26,19 @@ struct RBFKernel {
         return std::exp(mgamma_ * norm);
     }
     RBFKernel(FloatType gamma): mgamma_(-gamma) {}
+};
+
+template<typename FloatType>
+struct TanhKernel {
+    // TODO: Expand this to somehow exploit matrix structure/instrinsics for better performance?
+    const FloatType k_;
+    const FloatType c_;
+    template<typename MatrixType>
+    FloatType operator()(MatrixType &a, MatrixType &b) const {
+        const FloatType dot(a * trans(b));
+        return std::tanh(dot * k_ + c_) ;
+    }
+    TanhKernel(FloatType k, FloatType c): k_(k), c_(c) {}
 };
 
 template<class Kernel, typename MatrixType=float, typename VectorType=int>
