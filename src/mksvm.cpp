@@ -11,11 +11,13 @@ int main(int argc, char *argv[]) {
     auto pair(parse_problem<float, int>(argv[optind]));
     auto row1(row(pair.first, 1));
     auto row2(row(pair.first, 2));
+#if 0
     LinearKernel<float> lk;
-    RBFKernel<float>    gk(0.2);
-    TanhKernel<float>   tk(0.2, 0.4);
-    std::fprintf(stderr, "Kernel result: %f\n", gk(row1, row2));
-    std::fprintf(stderr, "Kernel result: %f\n", tk(row1, row2));
+    RBFKernel<float>           gk(0.2);
+    TanhKernel<float>          tk(0.2, 0.4);
+#endif
+    TanhKernelMatrix<float>   tkm(0.2, 0.4);
+    DynamicMatrix<float> kernel_matrix(tkm(pair.first));
 #if 0
     std::fprintf(stderr, "Kernel result: %f\n", lk(row1, row2));
     float zomg(0);

@@ -36,13 +36,16 @@ using u32 = std::uint32_t;
 using u64 = std::uint64_t;
 using blaze::DynamicVector;
 using blaze::DynamicMatrix;
+using blaze::dot;
 
 std::pair<size_t, unsigned> count_dims(const char *fn, size_t bufsize=1<<16);
 
+#if 0
 template<typename MatrixType, typename FloatType=float>
 INLINE FloatType dot(MatrixType &a, MatrixType &b) {
-    return a * trans(b);
+    return inner(a, b);
 }
+#endif
 
 template<typename MatrixType, typename FloatType=float>
 INLINE FloatType diffnorm(MatrixType &a, MatrixType &b) {

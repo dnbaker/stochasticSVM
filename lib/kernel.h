@@ -11,7 +11,7 @@ struct LinearKernel {
     // TODO: Expand this to somehow exploit matrix structure/instrinsics for better performance?
     template<typename MatrixType>
     FloatType operator()(MatrixType &a, MatrixType &b) const {
-        return dot<MatrixType, FloatType>(a, b);
+        return dot(a, b);
     }
 };
 
@@ -33,7 +33,7 @@ struct TanhKernel {
     const FloatType c_;
     template<typename MatrixType>
     FloatType operator()(MatrixType &a, MatrixType &b) const {
-        return std::tanh(dot<MatrixType, FloatType>(a, b) * k_ + c_) ;
+        return std::tanh(dot(a, b) * k_ + c_);
     }
     TanhKernel(FloatType k, FloatType c): k_(k), c_(c) {}
 };

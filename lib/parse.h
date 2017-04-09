@@ -45,7 +45,6 @@ std::pair<DynamicMatrix<MatrixType>, DynamicVector<VectorType>> parse_problem(co
     } else for(auto i(std::begin(vec)), e(std::end(vec)); i != e; ++i) map[*i] = ++index;
     for(auto &i: v) i = map[i];
 #if !NDEBUG
-    for(auto i(0); i < (ssize_t)v.size(); ++i) std::fprintf(stderr, "Value at index %u of Y is %i\n", i, v[i]);
 #endif
     return std::pair<DynamicMatrix<MatrixType>, DynamicVector<VectorType>>(std::move(m), std::move(v));
 }

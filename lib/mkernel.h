@@ -1,8 +1,10 @@
 #ifndef _MKERNEL_H_
 #define _MKERNEL_H_
+#include "lib/kernel.h"
 
 namespace svm {
 
+#if 0
 template<typename FloatType>
 struct LinearKernel {
     template<typename MatrixType1, typename MatrixType2>
@@ -26,17 +28,25 @@ struct RBFKernel {
     }
     RBFKernel(FloatType gamma): mgamma_(-gamma) {}
 };
+#endif
 
-template<typename FloatType>
-struct TanhKernel {
+template<typename FloatType=float>
+struct TanhKernelMatrix {
     // TODO: Expand this to somehow exploit matrix structure/instrinsics for better performance?
     const FloatType k_;
     const FloatType c_;
     template<typename MatrixType>
-    FloatType operator()(MatrixType &a, MatrixType &b) const {
-        return std::tanh(dot<MatrixType, FloatType>(a, b) * k_ + c_) ;
+    blaze::SymmetricMatrix<MatrixType> operator()(MatrixType &a) const {
+        blaze::SymmetricMatrix<MatrixType> ret;
+        for(size_t i(0); i < a.rows(); ++i) {
+            for(size_t j(i); j < a.rows(); ++j) {
+                ret(i, j) = dot(row(a, i), row(a, j)) + c_;
+            }
+        }
+        ret *= k_;
+        return tanh(ret);
     }
-    TanhKernel(FloatType k, FloatType c): k_(k), c_(c) {}
+    TanhKernelMatrix(FloatType k, FloatType c): k_(k), c_(c){}
 };
 
 } // namespace svm
