@@ -16,8 +16,10 @@ int main(int argc, char *argv[]) {
     RBFKernel<float>           gk(0.2);
     TanhKernel<float>          tk(0.2, 0.4);
 #endif
+#if GENERATE_TANH_KERNEL
     TanhKernelMatrix<float>   tkm(0.2, 0.4);
     DynamicMatrix<float> kernel_matrix(tkm(pair.first));
+#endif
 #if 0
     std::fprintf(stderr, "Kernel result: %f\n", lk(row1, row2));
     float zomg(0);
