@@ -8,6 +8,7 @@ namespace svm {
 
 
 // TODO: Polynomial kernels
+// TODO: Gradients
 
 template<typename MatrixType, typename FloatType=float>
 INLINE dot(MatrixType &a, MatrixType &b) {
