@@ -8,7 +8,9 @@
 #include <cstring>
 #include <algorithm>
 #include <cassert>
+#include <thread>
 #include "blaze/Math.h"
+#include "logutil.h"
 #include "klib/kstring.h"
 
 

@@ -5,8 +5,8 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
          -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
          -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter
 DBG:= # -D_GLIBCXX_DEBUG -DNDEBUG # -fno-inline
-OPT:= -O3 -funroll-loops -fopenmp \
-      -pipe -fno-strict-aliasing -march=native # -DUSE_PAR_HELPERS
+OPT:= -O3 -funroll-loops \
+      -pipe -fno-strict-aliasing -march=native -fopenmp # -DUSE_PAR_HELPERS
 OS:=$(shell uname)
 ifeq ($(OS),Darwin)
 	OPT := $(OPT) -Wa,-q

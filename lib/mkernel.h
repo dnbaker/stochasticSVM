@@ -32,7 +32,6 @@ struct RBFKernel {
 
 template<typename FloatType=float>
 struct TanhKernelMatrix {
-    // TODO: Expand this to somehow exploit matrix structure/instrinsics for better performance?
     const FloatType k_;
     const FloatType c_;
     template<typename MatrixType>
@@ -45,6 +44,18 @@ struct TanhKernelMatrix {
         }
         ret *= k_;
         return tanh(ret);
+    }
+    template<typename MatrixType>
+    blaze::SymmetricMatrix<MatrixType> &operator()(MatrixType &a, blaze::SymmetricMatrix<MatrixType> ret) const {
+        if(ret.rows() != a.rows()) ret.resize(a.rows());
+        for(size_t i(0); i < a.rows(); ++i) {
+            for(size_t j(i); j < a.rows(); ++j) {
+                ret(i, j) = dot(row(a, i), row(a, j)) + c_;
+            }
+        }
+        ret *= k_;
+        ret = tanh(ret);
+        return ret;
     }
     TanhKernelMatrix(FloatType k, FloatType c): k_(k), c_(c){}
 };

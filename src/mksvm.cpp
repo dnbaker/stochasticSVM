@@ -3,11 +3,14 @@
 using namespace svm;
 
 int main(int argc, char *argv[]) {
-    int c;
+    int c, nthreads(std::thread::hardware_concurrency());
     while((c = getopt(argc, argv, "w:M:S:p:k:T:F:tfHh?")) >= 0) {
         switch(c) {
+            case 'p': nthreads = atoi(optarg); break;
         }
     }
+    blaze::setNumThreads(nthreads);
+    LOG_ASSERT(blaze::getNumThreads() == nthreads);
     auto pair(parse_problem<float, int>(argv[optind]));
     auto row1(row(pair.first, 1));
     auto row2(row(pair.first, 2));
@@ -16,7 +19,8 @@ int main(int argc, char *argv[]) {
     RBFKernel<float>           gk(0.2);
     TanhKernel<float>          tk(0.2, 0.4);
 #endif
-#if GENERATE_TANH_KERNEL
+//#if GENERATE_TANH_KERNEL
+#if 1
     TanhKernelMatrix<float>   tkm(0.2, 0.4);
     DynamicMatrix<float> kernel_matrix(tkm(pair.first));
 #endif

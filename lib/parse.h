@@ -19,19 +19,19 @@ std::pair<DynamicMatrix<MatrixType>, DynamicVector<VectorType>> parse_problem(co
     std::string line;
     size_t linenum(0);
     char *p;
+    int max(16), *t((int *)malloc(max * sizeof(int)));
     while(fh.good()) {
         std::getline(fh, line);
         if(line.empty() || line[0] == '#' || line[0] == '\n') continue;
         p = &line[0];
-        for(unsigned ind(0); ind < dims.second; ++ind) {
-            while(std::isspace(*p)) ++p;
-            m(linenum, ind) = atof(p);
-            while(!std::isspace(*p)) ++p;
-        }
-        while(std::isspace(*p)) ++p;
-        v[linenum] = atoi(p);
-        ++linenum;
+        //const auto pc(line.data());
+        const int ntoks(ksplit_core(p, 0, &max, &t));
+        if(dims.second != ntoks - 1) LOG_EXIT("Expected %i data rows. Found %i\n", dims.second, ntoks - 1);
+        for(int i(0); i < ntoks - 1; ++i) m(linenum, i) = atof(p + t[i]);
+        v[linenum++] = atoi(p + t[ntoks - 1]);
+        if(linenum % 10000 == 0) std::fprintf(stderr, "Parsed %zu lines\n", linenum);
     }
+    free(t);
     std::fprintf(stderr, "linenum: %zu. num rows: %zu. cols: %zu.\n", linenum, m.rows(), m.columns());
     assert(linenum == dims.first);
     std::set<VectorType> set(std::begin(v), std::end(v));
