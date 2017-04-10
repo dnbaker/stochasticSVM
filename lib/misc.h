@@ -44,7 +44,7 @@ using blaze::DynamicVector;
 using blaze::DynamicMatrix;
 using blaze::dot;
 
-std::pair<size_t, unsigned> count_dims(const char *fn, size_t bufsize=1<<16);
+std::pair<size_t, size_t> count_dims(const char *fn, size_t bufsize=1<<16);
 
 #if 0
 template<typename MatrixType, typename FloatType=float>

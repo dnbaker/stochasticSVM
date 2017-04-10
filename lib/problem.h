@@ -2,6 +2,7 @@
 #define _PROBLEM_H_
 #include "lib/misc.h"
 #include "blaze/Math.h"
+#include "lib/parse.h"
 #include "lib/kernel.h"
 #include "lib/mkernel.h"
 #include "lib/learning_rate.h"
@@ -38,36 +39,9 @@ public:
 
 private:
     void load_data(const char *path) {
-        std::ios::sync_with_stdio(false);
-        std::pair<size_t, unsigned> dims(count_dims(path));
-        nd_ = dims.second;
-        ns_ = dims.first;
-        m_ = DynamicMatrix<MatrixType>(ns_, nd_);
-        v_ = DynamicVector<VectorType>(ns_);
-        gzFile fp(gzopen(path, "rb"));
-        if(fp == nullptr) throw std::runtime_error(std::string("Could not open file at ") + path);
-        std::string line;
-        size_t linenum(0);
-        char *p;
-        int c;
-        int max(16), *t((int *)malloc(max * sizeof(int)));
-        while((c = gzgetc(fp)) != EOF) {
-            line += c;
-            if(c != '\n') continue;
-            // Makeshift buffer with std::string.
-            p = &line[0];
-            //const auto pc(line.data());
-            const int ntoks(ksplit_core(p, 0, &max, &t));
-            if(nd_ != ntoks - 1) LOG_EXIT("Expected %i data rows. Found %i\n", nd_, ntoks - 1);
-            for(int i(0); i < ntoks - 1; ++i) m_(linenum, i) = atof(p + t[i]);
-            v_[linenum++] = atoi(p + t[ntoks - 1]);
-            if(linenum % 10000 == 0) std::fprintf(stderr, "Parsed %zu lines\n", linenum);
-            line.clear();
-        }
-        free(t);
-        gzclose(fp);
-        std::fprintf(stderr, "linenum: %zu. num rows: %zu. cols: %zu.\n", linenum, m_.rows(), m_.columns());
-        assert(linenum == ns_);
+        std::tie(ns_, nd_) = count_dims(path);
+        std::tie(m_, v_) = parse_problem(path, nd_, ns_);
+        // Normalize v_
         std::set<VectorType> set(std::begin(v_), std::end(v_));
         std::vector<VectorType> vec(std::begin(set), std::end(set));
         std::sort(std::begin(vec), std::end(vec));
@@ -84,16 +58,16 @@ private:
         //init_weights();
         w_ = DynamicMatrix<MatrixType>(ns_, nc_ == 2 ? 1: nc_);
     }
-#if 0
     // If linear, initialize w_ to any with norm \geq 1/lambda.
-    template<typename = std::enable_if<std::is_same<LinearKernel, Kernel>::value>>
+    template<typename = std::enable_if<std::is_same<LinearKernel<double>, Kernel>::value ||
+                                       std::is_same<LinearKernel<float>, Kernel>::value>
     void init_weights() {
         w_ = std::sqrt(1. / lambda_) / ns_;
     }
     // Otherwise, initialize to 0. This instead holds the number of times a nonzero loss was found with this element.
-    template<typename = std::enable_if<!std::is_same<LinearKernel, Kernel>::value>>
+    template<typename = std::enable_if<!std::is_same<LinearKernel<double>, Kernel>::value &&
+                                       !std::is_same<LinearKernel<float>, Kernel>::value>
     void init_weights() {w_ = 0;}
-#endif
     // Training
     // For kernel, see fig. 3. http://ttic.uchicago.edu/~nati/Publications/PegasosMPB.pdf
     // For linear, see section 2. http://www.ee.oulu.fi/research/imag/courses/Vedaldi/ShalevSiSr07.pdf

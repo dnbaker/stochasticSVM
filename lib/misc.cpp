@@ -4,7 +4,7 @@
 
 namespace svm {
 
-std::pair<size_t, unsigned> count_dims(const char *fn, size_t bufsize) {
+std::pair<size_t, size_t> count_dims(const char *fn, size_t bufsize) {
     size_t nlines(0);
     int mcols(1<<10), *t((int *)malloc(mcols * sizeof(int)));
     gzFile fp(gzopen(fn, "rb"));
@@ -20,7 +20,7 @@ std::pair<size_t, unsigned> count_dims(const char *fn, size_t bufsize) {
         }
     }
     while((c = gzgetc(fp)) != EOF) nlines += (c == '\n');
-    return std::pair<size_t, unsigned>(nlines, ncols - 1); // subtract one for the labels.
+    return std::pair<size_t, size_t>(nlines, ncols - 1); // subtract one for the labels.
 }
 
 } //namespace svm
