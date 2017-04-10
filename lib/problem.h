@@ -35,12 +35,13 @@ public:
     }
     size_t get_nsamples() {return ns_;}
     size_t get_ndims()    {return nd_;}
+    auto &get_matrix()    {return m_;}
 
 
 private:
     void load_data(const char *path) {
         std::tie(ns_, nd_) = count_dims(path);
-        std::tie(m_, v_) = parse_problem(path, nd_, ns_);
+        std::tie(m_, v_) = parse_problem<MatrixType, VectorType>(path, nd_, ns_);
         // Normalize v_
         std::set<VectorType> set(std::begin(v_), std::end(v_));
         std::vector<VectorType> vec(std::begin(set), std::end(set));
@@ -59,6 +60,7 @@ private:
         w_ = DynamicMatrix<MatrixType>(ns_, nc_ == 2 ? 1: nc_);
     }
     // If linear, initialize w_ to any with norm \geq 1/lambda.
+#if 0
     template<typename = std::enable_if<std::is_same<LinearKernel<double>, Kernel>::value ||
                                        std::is_same<LinearKernel<float>, Kernel>::value>
     void init_weights() {
@@ -68,6 +70,7 @@ private:
     template<typename = std::enable_if<!std::is_same<LinearKernel<double>, Kernel>::value &&
                                        !std::is_same<LinearKernel<float>, Kernel>::value>
     void init_weights() {w_ = 0;}
+#endif
     // Training
     // For kernel, see fig. 3. http://ttic.uchicago.edu/~nati/Publications/PegasosMPB.pdf
     // For linear, see section 2. http://www.ee.oulu.fi/research/imag/courses/Vedaldi/ShalevSiSr07.pdf

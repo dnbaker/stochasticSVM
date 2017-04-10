@@ -3,10 +3,15 @@
 using namespace svm;
 
 int main(int argc, char *argv[]) {
-    int c, nthreads(std::thread::hardware_concurrency());
-    while((c = getopt(argc, argv, "w:M:S:p:k:T:F:tfHh?")) >= 0) {
+    int c;
+    double kappa(0.01);
+    double kc(-0.2);
+    unsigned nthreads(std::thread::hardware_concurrency());
+    while((c = getopt(argc, argv, "w:M:S:p:k:f:h?")) >= 0) {
         switch(c) {
             case 'p': nthreads = atoi(optarg); break;
+            case 'k': kappa    = atof(optarg); break;
+            case 'c': kc       = atof(optarg); break;
         }
     }
     blaze::setNumThreads(nthreads);
@@ -15,20 +20,26 @@ int main(int argc, char *argv[]) {
 #if 0
     auto row1(row(pair.first, 1));
     auto row2(row(pair.first, 2));
-    LinearKernel<float> lk;
-    RBFKernel<float>           gk(0.2);
-    TanhKernel<float>          tk(0.2, 0.4);
+    RBFKernel<double>           gk(0.2);
+    TanhKernel<double>          tk(0.2, 0.4);
 #endif
 //#if GENERATE_TANH_KERNEL
-#if 1
-    TanhKernelMatrix<float>   tkm(0.2, 0.4);
-    //DynamicMatrix<float> kernel_matrix(tkm(pair.first));
-#endif
 #if 0
+    TanhKernelMatrix<double>   tkm(kappa, kc);
+    DynamicMatrix<double> kernel_matrix(tkm(svm.get_matrix()));
+    for(size_t i(0), e(kernel_matrix.rows()); i != e; ++i) { for(size_t j(0), f(kernel_matrix.columns()); j != f; ++j) {
+        std::fprintf(stderr, "km value at i is %f\n", kernel_matrix(i, j));
+    } }
+#endif
+#if 1
+    LinearKernel<double> lk;
+    float zomg(0.);
+    auto row1(row(svm.get_matrix(), 0));
+    auto row2(row(svm.get_matrix(), 1));
     std::fprintf(stderr, "Kernel result: %f\n", lk(row1, row2));
-    float zomg(0);
     for(u32 i(0); i < row1.size(); ++i) zomg += row1[i] * row2[i];
     std::fprintf(stderr, "Kernel result: %f\n", zomg);
+#if 0
     // Just testing blaze.
     DynamicMatrix<float> m(4000, 10);
     DynamicMatrix<float> n(10, 4000);
@@ -53,5 +64,6 @@ int main(int argc, char *argv[]) {
             std::fprintf(stderr, "zomg %ld, %ld is %f\n", i, j, zomg(i, j));
         }
     }
+#endif
 #endif
 }

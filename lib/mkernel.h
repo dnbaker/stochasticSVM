@@ -2,6 +2,8 @@
 #define _MKERNEL_H_
 #include "lib/kernel.h"
 
+
+
 namespace svm {
 
 #if 0
@@ -35,27 +37,26 @@ struct TanhKernelMatrix {
     const FloatType k_;
     const FloatType c_;
     template<typename MatrixType>
-    blaze::SymmetricMatrix<MatrixType> operator()(MatrixType &a) const {
-        blaze::SymmetricMatrix<MatrixType> ret(a.rows());
-        for(size_t i(0); i < a.rows(); ++i) {
-            for(size_t j(i); j < a.rows(); ++j) {
-                ret(i, j) = dot(row(a, i), row(a, j)) + c_;
-            }
-        }
-        ret *= k_;
-        return tanh(ret);
-    }
-    template<typename MatrixType>
     blaze::SymmetricMatrix<MatrixType> &operator()(MatrixType &a, blaze::SymmetricMatrix<MatrixType> ret) const {
         if(ret.rows() != a.rows()) ret.resize(a.rows());
+        assert(ret.rows() == a.rows());
+        assert(ret.columns() == a.rows());
+        ret(3, 2) = 4.;
+        LOG_DEBUG("Ret of 3,2: %f\n", ret(3, 2));
         for(size_t i(0); i < a.rows(); ++i) {
             for(size_t j(i); j < a.rows(); ++j) {
                 ret(i, j) = dot(row(a, i), row(a, j)) + c_;
+                LOG_DEBUG("At %zu, %zu value is %f. Dot: %f. c: %f. Should be %f\n", i, j, ret(i, j), dot(row(a, i), row(a, j)), c_, dot(row(a, i), row(a, j)) + c_);
             }
         }
         ret *= k_;
         ret = tanh(ret);
         return ret;
+    }
+    template<typename MatrixType>
+    blaze::SymmetricMatrix<MatrixType> operator()(MatrixType &a) const {
+        blaze::SymmetricMatrix<MatrixType> ret(a.rows());
+        operator()<MatrixType>(a, ret);
     }
     TanhKernelMatrix(FloatType k, FloatType c): k_(k), c_(c){}
 };
