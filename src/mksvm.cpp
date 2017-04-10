@@ -11,10 +11,10 @@ int main(int argc, char *argv[]) {
     }
     blaze::setNumThreads(nthreads);
     LOG_ASSERT(blaze::getNumThreads() == nthreads);
-    auto pair(parse_problem<float, int>(argv[optind]));
+    SVM<LinearKernel<double>> svm(argv[optind], 0.4, 256);
+#if 0
     auto row1(row(pair.first, 1));
     auto row2(row(pair.first, 2));
-#if 0
     LinearKernel<float> lk;
     RBFKernel<float>           gk(0.2);
     TanhKernel<float>          tk(0.2, 0.4);
@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
 //#if GENERATE_TANH_KERNEL
 #if 1
     TanhKernelMatrix<float>   tkm(0.2, 0.4);
-    DynamicMatrix<float> kernel_matrix(tkm(pair.first));
+    //DynamicMatrix<float> kernel_matrix(tkm(pair.first));
 #endif
 #if 0
     std::fprintf(stderr, "Kernel result: %f\n", lk(row1, row2));

@@ -9,6 +9,9 @@
 #include <algorithm>
 #include <cassert>
 #include <thread>
+#include <map>
+#include <set>
+#include <zlib.h>
 #include "blaze/Math.h"
 #include "logutil.h"
 #include "klib/kstring.h"

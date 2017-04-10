@@ -2,7 +2,6 @@
 #define _KERNEL_H_
 #include "lib/misc.h"
 #include "blaze/Math.h"
-#include "lib/parse.h"
 
 namespace svm {
 
