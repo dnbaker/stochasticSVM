@@ -71,13 +71,12 @@ private:
             MatrixType min(std::numeric_limits<MatrixType>::max()), max(std::numeric_limits<MatrixType>::min());
             for(size_t j = 0; j < ns_; ++j) {
                 if(m_(i, j) > max) max = m_(i, j);
-                if(m_(i, j) > min) min = m_(i, j);
+                if(m_(i, j) < min) min = m_(i, j);
             }
             r_(i, 0) = min;
             const MatrixType factor(1. / (max - r_(i, 0)));
             r_(i, 1) = factor;
-            auto col(column(m_, i));
-            for(auto &c: col) c = (c - min) * factor;
+            for(auto &c: column(m_, i)) c = (c - min) * factor;
         }
     }
     // If linear, initialize w_ to any with norm \geq 1/lambda.

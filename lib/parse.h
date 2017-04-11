@@ -49,7 +49,6 @@ std::tuple<DynamicMatrix<MatrixType>, DynamicVector<VectorType>, std::unordered_
             assert(p < line_end);
         }
         while(std::isspace(*p)) ++p;
-        *strchr(p, '\n') = 0;
         class_name = p;
         auto m(name_map.find(class_name));
         if(m == name_map.end()) {
@@ -60,7 +59,7 @@ std::tuple<DynamicMatrix<MatrixType>, DynamicVector<VectorType>, std::unordered_
         //if(!(linenum & 255)) LOG_DEBUG("%zu lines processed\n", linenum);
         line.clear();
     }
-    cerr << "Matrix is \n" << m;
+    //cerr << "Matrix is \n" << m;
     gzclose(fp);
     LOG_DEBUG("linenum: %zu. num rows: %zu. cols: %zu.\n", linenum, m.rows(), m.columns());
     assert(linenum == dims.ns_);
