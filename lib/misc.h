@@ -61,17 +61,23 @@ struct dims_t {
     dims_t(const char *fn);
 };
 
-#if 0
-template<typename MatrixType, typename FloatType=float>
-INLINE FloatType dot(MatrixType &a, MatrixType &b) {
-    return inner(a, b);
-}
-#endif
-
 template<typename MatrixType, typename FloatType=float>
 INLINE FloatType diffnorm(MatrixType &a, MatrixType &b) {
     const auto norm(a - b);
     return dot(norm, norm);
+}
+
+template<class Container, typename FloatType>
+FloatType variance(const Container &c, const FloatType mean) {
+    FloatType sum(0.), tmp;
+    for(auto entry: c) tmp = entry - mean, sum += tmp * tmp;
+    return sum / c.size();
+}
+template<class Container, typename FloatType>
+FloatType variance(const Container &c) {
+    FloatType sum(0.);
+    for(auto entry: c) sum += c;
+    return variance(c, sum / c.size());
 }
 
 } // namespace svm

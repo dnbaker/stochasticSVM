@@ -51,7 +51,9 @@ struct TanhKernelMatrix {
         for(size_t i(0); i < len; ++i)
             for(size_t j = i; j < len; ++j)
                 ret(i, j) = static_cast<FloatType>(dot(row(a, i), row(a, j))) + c_;
+        //cerr << "pre-tanh" << ret << '\n';
         ret = tanh(ret * k_);
+        //cerr << "post-tanh" << ret << '\n';
         return ret;
     }
     template<typename MatrixType, typename ReturnMatrixType=blaze::SymmetricMatrix<MatrixType>>

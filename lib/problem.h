@@ -14,6 +14,7 @@ namespace svm {
 // TODO: Gradients
 
 
+
 template<class Kernel, typename MatrixType=float, typename VectorType=int, class LearningPolicy=PegasosLearningRate<MatrixType>>
 class SVM {
     DynamicMatrix<MatrixType, blaze::rowMajor> m_; // Training Data
@@ -62,21 +63,30 @@ private:
         //init_weights();
         w_ = DynamicMatrix<MatrixType>(ns_, nc_ == 2 ? 1: nc_);
         rescale();
+#if !NDEBUG
+        for(size_t i(0); i < w_.rows(); ++i) { for(size_t j(0); j < w_.rows(); ++j) {
+            assert(w_(i, j) >= 0); assert(w_(i, j) <= 1.);
+        } }
+#endif
     }
     void rescale() {
         r_ = DynamicMatrix<MatrixType>(nd_, 2);
         // Could/Should rewrite with pthread-type parallelization and get better memory access pattern.
         #pragma omp parallel for schedule(dynamic)
         for(size_t i = 0; i < nd_; ++i) {
-            MatrixType min(std::numeric_limits<MatrixType>::max()), max(std::numeric_limits<MatrixType>::min());
+            MatrixType min(std::numeric_limits<MatrixType>::max()), max(std::numeric_limits<MatrixType>::min()), mean(0.);
             for(size_t j = 0; j < ns_; ++j) {
                 if(m_(i, j) > max) max = m_(i, j);
                 if(m_(i, j) < min) min = m_(i, j);
+                mean += m_(i, j);
             }
-            r_(i, 0) = min;
-            const MatrixType factor(1. / (max - r_(i, 0)));
-            r_(i, 1) = factor;
-            for(auto &c: column(m_, i)) c = (c - min) * factor;
+            mean /= ns_;
+            MatrixType var(variance(column(m_, i), mean));
+            cerr << "variance: " << var << " for n = " << ns_ << '\n';
+            r_(i, 0) = mean;
+            r_(i, 1) = 1. / std::sqrt(var);
+            for(auto &c: column(m_, i)) c = (c - mean) * r_(i, 1);
+            //cerr << "Variance after scaling: " << variance(column(m_, i), 0.) << '\n';
         }
     }
     // If linear, initialize w_ to any with norm \geq 1/lambda.
