@@ -6,7 +6,7 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
          -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter
 DBG:= # -DNDEBUG # -D_GLIBCXX_DEBUG -DNDEBUG # -fno-inline
 OPT:= -O3 -funroll-loops \
-      -pipe -fno-strict-aliasing -march=native -fopenmp # -DUSE_PAR_HELPERS
+      -pipe -fno-strict-aliasing -march=native -fopenmp
 OS:=$(shell uname)
 ifeq ($(OS),Darwin)
 	OPT := $(OPT) -Wa,-q
@@ -14,7 +14,7 @@ else
     OPT := $(OPT) -flto
 endif
 XXFLAGS=-fno-rtti
-CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS)
+CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++14 $(WARNINGS)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread
 LD=-L.

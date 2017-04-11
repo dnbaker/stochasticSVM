@@ -13,6 +13,8 @@
 #include <set>
 #include <limits>
 #include <zlib.h>
+#include <iostream>
+#include <fstream>
 #include "blaze/Math.h"
 #include "logutil.h"
 #include "klib/kstring.h"
@@ -37,6 +39,9 @@
 #endif
 
 namespace svm {
+
+using std::cerr;
+using std::cout;
 
 using std::size_t;
 using u32 = std::uint32_t;

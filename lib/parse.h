@@ -50,7 +50,7 @@ std::pair<DynamicMatrix<MatrixType>, DynamicVector<VectorType>> parse_problem(co
         //if(!(linenum & 255)) LOG_DEBUG("%zu lines processed\n", linenum);
         line.clear();
     }
-    for(u64 i(0); i < m.rows(); ++i) for(u64 j(0); j < m.columns(); ++j) LOG_DEBUG("ZOMGZ %i, %i has %f\n", i, j, m(i, j));
+    cerr << m;
     gzclose(fp);
     LOG_DEBUG("linenum: %zu. num rows: %zu. cols: %zu.\n", linenum, m.rows(), m.columns());
     assert(linenum == dims.ns_);

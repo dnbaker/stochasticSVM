@@ -16,7 +16,7 @@ namespace svm {
 
 template<class Kernel, typename MatrixType=float, typename VectorType=int, class LearningPolicy=PegasosLearningRate<MatrixType>>
 class SVM {
-    DynamicMatrix<MatrixType> m_; // Training Data
+    DynamicMatrix<MatrixType, blaze::rowMajor> m_; // Training Data
     DynamicMatrix<MatrixType> w_; // Only used in classification for kernel, though used for traiing and classification in linear.
     DynamicVector<VectorType> a_; // Only used for kernel.
     DynamicVector<VectorType> v_; // Labels
@@ -60,7 +60,7 @@ private:
         nc_ = map.size();
         //init_weights();
         w_ = DynamicMatrix<MatrixType>(ns_, nc_ == 2 ? 1: nc_);
-        rescale();
+        //rescale();
     }
     void rescale() {
         r_ = DynamicMatrix<MatrixType>(nd_, 2);
