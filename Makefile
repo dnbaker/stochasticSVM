@@ -4,7 +4,7 @@ CC=gcc
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
          -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
          -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter
-DBG:= -DNDEBUG # -D_GLIBCXX_DEBUG -DNDEBUG # -fno-inline
+DBG:= # -DNDEBUG # -D_GLIBCXX_DEBUG -DNDEBUG # -fno-inline
 OPT:= -O3 -funroll-loops \
       -pipe -fno-strict-aliasing -march=native -fopenmp # -DUSE_PAR_HELPERS
 OS:=$(shell uname)
@@ -41,6 +41,9 @@ test/%.o: test/%.cpp
 
 %: src/%.o $(OBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
+
+%.o: %.c
+	$(CC) $(CCFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 
 tests: clean unit

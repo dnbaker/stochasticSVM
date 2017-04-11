@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
     }
     blaze::setNumThreads(nthreads);
     LOG_ASSERT(blaze::getNumThreads() == nthreads);
-    SVM<LinearKernel<double>> svm(argv[optind], 0.4, 256);
+    SVM<LinearKernel<double>, double> svm(argv[optind], 0.4, 256);
 #if 0
     auto row1(row(pair.first, 1));
     auto row2(row(pair.first, 2));

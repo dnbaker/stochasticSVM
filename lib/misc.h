@@ -11,6 +11,7 @@
 #include <thread>
 #include <map>
 #include <set>
+#include <limits>
 #include <zlib.h>
 #include "blaze/Math.h"
 #include "logutil.h"
@@ -42,9 +43,17 @@ using u32 = std::uint32_t;
 using u64 = std::uint64_t;
 using blaze::DynamicVector;
 using blaze::DynamicMatrix;
-using blaze::dot;
 
-std::pair<size_t, size_t> count_dims(const char *fn, size_t bufsize=1<<16);
+template<typename FloatType, typename MatrixType1, typename MatrixType2>
+FloatType dot(MatrixType1 &a, MatrixType2 &b) {
+    return static_cast<FloatType>(a * trans(b));
+}
+
+struct dims_t {
+    size_t ns_, nd_;
+    dims_t(size_t samples, size_t dimensions): ns_(samples), nd_(dimensions) {}
+    dims_t(const char *fn);
+};
 
 #if 0
 template<typename MatrixType, typename FloatType=float>

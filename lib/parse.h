@@ -9,19 +9,20 @@
 namespace svm {
 
 template<typename MatrixType, typename VectorType>
-std::pair<DynamicMatrix<MatrixType>, DynamicVector<VectorType>> parse_problem(const char *fn, const size_t ns, const size_t nd) {
+std::pair<DynamicMatrix<MatrixType>, DynamicVector<VectorType>> parse_problem(const char *fn, const dims_t &dims) {
     gzFile fp(gzopen(fn, "rb"));
     if(fp == nullptr) throw std::runtime_error(std::string("Could not open file at ") + fn);
     std::vector<char> line;
     line.reserve(1 << 12);
     size_t linenum(0);
     char *p;
+    LOG_DEBUG("ns: %zu. nd: %zu\n", dims.ns_, dims.nd_);
 #if !NDEBUG
     char *line_end;
 #endif
     int c;
-    DynamicMatrix<MatrixType> m(ns, nd);
-    DynamicVector<VectorType> v(ns);
+    DynamicMatrix<MatrixType> m(dims.ns_, dims.nd_);
+    DynamicVector<VectorType> v(dims.ns_);
     while((c = gzgetc(fp)) != EOF) {
         if(c != '\n') {
             line.push_back(c);
@@ -37,7 +38,7 @@ std::pair<DynamicMatrix<MatrixType>, DynamicVector<VectorType>> parse_problem(co
         line_end = &line[line.size() - 1];
 #endif
         unsigned ind(0);
-        for(ind = 0; ind < nd; ++ind) {
+        for(ind = 0; ind < dims.nd_; ++ind) {
             while(std::isspace(*p)) ++p;
             m(linenum, ind) = atof(p);
             while(!std::isspace(*p)) ++p;
@@ -46,20 +47,19 @@ std::pair<DynamicMatrix<MatrixType>, DynamicVector<VectorType>> parse_problem(co
         while(std::isspace(*p)) ++p;
         v[linenum] = atoi(p);
         ++linenum;
-        if(!(linenum & 255)) LOG_DEBUG("%zu lines processed\n", linenum);
+        //if(!(linenum & 255)) LOG_DEBUG("%zu lines processed\n", linenum);
+        line.clear();
     }
-    for(auto i(0); i < m.rows(); ++i) for(auto j(0); j < m.columns(); ++j) LOG_DEBUG("ZOMGZ %i, %i has %f\n", i, j, m(i, j));
+    for(u64 i(0); i < m.rows(); ++i) for(u64 j(0); j < m.columns(); ++j) LOG_DEBUG("ZOMGZ %i, %i has %f\n", i, j, m(i, j));
     gzclose(fp);
     LOG_DEBUG("linenum: %zu. num rows: %zu. cols: %zu.\n", linenum, m.rows(), m.columns());
-    assert(linenum == ns);
+    assert(linenum == dims.ns_);
     return std::pair<DynamicMatrix<MatrixType>, DynamicVector<VectorType>>(std::move(m), std::move(v));
 }
 
 template<typename MatrixType, typename VectorType>
 std::pair<DynamicMatrix<MatrixType>, DynamicVector<VectorType>> parse_problem(const char *fn) {
-    size_t nd, ns;
-    std::tie(ns, nd) = count_dims(fn);
-    return parse_problem<MatrixType, VectorType>(fn, ns, nd);
+    return parse_problem<MatrixType, VectorType>(fn, dims_t(fn));
 }
 
 } //namespace svm

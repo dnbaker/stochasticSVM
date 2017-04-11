@@ -20,6 +20,7 @@ class SVM {
     DynamicMatrix<MatrixType> w_; // Only used in classification for kernel, though used for traiing and classification in linear.
     DynamicVector<VectorType> a_; // Only used for kernel.
     DynamicVector<VectorType> v_; // Labels
+    DynamicMatrix<VectorType> r_; // Renormalization values. Subtraction, then multiplication
     const MatrixType     lambda_; // Lambda Parameter
     size_t                   nc_; // Number of classes
     size_t                  mbs_; // Mini-batch size
@@ -35,13 +36,14 @@ public:
     }
     size_t get_nsamples() {return ns_;}
     size_t get_ndims()    {return nd_;}
-    auto &get_matrix()    {return m_;}
+    auto  &get_matrix()   {return m_;}
 
 
 private:
     void load_data(const char *path) {
-        std::tie(ns_, nd_) = count_dims(path);
-        std::tie(m_, v_) = parse_problem<MatrixType, VectorType>(path, nd_, ns_);
+        dims_t dims(path);
+        ns_ = dims.ns_, nd_ = dims.nd_;
+        std::tie(m_, v_) = parse_problem<MatrixType, VectorType>(path, dims);
         // Normalize v_
         std::set<VectorType> set(std::begin(v_), std::end(v_));
         std::vector<VectorType> vec(std::begin(set), std::end(set));
@@ -58,6 +60,24 @@ private:
         nc_ = map.size();
         //init_weights();
         w_ = DynamicMatrix<MatrixType>(ns_, nc_ == 2 ? 1: nc_);
+        rescale();
+    }
+    void rescale() {
+        r_ = DynamicMatrix<MatrixType>(nd_, 2);
+        // Could/Should rewrite with pthread-type parallelization and get better memory access pattern.
+        #pragma omp parallel for schedule(dynamic)
+        for(size_t i = 0; i < nd_; ++i) {
+            MatrixType min(std::numeric_limits<MatrixType>::max()), max(std::numeric_limits<MatrixType>::min());
+            for(size_t j = 0; j < ns_; ++j) {
+                if(m_(i, j) > max) max = m_(i, j);
+                if(m_(i, j) > min) min = m_(i, j);
+            }
+            r_(i, 0) = min;
+            r_(i, 1) = 1. / (max - r_(i, 0));
+            const MatrixType factor(r_(i, 1));
+            auto col(column(m_, i));
+            for(auto &c: col) c = (c - min) * factor;
+        }
     }
     // If linear, initialize w_ to any with norm \geq 1/lambda.
 #if 0

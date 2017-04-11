@@ -4,23 +4,24 @@
 
 namespace svm {
 
-std::pair<size_t, size_t> count_dims(const char *fn, size_t bufsize) {
-    size_t nlines(0);
-    int mcols(1<<10), *t((int *)malloc(mcols * sizeof(int)));
+dims_t::dims_t(const char *fn): ns_(0), nd_(-1) {
+    int mcols(1<<5), *t((int *)malloc(mcols * sizeof(int)));
     gzFile fp(gzopen(fn, "rb"));
     std::string line;
-    size_t ncols(0);
     int c;
     while((c = gzgetc(fp)) != EOF) {
         line += (char)c;
         if(c == '\n') {
-            ncols = ksplit_core(&line[0], 0, &mcols, &t);
-            ++nlines;
+            nd_ = ksplit_core(&line[0], 0, &mcols, &t) - 1;
+            ++ns_;
+            line.clear();
             break;
         }
     }
-    while((c = gzgetc(fp)) != EOF) nlines += (c == '\n');
-    return std::pair<size_t, size_t>(nlines, ncols - 1); // subtract one for the labels.
+    if(nd_ + 1 == 0) throw std::runtime_error("nd_ not defined. Abort!");
+    free(t);
+    while((c = gzgetc(fp)) != EOF) ns_ += (c == '\n');
+    gzclose(fp);
 }
 
 } //namespace svm
