@@ -15,7 +15,10 @@ std::pair<DynamicMatrix<MatrixType>, DynamicVector<VectorType>> parse_problem(co
     std::vector<char> line;
     line.reserve(1 << 12);
     size_t linenum(0);
-    char *p, *line_end;
+    char *p;
+#if !NDEBUG
+    char *line_end;
+#endif
     int c;
     DynamicMatrix<MatrixType> m(ns, nd);
     DynamicVector<VectorType> v(ns);
@@ -29,7 +32,10 @@ std::pair<DynamicMatrix<MatrixType>, DynamicVector<VectorType>> parse_problem(co
             line.resize(0);
             continue;
         }
-        p = &line[0], line_end = &line[line.size() - 1];
+        p = &line[0];
+#if !NDEBUG
+        line_end = &line[line.size() - 1];
+#endif
         unsigned ind(0);
         for(ind = 0; ind < nd; ++ind) {
             while(std::isspace(*p)) ++p;
@@ -40,6 +46,7 @@ std::pair<DynamicMatrix<MatrixType>, DynamicVector<VectorType>> parse_problem(co
         while(std::isspace(*p)) ++p;
         v[linenum] = atoi(p);
         ++linenum;
+        if(!(linenum & 255)) LOG_DEBUG("%zu lines processed\n", linenum);
     }
     for(auto i(0); i < m.rows(); ++i) for(auto j(0); j < m.columns(); ++j) LOG_DEBUG("ZOMGZ %i, %i has %f\n", i, j, m(i, j));
     gzclose(fp);

@@ -43,8 +43,10 @@ struct TanhKernelMatrix {
         assert(ret.columns() == a.rows());
         ret(3, 2) = 4.;
         LOG_DEBUG("Ret of 3,2: %f\n", ret(3, 2));
-        for(size_t i(0); i < a.rows(); ++i) {
-            for(size_t j(i); j < a.rows(); ++j) {
+        const size_t len(a.rows());
+        for(size_t i(0); i < len; ++i) {
+            #pragma omp parallel for schedule(dynamic, 16)
+            for(size_t j = i; j < len; ++j) {
                 ret(i, j) = dot(row(a, i), row(a, j)) + c_;
                 LOG_DEBUG("At %zu, %zu value is %f. Dot: %f. c: %f. Should be %f\n", i, j, ret(i, j), dot(row(a, i), row(a, j)), c_, dot(row(a, i), row(a, j)) + c_);
             }
