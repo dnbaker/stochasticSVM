@@ -44,21 +44,14 @@ struct TanhKernelMatrix {
     const FloatType c_;
     template<typename MatrixType, typename ReturnMatrixType=blaze::SymmetricMatrix<MatrixType>>
     ReturnMatrixType &operator()(MatrixType &a, ReturnMatrixType &ret) const {
-        cerr << "rows: " << a.rows() << '\n';
         if(ret.rows() != a.rows()) ret.resize(a.rows());
         assert(ret.rows() == a.rows());
         assert(ret.columns() == a.rows());
         const size_t len(a.rows());
-        for(size_t i(0); i < len; ++i) {
-            for(size_t j = i; j < len; ++j) {
+        for(size_t i(0); i < len; ++i)
+            for(size_t j = i; j < len; ++j)
                 ret(i, j) = static_cast<FloatType>(dot(row(a, i), row(a, j))) + c_;
-                std::fprintf(stderr, "[%s] Value at %zu, %zu is %f\n", __func__, i, j, ret(i, j));
-                cerr << "Value at " << i << ", " << j << " is " << ret(i, j) << '\n';
-            }   
-        }
-        cerr << "ret is \n" << ret;
         ret = tanh(ret * k_);
-        cerr << "after tanh\n" << ret;
         return ret;
     }
     template<typename MatrixType, typename ReturnMatrixType=blaze::SymmetricMatrix<MatrixType>>

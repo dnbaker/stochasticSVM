@@ -27,10 +27,11 @@ class SVM {
     size_t                   ns_; // Number samples
     size_t                   nd_; // Number of dimensions
     LearningPolicy           lp_; // Calculates learing rate at a timestep t.
+    std::unordered_map<VectorType, std::string> class_name_map_;
     
 
 public:
-    SVM(const char *path, MatrixType lambda, size_t mini_batch_size)
+    SVM(const char *path, const MatrixType lambda, size_t mini_batch_size)
         : lambda_(lambda), nc_(0), mbs_(mini_batch_size), lp_(lambda_) {
         load_data(path);
     }
@@ -43,24 +44,24 @@ private:
     void load_data(const char *path) {
         dims_t dims(path);
         ns_ = dims.ns_, nd_ = dims.nd_;
-        std::tie(m_, v_) = parse_problem<MatrixType, VectorType>(path, dims);
+        std::tie(m_, v_, class_name_map_) = parse_problem<MatrixType, VectorType>(path, dims);
         // Normalize v_
-        std::set<VectorType> set(std::begin(v_), std::end(v_));
+        std::set<VectorType> set;
+        for(auto &pair: class_name_map_) set.insert(pair.first);
         std::vector<VectorType> vec(std::begin(set), std::end(set));
         std::sort(std::begin(vec), std::end(vec));
-        std::map<VectorType, int> map;
+        std::unordered_map<VectorType, int> map;
         int index(0);
-        if(vec.size() == 2) {
-            map[vec[0]] = -1;
-            map[vec[1]] = 1;
-        } else {
-            for(auto i(std::begin(vec)), e(std::end(vec)); i != e; ++i) map[*i] = ++index;
-        }
+        if(vec.size() == 2) map[vec[0]] = -1, map[vec[1]] = 1;
+        else for(auto i(std::begin(vec)), e(std::end(vec)); i != e; ++i) map[*i] = ++index;
         for(auto &i: v_) i = map[i];
+        decltype(class_name_map_) new_cmap;
+        for(auto &pair: class_name_map_) new_cmap[map[pair.first]] = pair.second;
+        class_name_map_ = std::move(new_cmap);
         nc_ = map.size();
         //init_weights();
         w_ = DynamicMatrix<MatrixType>(ns_, nc_ == 2 ? 1: nc_);
-        //rescale();
+        rescale();
     }
     void rescale() {
         r_ = DynamicMatrix<MatrixType>(nd_, 2);
@@ -73,8 +74,8 @@ private:
                 if(m_(i, j) > min) min = m_(i, j);
             }
             r_(i, 0) = min;
-            r_(i, 1) = 1. / (max - r_(i, 0));
-            const MatrixType factor(r_(i, 1));
+            const MatrixType factor(1. / (max - r_(i, 0)));
+            r_(i, 1) = factor;
             auto col(column(m_, i));
             for(auto &c: col) c = (c - min) * factor;
         }

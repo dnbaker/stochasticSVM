@@ -9,7 +9,9 @@
 namespace svm {
 
 template<typename MatrixType, typename VectorType>
-std::pair<DynamicMatrix<MatrixType>, DynamicVector<VectorType>> parse_problem(const char *fn, const dims_t &dims) {
+std::tuple<DynamicMatrix<MatrixType>, DynamicVector<VectorType>, std::unordered_map<VectorType, std::string>> parse_problem(const char *fn, const dims_t &dims) {
+    std::unordered_map<std::string, VectorType> name_map;
+    std::vector<std::string> names;
     gzFile fp(gzopen(fn, "rb"));
     if(fp == nullptr) throw std::runtime_error(std::string("Could not open file at ") + fn);
     std::vector<char> line;
@@ -23,6 +25,8 @@ std::pair<DynamicMatrix<MatrixType>, DynamicVector<VectorType>> parse_problem(co
     int c;
     DynamicMatrix<MatrixType> m(dims.ns_, dims.nd_);
     DynamicVector<VectorType> v(dims.ns_);
+    std::string class_name;
+    VectorType  class_id(0);
     while((c = gzgetc(fp)) != EOF) {
         if(c != '\n') {
             line.push_back(c);
@@ -45,16 +49,24 @@ std::pair<DynamicMatrix<MatrixType>, DynamicVector<VectorType>> parse_problem(co
             assert(p < line_end);
         }
         while(std::isspace(*p)) ++p;
-        v[linenum] = atoi(p);
+        *strchr(p, '\n') = 0;
+        class_name = p;
+        auto m(name_map.find(class_name));
+        if(m == name_map.end()) {
+            name_map.emplace(class_name, class_id++);
+            v[linenum] = class_id - 1;
+        } else v[linenum] = m->second;
         ++linenum;
         //if(!(linenum & 255)) LOG_DEBUG("%zu lines processed\n", linenum);
         line.clear();
     }
-    cerr << m;
+    cerr << "Matrix is \n" << m;
     gzclose(fp);
     LOG_DEBUG("linenum: %zu. num rows: %zu. cols: %zu.\n", linenum, m.rows(), m.columns());
     assert(linenum == dims.ns_);
-    return std::pair<DynamicMatrix<MatrixType>, DynamicVector<VectorType>>(std::move(m), std::move(v));
+    std::unordered_map<VectorType, std::string> class_name_map;
+    for(auto &pair: name_map) class_name_map.emplace(pair.second, pair.first);
+    return std::tuple<DynamicMatrix<MatrixType>, DynamicVector<VectorType>, std::unordered_map<VectorType, std::string>>(std::move(m), std::move(v), std::move(class_name_map));
 }
 
 template<typename MatrixType, typename VectorType>

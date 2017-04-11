@@ -10,6 +10,7 @@
 #include <cassert>
 #include <thread>
 #include <map>
+#include <unordered_map>
 #include <set>
 #include <limits>
 #include <zlib.h>
