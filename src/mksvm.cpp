@@ -1,4 +1,4 @@
-#include "lib/problem.h"
+#include "lib/svm.h"
 #include <getopt.h>
 #include <iostream>
 using namespace svm;

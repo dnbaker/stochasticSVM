@@ -1,4 +1,4 @@
-#include "lib/problem.h"
+#include "lib/svm.h"
 
 namespace svm {
 
