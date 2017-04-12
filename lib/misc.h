@@ -16,6 +16,7 @@
 #include <zlib.h>
 #include <iostream>
 #include <fstream>
+#include <stdexcept>
 #ifndef _USE_MATH_DEFINES
 #  define _USE_MATH_DEFINES
 #endif
@@ -79,6 +80,19 @@ INLINE FloatType diffnorm(MatrixType &a, MatrixType &b) {
     const auto diff(a - b);
     return dot(diff, diff);
 }
+
+template<typename MatrixType, typename FloatType=float>
+INLINE MatrixType min(MatrixType &a, MatrixType &b) {
+    if(a.size() != b.size())
+        throw std::out_of_range(std::string("Could not calculate min between arrays of different sizes (") + std::to_string(a.size()) + ", " + std::to_string(b.size()) + ")");
+    // Note: Could accelerate with SIMD/parallelism and avoid a copy/memory allocation.
+    DynamicVector<FloatType> ret(a.size());
+    auto rit(ret.begin());
+    for(auto ait(a.cbegin()), bit(b.cbegin()); ait != a.cend(); ++ait, ++bit)
+        *rit++ = std::min(*ait++, *bit++);
+    return ret;
+}
+
 
 template<class Container, typename FloatType>
 FloatType variance(const Container &c, const FloatType mean) {
