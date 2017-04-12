@@ -75,12 +75,14 @@ struct dims_t {
 
 template<typename MatrixType, typename FloatType=float>
 INLINE FloatType diffnorm(MatrixType &a, MatrixType &b) {
-    const auto norm(a - b);
-    return dot(norm, norm);
+    // Note: Could accelerate with SIMD/parallelism and avoid a copy/memory allocation.
+    const auto diff(a - b);
+    return dot(diff, diff);
 }
 
 template<class Container, typename FloatType>
 FloatType variance(const Container &c, const FloatType mean) {
+        // Note: Could accelerate with SIMD.
     FloatType sum(0.), tmp;
     for(auto entry: c) tmp = entry - mean, sum += tmp * tmp;
     return sum / c.size();
