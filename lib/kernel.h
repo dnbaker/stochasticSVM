@@ -52,7 +52,7 @@ struct RationalQuadKernel: KernelBase<FloatType> {
     template<typename MatrixType>
     FloatType operator()(MatrixType &a, MatrixType &b) const {
         const FloatType norm2(diffnorm(a, b));
-        return 1 - norm2 / (norm2 + c2_);
+        return 1. - norm2 / (norm2 + c2_);
     }
     RationalQuadKernel(FloatType c): c2_(c * c) {}
 };
