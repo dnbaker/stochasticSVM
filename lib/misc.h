@@ -16,6 +16,10 @@
 #include <zlib.h>
 #include <iostream>
 #include <fstream>
+#ifndef _USE_MATH_DEFINES
+#  define _USE_MATH_DEFINES
+#endif
+#include <cmath>
 #include "blaze/Math.h"
 #include "logutil.h"
 #include "klib/kstring.h"
@@ -37,6 +41,14 @@
 #  else
 #  define INLINE inline
 #  endif
+#endif
+
+#ifndef M_PI
+#define M_PI (3.14159265358979323846)
+#endif
+
+#ifndef M_PIl
+#define M_PIl (3.14159265358979323846264338327950288)
 #endif
 
 namespace svm {
