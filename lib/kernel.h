@@ -76,13 +76,13 @@ struct LaplacianKernel: KernelBase<FloatType> {
 template<typename FloatType>
 struct RationalQuadKernel: KernelBase<FloatType> {
     // TODO: Expand this to somehow exploit matrix structure/instrinsics for better performance?
-    const FloatType c2_;
+    const FloatType sigma_sq_, factor_, alpha_;
     template<typename MatrixType>
     FloatType operator()(MatrixType &a, MatrixType &b) const {
-        const FloatType norm2(diffnorm(a, b));
-        return 1. - norm2 / (norm2 + c2_);
+        return sigma_sq_ * std::pow(1 + std::sqrt(diffnorm(a, b)) * factor_, -alpha_);
     }
-    RationalQuadKernel(FloatType c): c2_(c * c) {}
+    RationalQuadKernel(FloatType sigma, FloatType alpha, FloatType ell):
+        sigma_sq(sigma * sigma), factor_(1./(2 * alpha * ell * ell)), alpha_(alpha) {}
 };
 
 
