@@ -77,8 +77,7 @@ struct dims_t {
 template<typename MatrixType, typename FloatType=float>
 INLINE FloatType diffnorm(MatrixType &a, MatrixType &b) {
     // Note: Could accelerate with SIMD/parallelism and avoid a copy/memory allocation.
-    const auto diff(a - b);
-    return dot(diff, diff);
+    return dot(a - b, a - b);
 }
 
 template<typename MatrixType, typename FloatType=float>
