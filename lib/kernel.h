@@ -83,7 +83,6 @@ struct InvMultiQuadKernel: KernelBase<FloatType> {
 };
 
 
-
 template<typename FloatType>
 struct RBFKernel: KernelBase<FloatType> {
     // TODO: Expand this to somehow exploit matrix structure/instrinsics for better performance?
@@ -93,6 +92,17 @@ struct RBFKernel: KernelBase<FloatType> {
         return std::exp(mgamma_ * diffnorm<MatrixType, FloatType>(a, b));
     }
     RBFKernel(FloatType gamma): mgamma_(-gamma) {}
+};
+
+template<typename FloatType>
+struct ExpKernel: KernelBase<FloatType> {
+    // TODO: Expand this to somehow exploit matrix structure/instrinsics for better performance?
+    const FloatType mgamma_;
+    template<typename MatrixType>
+    FloatType operator()(MatrixType &a, MatrixType &b) const {
+        return std::exp(mgamma_ * std::sqrt(diffnorm<MatrixType, FloatType>(a, b)));
+    }
+    ExpKernel(FloatType gamma): mgamma_(-gamma) {}
 };
 
 template<typename FloatType>
@@ -124,6 +134,83 @@ struct GeneralHistogramKernel: KernelBase<FloatType> {
     GeneralHistogramKernel(FloatType a, FloatType b): a_(a), b_(b) {}
 };
 
+template<typename FloatType>
+struct CauchyKernel: KernelBase<FloatType> {
+    const FloatType sigma_sq_inv_;
+    template<typename MatrixType>
+    FloatType operator()(MatrixType &a, MatrixType &b) const {
+        return 1. / (1. + diffnorm(a, b) * sigma_sq_inv_);
+    }
+    CauchyKernel(FloatType sigma): sigma_sq_inv_(1. / (sigma * sigma)) {}
+};
+
+template<typename FloatType>
+struct ChiSqPDVariantKernel: KernelBase<FloatType> {
+    template<typename MatrixType>
+    FloatType operator()(MatrixType &a, MatrixType &b) const {
+        return 2. * dot(a, b / (a + b));
+    }
+};
+
+
+template<typename FloatType>
+struct ChiSqKernel: KernelBase<FloatType> {
+    template<typename MatrixType>
+    FloatType operator()(MatrixType &a, MatrixType &b) const {
+        auto diff(a - b);
+        auto sum(a + b);
+        return 1. - 2. * dot(diff, (diff / sum));
+    }
+};
+
+template<typename FloatType>
+struct StudentKernel: KernelBase<FloatType> {
+    const FloatType d_;
+    template<typename MatrixType>
+    FloatType operator()(MatrixType &a, MatrixType &b) const {
+        return 1. / (1 + std::pow(diffnorm(a, b), d_));
+    }
+    StudentKernel(FloatType d): d_(d / 2.) {} // Divide by 2 to get the n-nom.
+};
+
+template<typename FloatType>
+struct ANOVAKernel: KernelBase<FloatType> {
+    const FloatType d_, k_, sigma_;
+    template<typename MatrixType>
+    FloatType operator()(MatrixType &a, MatrixType &b) const {
+        return std::pow(-sigma_ * diffnorm(blaze::pow(a, k_), blaze::pow(b, k_)), d_);
+    }
+    ANOVAKernel(FloatType d, FloatType k, FloatType sigma): d_(d / 2.), k_(k), sigma_(sigma) {}
+};
+
+template<typename FloatType>
+struct DefaultWaveletFunction {
+    FloatType operator()(FloatType input) {return std::cos(1.75 * input) * std::exp(input * input * -0.5);}
+};
+
+template<typename FloatType, class WaveletFunction=DefaultWaveletFunction<FloatType>>
+struct WaveletKernel: KernelBase<FloatType> {
+    const FloatType a_inv_, c_;
+    WaveletFunction fn_;
+    template<typename MatrixType>
+    FloatType operator()(MatrixType &a, MatrixType &b) const {
+        auto ait(a.cbegin()), bit(b.cbegin());
+        FloatType ret(fn_((*ait - c_) * a_inv_) * fn_((*bit - c_) * a_inv_));
+        while(++ait != a.cend() && ++bit != b.cend()) ret *= fn_((*ait - c_) * a_inv_) * fn_((*bit - c_) * a_inv_);
+        return ret;
+    }
+    WaveletKernel(FloatType a, FloatType c): a_inv_(1. / a), c_(c) {}
+};
+
+template<typename FloatType>
+struct LogarithmicKernel: KernelBase<FloatType> {
+    const FloatType d_;
+    template<typename MatrixType>
+    FloatType operator()(MatrixType &a, MatrixType &b) const {
+        return -std::log(std::pow(diffnorm(a, b), d_) + 1);
+    }
+    LogarithmicKernel(FloatType d): d_(d / 2.) {} // Divide by 2 to get the n-norm.
+};
 
 template<typename FloatType>
 struct HistogramKernel: KernelBase<FloatType> {
