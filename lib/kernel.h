@@ -280,20 +280,19 @@ struct CylindricalBesselKernel: KernelBase<FloatType> {
     CylindricalBesselKernel(FloatType sigma, FloatType n, FloatType v): sigma_(sigma), vp1_(v + 1), minus_nvp1_(-n * vp1_) {}
 };
 
-template<typename FloatType, FloatType Threshold=1e-5>
+template<typename FloatType>
 struct RBesselKernel: KernelBase<FloatType> {
     // https://github.com/cran/kernlab/blob/R/kernels.R
-    const FloatType sigma_, order_, degree_, lim_;
+    const FloatType sigma_, order_, degree_, lim_, threshold_;
     template<typename MatrixType>
     FloatType operator()(MatrixType &a, MatrixType &b) const {
         const auto norm(sigma_ * std::sqrt(diffnorm(a, b)));
-        if(norm < Threshold) Threshold = lim_;
-        FloatType tmp = norm < Threshold ? lim_: cyl_bessel_j(norm) * std::pow(norm, -order_);
+        FloatType tmp = norm < threshold_ ? lim_: cyl_bessel_j(order_, norm) * std::pow(norm, -order_);
         return std::pow(tmp / lim_, degree_);
     }
-    RBesselKernel(FloatType sigma, int order=1, int degree=1):
+    RBesselKernel(FloatType sigma, int order=1, int degree=1, FloatType threshold=1e-5):
         sigma_(sigma), order_(order), degree_(degree),
-        lim_(1. / (std::tgamma(order_ + 1) * std::pow(2, order_))) {}
+        lim_(1. / (std::tgamma(order_ + 1) * std::pow(2, order_))), threshold_(threshold) {}
         
 };
 

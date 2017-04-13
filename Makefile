@@ -28,8 +28,15 @@ EX=$(patsubst src/%.o,%,$(EXEC_OBJS))
 HEADERS=lib/problem.h lib/misc.h
 
 BOOST_INCLUDE_PATH = /cm/shared/apps/boost/1.60.0/include/
+BOOST_LIB_PATH     = /cm/shared/apps/boost/1.60.0/lib
 
-INCLUDE=-I. -Ilib -Iblaze -I$(BOOST_INCLUDE_PATH)
+INCLUDE=-I. -Ilib -Iblaze
+
+ifdef BOOST_INCLUDE_PATH
+INCLUDE+= -I$(BOOST_INCLUDE_PATH)
+LIB+= # -lboost_math_tr1
+LD+= -L$(BOOST_LIB_PATH)
+endif
 
 all: $(OBJS) $(EX) unit
 

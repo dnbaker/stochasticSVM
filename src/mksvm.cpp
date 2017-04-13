@@ -21,6 +21,7 @@ int main(int argc, char *argv[]) {
     blaze::setNumThreads(nthreads);
     LOG_ASSERT(blaze::getNumThreads() == nthreads);
     SVM<LinearKernel<double>, double> svm(argv[optind], 0.4, 256);
+    RBesselKernel<double> rbk(0.1);
 #if 0
     auto row1(row(pair.first, 1));
     auto row2(row(pair.first, 2));
@@ -34,6 +35,7 @@ int main(int argc, char *argv[]) {
     double zomg(0.);
     auto row1(row(svm.get_matrix(), 0));
     auto row2(row(svm.get_matrix(), 1));
+    auto ret(rbk(row1, row2));
     std::fprintf(stderr, "Kernel result: %f\n", lk(row1, row2));
     for(u32 i(0); i < row1.size(); ++i) zomg += row1[i] * row2[i];
     std::fprintf(stderr, "Manual result: %f\n", zomg);

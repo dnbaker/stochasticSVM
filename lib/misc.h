@@ -52,15 +52,6 @@
 #  define INLINE inline
 #  endif
 #endif
-#if __STDCPP_MATH_SPEC_FUNCS__ >= 201003L
-using std::cyl_bessel_j;
-//#else
-//#include "boost/math/special_functions/bessel.hpp"
-//using boost::math::cyl_bessel_j;
-#else
-using std::tr1::cyl_bessel_j;
-#endif
-
 
 #ifndef M_PI
 #define M_PI (3.14159265358979323846)
@@ -68,6 +59,23 @@ using std::tr1::cyl_bessel_j;
 
 #ifndef M_PIl
 #define M_PIl (3.14159265358979323846264338327950288)
+#endif
+
+#if defined(__STDCPP_MATH_SPEC_FUNCS__) || _GLIBCXX_TR1_CMATH
+  #if __STDCPP_MATH_SPEC_FUNCS__ >= 201003L
+    using std::cyl_bessel_j;
+  #else
+  #define STRINGIFY(s) XSTRINGIFY(s)
+  #define XSTRINGIFY(s) #s
+  #pragma message "Getting bessel function from trl with __STDCPP_WANT_MATH_SPEC_FUNCS__ as " STRINGIFY(__STDCPP_WANT_MATH_SPEC_FUNCS__)
+  #undef STRINGIFY
+  #undef XSTRINGIFY
+    using std::tr1::cyl_bessel_j;
+  #endif
+#else
+#pragma message "Getting bessel function from boost"
+#include "boost/math/special_functions/bessel.hpp"
+using boost::math::cyl_bessel_j;
 #endif
 
 namespace svm {
