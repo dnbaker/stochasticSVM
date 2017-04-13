@@ -11,6 +11,33 @@ struct KernelBase {
     FloatType operator()(MatrixType &a, MatrixType &b) const;
 };
 
+template<typename FloatType, typename Kernel1, typename Kernel2>
+struct MultiplicativeKernel: KernelBase<FloatType> {
+    // TODO: Expand this to use fold expressions and a variable number of kernels.
+    std::pair<Kernel1, Kernel2> kernels_;
+    FloatType a_, b_;
+    template<typename MatrixType>
+    FloatType operator()(MatrixType &a, MatrixType &b) const {
+        return a_ * std::get<0>(kernels_)(a, b) * std::get<1>(kernels_)(a, b) + b_;
+    }
+    AdditiveKernel(std::pair<Kernel1, Kernel2> kernels, FloatType a=1., FloatType b=1.): a_(a), b_(b) {}
+};
+
+
+template<typename FloatType, typename Kernel1, typename Kernel2>
+struct AdditiveKernel: KernelBase<FloatType> {
+    // TODO: Expand this to use fold expressions and a variable number of kernels.
+    std::pair<Kernel1, Kernel2> kernels_;
+    FloatType a_, b_, c_;
+    template<typename MatrixType>
+    FloatType operator()(MatrixType &a, MatrixType &b) const {
+        return std::get<0>(kernels_)(a, b) * a_ + std::get<1>(kernels_)(a, b) * b_;
+    }
+    AdditiveKernel(std::pair<Kernel1, Kernel2> kernels,
+                   FloatType a=1., FloatType b=1., FloatType c=0.): a_(a), b_(b), c_(c) {}
+};
+
+
 template<typename FloatType>
 struct LinearKernel: KernelBase<FloatType> {
     // TODO: Expand this to somehow exploit matrix structure/instrinsics for better performance?
@@ -252,15 +279,15 @@ struct CylindricalBesselKernel: KernelBase<FloatType> {
     CylindricalBesselKernel(FloatType sigma, FloatType n, FloatType v): sigma_(sigma), vp1_(v + 1), minus_nvp1_(-n * vp1_) {}
 };
 
-template<typename FloatType, FloatType THRESHOLD=1e-20>
+template<typename FloatType, FloatType Threshold=1e-5>
 struct RBesselKernel: KernelBase<FloatType> {
     // https://github.com/cran/kernlab/blob/R/kernels.R
     const FloatType sigma_, order_, degree_, lim_;
     template<typename MatrixType>
     FloatType operator()(MatrixType &a, MatrixType &b) const {
         const auto norm(sigma_ * std::sqrt(diffnorm(a, b)));
-        if(norm < THRESHOLD) THRESHOLD = lim_;
-        FloatType tmp = norm < THRESHOLD ? lim_: cyl_bessel_j(norm) * std::pow(norm, -order_);
+        if(norm < Threshold) Threshold = lim_;
+        FloatType tmp = norm < Threshold ? lim_: cyl_bessel_j(norm) * std::pow(norm, -order_);
         return std::pow(tmp / lim_, degree_);
     }
     RBesselKernel(FloatType sigma, int order=1, int degree=1):
