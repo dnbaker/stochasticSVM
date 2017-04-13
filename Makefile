@@ -27,7 +27,9 @@ EX=$(patsubst src/%.o,%,$(EXEC_OBJS))
 
 HEADERS=lib/problem.h lib/misc.h
 
-INCLUDE=-I. -Ilib -Iblaze
+BOOST_INCLUDE_PATH = /cm/shared/apps/boost/1.60.0/include/
+
+INCLUDE=-I. -Ilib -Iblaze -I$(BOOST_INCLUDE_PATH)
 
 all: $(OBJS) $(EX) unit
 

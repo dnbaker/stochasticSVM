@@ -21,7 +21,16 @@
 #ifndef _USE_MATH_DEFINES
 #  define _USE_MATH_DEFINES
 #endif
-#include <cmath>
+#ifdef __GNUC__
+#  include <features.h>
+#  if __GNUC_PREREQ(6,3)
+#    include <cmath>
+#  else
+#    include <tr1/cmath>
+#  endif
+#else
+#  include <cmath>
+#endif
 #include "blaze/Math.h"
 #include "logutil.h"
 #include "klib/kstring.h"
@@ -44,7 +53,14 @@
 #  define INLINE inline
 #  endif
 #endif
+#if __STDCPP_MATH_SPEC_FUNCS__ >= 201003L
 using std::cyl_bessel_j;
+//#else
+//#include "boost/math/special_functions/bessel.hpp"
+//using boost::math::cyl_bessel_j;
+#else
+using std::tr1::cyl_bessel_j;
+#endif
 
 
 #ifndef M_PI
