@@ -157,9 +157,9 @@ template<typename FloatType>
 struct ChiSqKernel: KernelBase<FloatType> {
     template<typename MatrixType>
     FloatType operator()(MatrixType &a, MatrixType &b) const {
-        auto diff(a - b);
-        auto sum(a + b);
-        return 1. - 2. * dot(diff, (diff / sum));
+        //auto diff(a - b);
+        //auto sum(a + b); Maybe do this?
+        return 1. - 2. * dot(a - b, ((a - b) / (a + b)));
     }
 };
 
