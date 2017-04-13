@@ -22,8 +22,7 @@
 #  define _USE_MATH_DEFINES
 #endif
 #ifdef __GNUC__
-#  include <features.h>
-#  if __GNUC_PREREQ(6,3)
+#  if (__GNUC__ == 6 && __GNUC_MINOR__ >= 1) || __GNUC__ > 6
 #    include <cmath>
 #  else
 #    include <tr1/cmath>
