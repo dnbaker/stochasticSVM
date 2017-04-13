@@ -227,6 +227,50 @@ struct HistogramKernel: KernelBase<FloatType> {
 
 
 template<typename FloatType>
+struct ExponentialBesselKernel: KernelBase<FloatType> {
+    // https://github.com/primaryobjects/Accord.NET/blob/master/Sources/Accord.Statistics/Kernels/Bessel.cs
+    // https://github.com/DiegoCatalano/Catalano-Framework/blob/master/Catalano.Statistics/src/Catalano/Statistics/Kernels/Bessel.java
+    const FloatType sigma_, order_;
+    template<typename MatrixType>
+    FloatType operator()(MatrixType &a, MatrixType &b) const {
+        const auto norm(std::sqrt(diffnorm(a, b)));
+        return cyl_bessel_j(order_, sigma_ * norm) / std::exp(norm, -norm * order_);
+    }
+    ExponentialBesselKernel(FloatType sigma, FloatType order): sigma_(sigma), order_(order) {}
+};
+
+
+template<typename FloatType>
+struct CylindricalBesselKernel: KernelBase<FloatType> {
+    // http://crsouza.com/2010/03/17/kernel-functions-for-machine-learning-applications/#bessel
+    const FloatType sigma_, vp1_, minus_nvp1_;
+    template<typename MatrixType>
+    FloatType operator()(MatrixType &a, MatrixType &b) const {
+        const auto norm(sigma_ * std::sqrt(diffnorm(a, b)));
+        return cyl_bessel_j(vp1_, sigma_ * norm) / std::exp(norm, minus_nvp1_);
+    }
+    CylindricalBesselKernel(FloatType sigma, FloatType n, FloatType v): sigma_(sigma), vp1_(v + 1), minus_nvp1_(-n * vp1_) {}
+};
+
+template<typename FloatType, FloatType THRESHOLD=1e-20>
+struct RBesselKernel: KernelBase<FloatType> {
+    // https://github.com/cran/kernlab/blob/R/kernels.R
+    const FloatType sigma_, order_, degree_, lim_;
+    template<typename MatrixType>
+    FloatType operator()(MatrixType &a, MatrixType &b) const {
+        const auto norm(sigma_ * std::sqrt(diffnorm(a, b)));
+        if(norm < THRESHOLD) THRESHOLD = lim_;
+        FloatType tmp = norm < THRESHOLD ? lim_: cyl_bessel_j(norm) * std::pow(norm, -order_);
+        return std::pow(tmp / lim_, degree_);
+    }
+    RBesselKernel(FloatType sigma, int order=1, int degree=1):
+        sigma_(sigma), order_(order), degree_(degree),
+        lim_(1. / (std::tgamma(order_ + 1) * std::pow(2, order_))) {}
+        
+};
+
+
+template<typename FloatType>
 struct CircularKernel: KernelBase<FloatType> {
     const FloatType sigma_inv_;
     const FloatType sigma_;

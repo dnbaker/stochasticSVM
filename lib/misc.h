@@ -1,6 +1,7 @@
 #ifndef _SVM_MISC_H_
 #define _SVM_MISC_H_
 
+#define __STDCPP_WANT_MATH_SPEC_FUNCS__
 #include <cstdio>
 #include <cstdlib>
 #include <cstddef>
@@ -43,6 +44,14 @@
 #  define INLINE inline
 #  endif
 #endif
+#if __STDCPP_MATH_SPEC_FUNCS__
+using std::cyl_bessel_j;
+//#error("Does not have math special functions")
+#else
+#include <tr1>
+using std::tr1::cyl_bessel_j;
+#endif
+
 
 #ifndef M_PI
 #define M_PI (3.14159265358979323846)
