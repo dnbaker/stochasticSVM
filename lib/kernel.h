@@ -7,6 +7,7 @@ namespace svm {
 
 template<typename FloatType>
 struct KernelBase {
+    using float_type = FloatType;
     template<typename MatrixType>
     FloatType operator()(MatrixType &a, MatrixType &b) const;
 };
@@ -14,27 +15,27 @@ struct KernelBase {
 template<typename FloatType, typename Kernel1, typename Kernel2>
 struct MultiplicativeKernel: KernelBase<FloatType> {
     // TODO: Expand this to use fold expressions and a variable number of kernels.
-    std::pair<Kernel1, Kernel2> kernels_;
-    FloatType a_, b_;
+    const std::pair<Kernel1, Kernel2> kernels_;
+    const FloatType a_, b_;
     template<typename MatrixType>
     FloatType operator()(MatrixType &a, MatrixType &b) const {
         return a_ * std::get<0>(kernels_)(a, b) * std::get<1>(kernels_)(a, b) + b_;
     }
-    AdditiveKernel(std::pair<Kernel1, Kernel2> kernels, FloatType a=1., FloatType b=1.): a_(a), b_(b) {}
+    MultiplicativeKernel(std::pair<Kernel1, Kernel2> &kernels,
+                         FloatType a=1., FloatType b=1.): kernels_(std::move(kernels)), a_(a), b_(b) {}
 };
-
 
 template<typename FloatType, typename Kernel1, typename Kernel2>
 struct AdditiveKernel: KernelBase<FloatType> {
     // TODO: Expand this to use fold expressions and a variable number of kernels.
-    std::pair<Kernel1, Kernel2> kernels_;
-    FloatType a_, b_, c_;
+    const std::pair<Kernel1, Kernel2> kernels_;
+    const FloatType a_, b_, c_;
     template<typename MatrixType>
     FloatType operator()(MatrixType &a, MatrixType &b) const {
         return std::get<0>(kernels_)(a, b) * a_ + std::get<1>(kernels_)(a, b) * b_;
     }
-    AdditiveKernel(std::pair<Kernel1, Kernel2> kernels,
-                   FloatType a=1., FloatType b=1., FloatType c=0.): a_(a), b_(b), c_(c) {}
+    AdditiveKernel(std::pair<Kernel1, Kernel2> &kernels,
+                   FloatType a=1., FloatType b=1., FloatType c=0.): kernels_(std::move(kernels)), a_(a), b_(b), c_(c) {}
 };
 
 
