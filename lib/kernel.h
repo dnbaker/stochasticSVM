@@ -82,7 +82,7 @@ struct RationalQuadKernel: KernelBase<FloatType> {
         return sigma_sq_ * std::pow(1 + std::sqrt(diffnorm(a, b)) * factor_, -alpha_);
     }
     RationalQuadKernel(FloatType sigma, FloatType alpha, FloatType ell):
-        sigma_sq(sigma * sigma), factor_(1./(2 * alpha * ell * ell)), alpha_(alpha) {}
+        sigma_sq_(sigma * sigma), factor_(1./(2 * alpha * ell * ell)), alpha_(alpha) {}
 };
 
 

@@ -63,11 +63,6 @@ private:
         //init_weights();
         w_ = DynamicMatrix<MatrixType>(ns_, nc_ == 2 ? 1: nc_);
         rescale();
-#if !NDEBUG
-        for(size_t i(0); i < w_.rows(); ++i) { for(size_t j(0); j < w_.rows(); ++j) {
-            assert(w_(i, j) >= 0); assert(w_(i, j) <= 1.);
-        } }
-#endif
     }
     void rescale() {
         r_ = DynamicMatrix<MatrixType>(nd_, 2);
@@ -76,9 +71,9 @@ private:
         for(size_t i = 0; i < nd_; ++i) {
             MatrixType min(std::numeric_limits<MatrixType>::max()), max(std::numeric_limits<MatrixType>::min()), mean(0.);
             for(size_t j = 0; j < ns_; ++j) {
-                if(m_(i, j) > max) max = m_(i, j);
-                if(m_(i, j) < min) min = m_(i, j);
-                mean += m_(i, j);
+                if(m_(j, i) > max) max = m_(j, i);
+                if(m_(j, i) < min) min = m_(j, i);
+                mean += m_(j, i);
             }
             mean /= ns_;
             MatrixType var(variance(column(m_, i), mean));
@@ -86,7 +81,7 @@ private:
             r_(i, 0) = mean;
             r_(i, 1) = 1. / std::sqrt(var);
             for(auto &c: column(m_, i)) c = (c - mean) * r_(i, 1);
-            //cerr << "Variance after scaling: " << variance(column(m_, i), 0.) << '\n';
+            cerr << "Variance after scaling: " << variance(column(m_, i), 0.) << '\n';
         }
     }
     // If linear, initialize w_ to any with norm \geq 1/lambda.

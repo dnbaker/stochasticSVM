@@ -112,7 +112,7 @@ INLINE MatrixType min(MatrixType &a, MatrixType &b) {
         throw std::out_of_range(std::string("Could not calculate min between arrays of different sizes (") + std::to_string(a.size()) + ", " + std::to_string(b.size()) + ")");
     // Note: Could accelerate with SIMD/parallelism and avoid a copy/memory allocation.
     DynamicVector<FloatType> ret(a.size());
-    auto rit(ret.begin());
+    auto rit(ret.cbegin());
     for(auto ait(a.cbegin()), bit(b.cbegin()); ait != a.cend(); ++ait, ++bit)
         *rit++ = std::min(*ait++, *bit++);
     return ret;
@@ -123,13 +123,14 @@ template<class Container, typename FloatType>
 FloatType variance(const Container &c, const FloatType mean) {
         // Note: Could accelerate with SIMD.
     FloatType sum(0.), tmp;
-    for(auto entry: c) tmp = entry - mean, sum += tmp * tmp;
+    for(const auto entry: c) tmp = entry - mean, sum += tmp * tmp;
     return sum / c.size();
 }
+
 template<class Container, typename FloatType>
 FloatType variance(const Container &c) {
     FloatType sum(0.);
-    for(auto entry: c) sum += c;
+    for(const auto entry: c) sum += entry;
     return variance(c, sum / c.size());
 }
 
