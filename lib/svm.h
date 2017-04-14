@@ -21,7 +21,7 @@ class SVM {
     DynamicMatrix<MatrixType> w_; // Only used in classification for kernel, though used for traiing and classification in linear.
     DynamicVector<VectorType> a_; // Only used for kernel.
     DynamicVector<VectorType> v_; // Labels
-    DynamicMatrix<VectorType> r_; // Renormalization values. Subtraction, then multiplication
+    DynamicMatrix<MatrixType> r_; // Renormalization values. Subtraction, then multiplication
     const MatrixType     lambda_; // Lambda Parameter
     size_t                   nc_; // Number of classes
     size_t                  mbs_; // Mini-batch size
@@ -63,30 +63,28 @@ private:
         //init_weights();
         w_ = DynamicMatrix<MatrixType>(ns_, nc_ == 2 ? 1: nc_);
         rescale();
-#if !NDEBUG
-        for(size_t i(0); i < w_.rows(); ++i) { for(size_t j(0); j < w_.rows(); ++j) {
-            assert(w_(i, j) >= 0); assert(w_(i, j) <= 1.);
-        } }
-#endif
     }
     void rescale() {
         r_ = DynamicMatrix<MatrixType>(nd_, 2);
         // Could/Should rewrite with pthread-type parallelization and get better memory access pattern.
         #pragma omp parallel for schedule(dynamic)
         for(size_t i = 0; i < nd_; ++i) {
-            MatrixType min(std::numeric_limits<MatrixType>::max()), max(std::numeric_limits<MatrixType>::min()), mean(0.);
-            for(size_t j = 0; j < ns_; ++j) {
-                if(m_(i, j) > max) max = m_(i, j);
-                if(m_(i, j) < min) min = m_(i, j);
-                mean += m_(i, j);
-            }
-            mean /= ns_;
-            MatrixType var(variance(column(m_, i), mean));
-            cerr << "variance: " << var << " for n = " << ns_ << '\n';
+            auto col(column(m_, i));
+            assert(ns_ == col.size());
+            auto sum(0.);
+            for(auto c: col) sum += c;
+            MatrixType mean = sum / ns_;
             r_(i, 0) = mean;
-            r_(i, 1) = 1. / std::sqrt(var);
-            for(auto &c: column(m_, i)) c = (c - mean) * r_(i, 1);
-            //cerr << "Variance after scaling: " << variance(column(m_, i), 0.) << '\n';
+            auto var(variance(col, mean));
+            MatrixType stdev_inv;
+            r_(i, 1) = stdev_inv = 1. / (MatrixType)std::sqrt(var);
+            for(auto cit(col.begin()), cend(col.end()); cit != cend; ++cit) {
+                *cit = (*cit - mean) * r_(i, 1);
+            }
+            var = variance(col, 0.);
+            //cerr << "Variance after scaling one time: " << var << '\n';
+            //cerr << "Rescaled by factor one time " <<  r_(i, 1) << '\n';
+            //cerr << "Rescaled by factor one time " <<  stdev_inv << '\n';
         }
     }
     // If linear, initialize w_ to any with norm \geq 1/lambda.

@@ -82,7 +82,7 @@ struct MultiQuadKernel: KernelBase<FloatType> {
         return sigma_sq_ * std::pow(1 + std::sqrt(diffnorm(a, b)) * factor_, -alpha_);
     }
     MultiQuadKernel(FloatType sigma, FloatType alpha, FloatType ell):
-        sigma_sq(sigma * sigma), factor_(1./(2 * alpha * ell * ell)), alpha_(alpha) {}
+        sigma_sq_(sigma * sigma), factor_(1./(2 * alpha * ell * ell)), alpha_(alpha) {}
 };
 
 
@@ -95,7 +95,7 @@ struct SimpleQuadKernel: KernelBase<FloatType> {
         return sigma_sq_ * (1 + std::sqrt(norm2(diffnorm(a, b))) * factor_);
     }
     SimpleQuadKernel(FloatType sigma, FloatType ell, FloatType):
-        sigma_sq(sigma * sigma), factor_(1./(2 * ell * ell)) {}
+        sigma_sq_(sigma * sigma), factor_(1./(2 * ell * ell)) {}
 };
 
 template<typename FloatType>
