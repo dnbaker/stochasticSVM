@@ -14,8 +14,8 @@ std::tuple<DynamicMatrix<MatrixType>, DynamicVector<VectorType>, std::unordered_
     std::vector<std::string> names;
     gzFile fp(gzopen(fn, "rb"));
     if(fp == nullptr) throw std::runtime_error(std::string("Could not open file at ") + fn);
-    std::vector<char> line;
-    line.reserve(1 << 12);
+    ks::KString line;
+    line.resize(1 << 12);
     size_t linenum(0);
     char *p;
     LOG_DEBUG("ns: %zu. nd: %zu\n", dims.ns_, dims.nd_);
@@ -25,20 +25,19 @@ std::tuple<DynamicMatrix<MatrixType>, DynamicVector<VectorType>, std::unordered_
     int c;
     DynamicMatrix<MatrixType> m(dims.ns_, dims.nd_);
     DynamicVector<VectorType> v(dims.ns_);
-    ks::KString ks;
     std::string class_name;
     VectorType  class_id(0);
     while((c = gzgetc(fp)) != EOF) {
         if(c != '\n') {
-            line.push_back(c);
+            line.putc_(c);
             continue;
         }
-        line.push_back('\0');
+        line->s[line->l] = 0;
         if(line[0] == '#' || line[0] == '\n') {
-            line.resize(0);
+            line.clear();
             continue;
         }
-        p = &line[0];
+        p = line;
 #if !NDEBUG
         line_end = &line[line.size() - 1];
 #endif
@@ -57,10 +56,8 @@ std::tuple<DynamicMatrix<MatrixType>, DynamicVector<VectorType>, std::unordered_
             v[linenum] = class_id - 1;
         } else v[linenum] = m->second;
         ++linenum;
-        //if(!(linenum & 255)) LOG_DEBUG("%zu lines processed\n", linenum);
         line.clear();
     }
-    //cerr << "Matrix is \n" << m;
     gzclose(fp);
     LOG_DEBUG("linenum: %zu. num rows: %zu. cols: %zu.\n", linenum, m.rows(), m.columns());
     assert(linenum == dims.ns_);

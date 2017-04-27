@@ -21,16 +21,22 @@ public:
     KString(): KString(nullptr) {}
     ~KString() {free(ks_.s);}
 
+    // kstring_t access:
     const auto operator->() const {
         return const_cast<const kstring_t *>(&ks_);
     }
     kstring_t *operator->() {return &ks_;}
-
     const auto &operator*() const {
         return const_cast<const kstring_t &>(ks_);
     }
     kstring_t  &operator*() {return ks_;}
 
+    // Conversions
+    operator const char *() const {return ks_.s;}
+    operator       char *()       {return ks_.s;}
+
+    operator const kstring_t *() const {return &ks_;}
+    operator       kstring_t *()       {return &ks_;}
     // Copy
     KString(const KString &other): ks_{other->l, other->m, (char *)std::malloc(other->m)} {
         memcpy(ks_.s, other->s, other->m);
@@ -78,15 +84,6 @@ public:
         return ret;
     }
 
-    // Conversions
-    operator char *()   const {return ks_.s;}
-    operator kstring_t *() {
-        return &ks_;
-    }
-    operator const kstring_t *() const {
-        return static_cast<const kstring_t *>(&ks_);
-    }
-
     // Transfer ownership
     char  *release() {auto ret(ks_.s); ks_.l = ks_.m = 0; ks_.s = nullptr; return ret;}
 
@@ -101,10 +98,9 @@ public:
         ks_.l = ks_.l > n ? ks_.l - n: 0;
         ks_.s[ks_.l] = 0;
     }
-    void clear() {
-        ks_.l = 0;
-        ks_.s = 0;
-    }
+
+    void clear() {ks_.l = 0;}
+
     const char     *data() const {return ks_.s;}
     char           *data() {return ks_.s;}
     auto resize(size_t new_size) {
@@ -134,6 +130,10 @@ public:
     }
     auto &operator+=(const KString &other) {return operator+=(other.ks_);}
     auto &operator+=(const char *s)        {puts(s); return *this;}
+
+    // Access
+    const char &operator[](size_t index) const {return ks_.s[index];}
+    char       &operator[](size_t index)       {return ks_.s[index];}
 
     int write(FILE *fp) const {return std::fwrite(ks_.s, 1, ks_.l, fp);}
     int write(int fd)   const {return     ::write(fd, ks_.s, ks_.l);}
