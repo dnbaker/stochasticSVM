@@ -34,7 +34,7 @@
 #endif
 #include "blaze/Math.h"
 #include "logutil.h"
-#include "klib/kstring.h"
+#include "lib/ks.h"
 
 
 #ifdef __GNUC__

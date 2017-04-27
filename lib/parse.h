@@ -25,6 +25,7 @@ std::tuple<DynamicMatrix<MatrixType>, DynamicVector<VectorType>, std::unordered_
     int c;
     DynamicMatrix<MatrixType> m(dims.ns_, dims.nd_);
     DynamicVector<VectorType> v(dims.ns_);
+    ks::KString ks;
     std::string class_name;
     VectorType  class_id(0);
     while((c = gzgetc(fp)) != EOF) {
