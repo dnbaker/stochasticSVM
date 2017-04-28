@@ -30,10 +30,18 @@ class SVM {
         MatrixKind weights_;
         operator MatrixKind&() {return weights_;}
         operator const MatrixKind&() const {return weights_;}
-        WeightMatrix(size_t ns, size_t nc):
-            norm_{0.}, weights_{MatrixKind(ns, nc == 2 ? 1: nc)}
+        WeightMatrix(size_t ns, size_t nc, MatrixType lambda):
+            norm_{0.}, weights_{MatrixKind(ns, nc == 2 ? 1: nc)} {
+            const MatrixType val(std::sqrt(1 / lambda) / ns);
+            for(size_t i(0); i < weights_.rows(); ++i)
+                for(size_t j(0); j < weights_.rows(); ++j)
+                    weights_(i, j) = val;
         }
         WeightMatrix(): norm_(0.) {}
+        void scale(MatrixType factor) {
+            norm_ *= factor * factor;
+            weights_ *= factor;
+        }
     } w_;
     // Weights. one-dimensional for 2-class, nc_-dimensional for more.
 
@@ -62,7 +70,7 @@ public:
 private:
     void load_data(const char *path) {
         dims_t dims(path);
-        ns_ = dims.ns_, nd_ = dims.nd_;
+        ns_ = dims.ns_; nd_ = dims.nd_;
         std::tie(m_, v_, class_name_map_) = parse_problem<MatrixType, VectorType>(path, dims);
         // Normalize v_
         std::set<VectorType> set;
@@ -79,7 +87,7 @@ private:
         class_name_map_ = std::move(new_cmap);
         nc_ = map.size();
         //init_weights();
-        w_ = WeightMatrix(ns_, nc_ == 2 ? 1: nc_);
+        w_ = WeightMatrix(ns_, nc_ == 2 ? 1: nc_, lambda_);
         rescale();
     }
     void rescale() {
@@ -100,23 +108,8 @@ private:
                 *cit = (*cit - mean) * r_(i, 1);
             }
             var = variance(col, 0.);
-            //cerr << "Variance after scaling one time: " << var << '\n';
-            //cerr << "Rescaled by factor one time " <<  r_(i, 1) << '\n';
-            //cerr << "Rescaled by factor one time " <<  stdev_inv << '\n';
         }
     }
-    // If linear, initialize w_ to any with norm \geq 1/lambda.
-#if 0
-    template<typename = std::enable_if<std::is_same<LinearKernel<double>, Kernel>::value ||
-                                       std::is_same<LinearKernel<float>, Kernel>::value>
-    void init_weights() {
-        w_ = std::sqrt(1. / lambda_) / ns_;
-    }
-    // Otherwise, initialize to 0. This instead holds the number of times a nonzero loss was found with this element.
-    template<typename = std::enable_if<!std::is_same<LinearKernel<double>, Kernel>::value &&
-                                       !std::is_same<LinearKernel<float>, Kernel>::value>
-    void init_weights() {w_ = 0;}
-#endif
     // Training
     // For kernel, see fig. 3. http://ttic.uchicago.edu/~nati/Publications/PegasosMPB.pdf
     // For linear, see section 2. http://www.ee.oulu.fi/research/imag/courses/Vedaldi/ShalevSiSr07.pdf
