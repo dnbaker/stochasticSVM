@@ -91,10 +91,12 @@ using u64 = std::uint64_t;
 using blaze::DynamicVector;
 using blaze::DynamicMatrix;
 
+#if 0
 template<typename FloatType, typename MatrixType1, typename MatrixType2>
 FloatType dot(MatrixType1 &a, MatrixType2 &b) {
     return static_cast<FloatType>(a * trans(b));
 }
+#endif
 
 struct dims_t {
     size_t ns_, nd_;

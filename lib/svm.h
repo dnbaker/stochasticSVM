@@ -16,21 +16,22 @@ namespace svm {
 template<typename MatrixType, class MatrixKind>
 class WeightMatrix {
     MatrixType norm_;
-    MatrixKind weights_;
 public:
+    MatrixKind weights_;
     operator MatrixKind&() {return weights_;}
     operator const MatrixKind&() const {return weights_;}
     WeightMatrix(size_t ns, size_t nc, MatrixType lambda):
-        norm_{0.}, weights_{MatrixKind(ns, nc == 2 ? 1: nc)} {
+        norm_{0.}, weights_{MatrixKind(nc == 2 ? 1: nc, ns)} {
         const MatrixType val(ns == 2 ? std::sqrt(1 / lambda) / ns: 0.);
-        for(size_t i(0); i < weights_.rows(); ++i)
-            for(size_t j(0); j < weights_.rows(); ++j)
-                weights_(i, j) = val;
+        weights_ = val;
     }
     WeightMatrix(): norm_(0.) {}
     void scale(MatrixType factor) {
         norm_ *= factor * factor;
         weights_ *= factor;
+    }
+    MatrixType get_norm_sq() {
+        return norm_ = dot(row(weights_, 0), row(weights_, 0));
     }
 };
 
@@ -61,6 +62,7 @@ class SVM {
     size_t                    t_; // Timepoint.
     LearningPolicy           lp_; // Calculates learning rate at a timestep t.
     MatrixType              eps_; // epsilon termination.
+    size_t             avg_size_; // Number to average at end.
     std::unordered_map<VectorType, std::string> class_name_map_;
     
 
@@ -69,10 +71,12 @@ public:
         const MatrixType lambda,
         Kernel kernel=LinearKernel<MatrixType>(),
         size_t mini_batch_size=1<<8,
-        size_t max_iter=1000000,  const MatrixType eps=1e-12)
+        size_t max_iter=1000000,  const MatrixType eps=1e-12,
+        long avg_size=-1)
         : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size),
-          max_iter_(max_iter), t_(0), lp_(lambda), eps_(eps) {
+          max_iter_(max_iter), t_(0), lp_(lambda), eps_(eps),
+          avg_size_(avg_size < 0 ? 1000: avg_size) {
         load_data(path);
     }
     size_t get_nsamples() {return ns_;}
@@ -120,13 +124,33 @@ private:
             for(auto cit(col.begin()), cend(col.end()); cit != cend; ++cit) {
                 *cit = (*cit - mean) * r_(i, 1);
             }
-            var = variance(col, 0.);
+            //var = variance(col, 0.);
         }
     }
+public:
     void train_linear() {
-        while(t_ < max_iter_) {
-            blaze::Subvector labels(v_, t_ * mbs_, mbs_);
+        DynamicMatrix<MatrixType> tmpsum(1, nd_);
+        const double eta(lp_(t_)), scale_factor(eta / mbs_);
+        size_t avgs_used(0);
+        while(avgs_used < avg_size_) {
+            const size_t start_index((t_ * mbs_) % ns_), nrows(std::min(ns_ - start_index, mbs_));
+            blaze::Subvector<DynamicVector<VectorType>> labels(v_, start_index, nrows);
+            blaze::Submatrix<MatrixKind> matrix(m_, start_index, 0uL, nrows, nd_);
+            tmpsum = 0.;
+            for(size_t i(0); i < nrows; ++i)
+                if(row(w_.weights_, 0) * trans(row(matrix, i)) * labels[i] < 0)
+                    row(tmpsum, 0) += row(matrix, i) * labels[i];
+            w_.scale(1.0 - eta * lambda_);
+            row(w_.weights_, 0) += row(tmpsum, 0) * scale_factor;
+            const double norm(w_.get_norm_sq());
+            if(norm > 1. / lambda_) w_.scale(std::sqrt(1.0 / (lambda_ * norm)));
+            if(t_ >= max_iter_ || false) { // TODO: replace false with epsilon
+                if(avgs_used == 0) w_avg_.weights_ = 0;
+                row(w_avg_.weights_, 0) += row(w_.weights_, 0);
+                ++avgs_used;
+            }
         }
+        row(w_avg_.weights_, 0) *= 1. / avg_size_;
     }
     // Training
     // For kernel, see fig. 3. http://ttic.uchicago.edu/~nati/Publications/PegasosMPB.pdf

@@ -5,7 +5,7 @@ using namespace svm;
 
 int usage(char *ex) {
     std::fprintf(stderr, "Usage: %s <opts> data\n"
-                         "Flags:\n-p:\tNumber of processes [1]\n"
+                         "Flags:\n-p:\tNumber of processes [1]\n\n"
                          "-[h?]:\tHelp menu.\n"
                          "-l:\tSet lambda parameter.\n"
                          "-e:\tSet eta parameter (NORMA and Zhang algorithms only).\n"
@@ -37,6 +37,7 @@ int main(int argc, char *argv[]) {
     LOG_ASSERT(blaze::getNumThreads() == nthreads);
     LinearKernel<double> linear_kernel;
     SVM<LinearKernel<double>, double> svm(argv[optind], 0.4, linear_kernel, 256);
+    svm.train_linear();
     // cerr << "Matrix in: \n" << svm.get_matrix();
     RBesselKernel<double> rbk(0.1);
 #if 0
