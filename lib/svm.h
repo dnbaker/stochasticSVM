@@ -13,7 +13,26 @@ namespace svm {
 // TODO: Polynomial kernels
 // TODO: Gradients
 
-
+template<typename MatrixType, class MatrixKind>
+class WeightMatrix {
+    MatrixType norm_;
+    MatrixKind weights_;
+public:
+    operator MatrixKind&() {return weights_;}
+    operator const MatrixKind&() const {return weights_;}
+    WeightMatrix(size_t ns, size_t nc, MatrixType lambda):
+        norm_{0.}, weights_{MatrixKind(ns, nc == 2 ? 1: nc)} {
+        const MatrixType val(ns == 2 ? std::sqrt(1 / lambda) / ns: 0.);
+        for(size_t i(0); i < weights_.rows(); ++i)
+            for(size_t j(0); j < weights_.rows(); ++j)
+                weights_(i, j) = val;
+    }
+    WeightMatrix(): norm_(0.) {}
+    void scale(MatrixType factor) {
+        norm_ *= factor * factor;
+        weights_ *= factor;
+    }
+};
 
 template<class Kernel,
          typename MatrixType=float,
@@ -22,29 +41,12 @@ template<class Kernel,
          class LearningPolicy=PegasosLearningRate<MatrixType>>
 class SVM {
 
+    using WMType = WeightMatrix<MatrixType, MatrixKind>;
+
     MatrixKind                m_; // Training Data
-
-    class WeightMatrix {
-        friend SVM;
-        MatrixType norm_;
-        MatrixKind weights_;
-        operator MatrixKind&() {return weights_;}
-        operator const MatrixKind&() const {return weights_;}
-        WeightMatrix(size_t ns, size_t nc, MatrixType lambda):
-            norm_{0.}, weights_{MatrixKind(ns, nc == 2 ? 1: nc)} {
-            const MatrixType val(std::sqrt(1 / lambda) / ns);
-            for(size_t i(0); i < weights_.rows(); ++i)
-                for(size_t j(0); j < weights_.rows(); ++j)
-                    weights_(i, j) = val;
-        }
-        WeightMatrix(): norm_(0.) {}
-        void scale(MatrixType factor) {
-            norm_ *= factor * factor;
-            weights_ *= factor;
-        }
-    } w_;
     // Weights. one-dimensional for 2-class, nc_-dimensional for more.
-
+    WMType w_;
+    WMType w_avg_;
     DynamicVector<VectorType> a_; // Only used for kernel.
     DynamicVector<VectorType> v_; // Labels
     MatrixKind r_; // Renormalization values. Subtraction, then multiplication
@@ -53,13 +55,19 @@ class SVM {
     size_t                  mbs_; // Mini-batch size
     size_t                   ns_; // Number samples
     size_t                   nd_; // Number of dimensions
+    size_t             max_iter_; // Maximum iterations.
+                                  // If -1, use epsilon termination conditions.
+    size_t                    t_; // Timepoint.
     LearningPolicy           lp_; // Calculates learning rate at a timestep t.
+    MatrixType              eps_; // epsilon termination.
     std::unordered_map<VectorType, std::string> class_name_map_;
     
 
 public:
-    SVM(const char *path, const MatrixType lambda, size_t mini_batch_size)
-        : lambda_(lambda), nc_(0), mbs_(mini_batch_size), lp_(lambda_) {
+    SVM(const char *path, const MatrixType lambda, size_t mini_batch_size,
+        size_t max_iter=1000000,  const MatrixType eps=1e-12)
+        : lambda_(lambda), nc_(0), mbs_(mini_batch_size), t_(0),
+          max_iter_(max_iter), lp_(lambda), eps_(eps) {
         load_data(path);
     }
     size_t get_nsamples() {return ns_;}
@@ -87,7 +95,7 @@ private:
         class_name_map_ = std::move(new_cmap);
         nc_ = map.size();
         //init_weights();
-        w_ = WeightMatrix(ns_, nc_ == 2 ? 1: nc_, lambda_);
+        w_ = WMType(ns_, nc_ == 2 ? 1: nc_, lambda_);
         rescale();
     }
     void rescale() {
@@ -108,6 +116,11 @@ private:
                 *cit = (*cit - mean) * r_(i, 1);
             }
             var = variance(col, 0.);
+        }
+    }
+    void train_linear() {
+        while(t_ < max_iter_) {
+            blaze::Subvector labels(v_, t_ * mbs_, mbs_);
         }
     }
     // Training
