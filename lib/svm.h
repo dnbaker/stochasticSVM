@@ -15,19 +15,37 @@ namespace svm {
 
 
 
-template<class Kernel, typename MatrixType=float, typename VectorType=int, class LearningPolicy=PegasosLearningRate<MatrixType>>
+template<class Kernel,
+         typename MatrixType=float,
+         class MatrixKind=DynamicMatrix<MatrixType>,
+         typename VectorType=int,
+         class LearningPolicy=PegasosLearningRate<MatrixType>>
 class SVM {
-    DynamicMatrix<MatrixType, blaze::rowMajor> m_; // Training Data
-    DynamicMatrix<MatrixType> w_; // Only used in classification for kernel, though used for traiing and classification in linear.
+
+    MatrixKind                m_; // Training Data
+
+    class WeightMatrix {
+        friend SVM;
+        MatrixType norm_;
+        MatrixKind weights_;
+        operator MatrixKind&() {return weights_;}
+        operator const MatrixKind&() const {return weights_;}
+        WeightMatrix(size_t ns, size_t nc):
+            norm_{0.}, weights_{MatrixKind(ns, nc == 2 ? 1: nc)}
+        }
+        WeightMatrix(): norm_(0.) {}
+    } w_;
+    // Weights. one-dimensional for 2-class, nc_-dimensional for more.
+
     DynamicVector<VectorType> a_; // Only used for kernel.
     DynamicVector<VectorType> v_; // Labels
-    DynamicMatrix<MatrixType> r_; // Renormalization values. Subtraction, then multiplication
+    MatrixKind r_; // Renormalization values. Subtraction, then multiplication
     const MatrixType     lambda_; // Lambda Parameter
     size_t                   nc_; // Number of classes
     size_t                  mbs_; // Mini-batch size
     size_t                   ns_; // Number samples
     size_t                   nd_; // Number of dimensions
-    LearningPolicy           lp_; // Calculates learing rate at a timestep t.
+    LearningPolicy           lp_; // Calculates learning rate at a timestep t.
     std::unordered_map<VectorType, std::string> class_name_map_;
     
 
@@ -61,11 +79,11 @@ private:
         class_name_map_ = std::move(new_cmap);
         nc_ = map.size();
         //init_weights();
-        w_ = DynamicMatrix<MatrixType>(ns_, nc_ == 2 ? 1: nc_);
+        w_ = WeightMatrix(ns_, nc_ == 2 ? 1: nc_);
         rescale();
     }
     void rescale() {
-        r_ = DynamicMatrix<MatrixType>(nd_, 2);
+        r_ = MatrixKind(nd_, 2);
         // Could/Should rewrite with pthread-type parallelization and get better memory access pattern.
         #pragma omp parallel for schedule(dynamic)
         for(size_t i = 0; i < nd_; ++i) {

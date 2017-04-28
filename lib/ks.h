@@ -26,10 +26,6 @@ public:
         return const_cast<const kstring_t *>(&ks_);
     }
     kstring_t *operator->() {return &ks_;}
-    const auto &operator*() const {
-        return const_cast<const kstring_t &>(ks_);
-    }
-    kstring_t  &operator*() {return ks_;}
 
     // Conversions
     operator const char *() const {return ks_.s;}
