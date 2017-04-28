@@ -4,12 +4,14 @@
 using namespace svm;
 
 int usage(char *ex) {
-    std::fprintf(stderr, "Usage: %s <opts> data\n"
+    char buf[1024];
+    std::sprintf(buf, "Usage: %s <opts> data\n"
                          "Flags:\n-p:\tNumber of processes [1]\n\n"
                          "-[h?]:\tHelp menu.\n"
                          "-l:\tSet lambda parameter.\n"
                          "-e:\tSet eta parameter (NORMA and Zhang algorithms only).\n"
                  , ex);
+    cerr << buf;
     return EXIT_FAILURE;
 }
 
@@ -58,5 +60,4 @@ int main(int argc, char *argv[]) {
     cerr << "Kernel result: " << lk(row1, row2) << '\n';
     for(u32 i(0); i < row1.size(); ++i) zomg += row1[i] * row2[i];
     cerr << "Manual result: " << zomg << '\n';
-    std::fprintf(stderr, "Manual result: %f\n", zomg);
 }
