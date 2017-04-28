@@ -11,8 +11,8 @@
 namespace svm {
 
 
-// TODO: Polynomial kernels
-// TODO: Gradients
+// TODONE: Polynomial kernels
+// TODONE: Gradients
 
 template<typename MatrixType, class MatrixKind>
 class WeightMatrix {
