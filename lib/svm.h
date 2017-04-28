@@ -51,6 +51,7 @@ class SVM {
     DynamicVector<VectorType> v_; // Labels
     MatrixKind r_; // Renormalization values. Subtraction, then multiplication
     const MatrixType     lambda_; // Lambda Parameter
+    const Kernel         kernel_;
     size_t                   nc_; // Number of classes
     size_t                  mbs_; // Mini-batch size
     size_t                   ns_; // Number samples
@@ -64,10 +65,14 @@ class SVM {
     
 
 public:
-    SVM(const char *path, const MatrixType lambda, size_t mini_batch_size,
+    SVM(const char *path,
+        const MatrixType lambda,
+        Kernel kernel=LinearKernel<MatrixType>(),
+        size_t mini_batch_size=1<<8,
         size_t max_iter=1000000,  const MatrixType eps=1e-12)
-        : lambda_(lambda), nc_(0), mbs_(mini_batch_size), t_(0),
-          max_iter_(max_iter), lp_(lambda), eps_(eps) {
+        : lambda_(lambda), kernel_(std::move(kernel)),
+          nc_(0), mbs_(mini_batch_size),
+          max_iter_(max_iter), t_(0), lp_(lambda), eps_(eps) {
         load_data(path);
     }
     size_t get_nsamples() {return ns_;}

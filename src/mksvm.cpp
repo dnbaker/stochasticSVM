@@ -35,7 +35,8 @@ int main(int argc, char *argv[]) {
 
     blaze::setNumThreads(nthreads);
     LOG_ASSERT(blaze::getNumThreads() == nthreads);
-    SVM<LinearKernel<double>, double> svm(argv[optind], 0.4, 256);
+    LinearKernel<double> linear_kernel;
+    SVM<LinearKernel<double>, double> svm(argv[optind], 0.4, linear_kernel, 256);
     // cerr << "Matrix in: \n" << svm.get_matrix();
     RBesselKernel<double> rbk(0.1);
 #if 0
