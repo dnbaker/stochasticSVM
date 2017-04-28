@@ -4,3 +4,6 @@
 [submodule "blaze"]
 	path = blaze
 	url = https://bitbucket.org/blaze-lib/blaze
+[submodule "fastrange"]
+	path = fastrange
+	url = https://github.com/lemire/fastrange

@@ -87,16 +87,12 @@ using std::cout;
 
 using std::size_t;
 using u32 = std::uint32_t;
+using i32 = std::int32_t;
 using u64 = std::uint64_t;
+using i64 = std::int64_t;
 using blaze::DynamicVector;
 using blaze::DynamicMatrix;
-
-#if 0
-template<typename FloatType, typename MatrixType1, typename MatrixType2>
-FloatType dot(MatrixType1 &a, MatrixType2 &b) {
-    return static_cast<FloatType>(a * trans(b));
-}
-#endif
+using blaze::SparseMatrix;
 
 struct dims_t {
     size_t ns_, nd_;
@@ -108,6 +104,10 @@ template<typename MatrixType, typename FloatType=float>
 INLINE FloatType diffnorm(MatrixType &a, MatrixType &b) {
     // Note: Could accelerate with SIMD/parallelism and avoid a copy/memory allocation.
     return dot(a - b, a - b);
+}
+
+static inline u64 rand64() {
+    return ((u64)std::rand() << 32) | std::rand();
 }
 
 template<typename MatrixType, typename FloatType=float>
