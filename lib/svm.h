@@ -5,6 +5,7 @@
 #include "lib/parse.h"
 #include "lib/kernel.h"
 #include "lib/mkernel.h"
+#include "lib/math.h"
 #include "lib/learning_rate.h"
 #include "fastrange/fastrange.h"
 
@@ -40,6 +41,7 @@ template<class Kernel, typename MatrixType=float,
          class MatrixKind=DynamicMatrix<MatrixType>,                            
          typename VectorType=int>
 class SVMClassifier {
+    // TODO: Add bias parameter.
     const Kernel         kernel_;
     size_t                   nc_; // Number of classes
     size_t                   nd_; // Number of dimensions
@@ -56,8 +58,9 @@ public:
         }
         if(nc_ == 2) {
             return std::signbit(sum);
+        } else {
+            throw std::runtime_error("NotImplementedError");
         }
-        else throw std::runtime_error("NotImplementedError");
     }
     template<typename ClassifyMatrixKind>
     DynamicVector<VectorType> classify(ClassifyMatrixKind &data) const {
@@ -113,8 +116,8 @@ public:
     SVMTrainer(const char *path,
         const MatrixType lambda,
         Kernel kernel=LinearKernel<MatrixType>(),
-        size_t mini_batch_size=1<<8,
-        size_t max_iter=1000000,  const MatrixType eps=1e-12,
+        size_t mini_batch_size=1,
+        size_t max_iter=1000,  const MatrixType eps=1e-12,
         long avg_size=-1)
         : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size),
@@ -170,9 +173,14 @@ private:
         }
     }
     void add_entry_linear(const size_t index, DynamicMatrix<MatrixType> &tmpsum, size_t &nels_added) {
+        LOG_DEBUG("Get mrow and wrow for index: %zu\n", index);
         auto mrow(row(m_, index));
-        if(kernel_(mrow, row(w_.weights_, 0)) * v_[index] < 0)
+        auto wrow(row(w_.weights_, 0));
+        LOG_DEBUG("Got mrow and wrow\n");
+        if(kernel_(mrow, wrow) * v_[index] < 0) {
+            LOG_DEBUG("kernel evaluated\n");
             row(tmpsum, 0) += mrow * v_[index];
+        }
         ++nels_added;
     }
     void add_block_linear(const size_t index, DynamicMatrix<MatrixType> &tmpsum,
@@ -186,18 +194,23 @@ public:
         size_t avgs_used(0);
         DynamicMatrix<MatrixType> tmpsum(1, nd_);
         size_t nels_added(0);
+        LOG_DEBUG("About to start training\n");
+        auto wrow(row(w_.weights_, 0));
+        auto trow(row(tmpsum, 0));
+        LOG_DEBUG("Set wrow and trow\n");
         while(avgs_used < avg_size_) {
-            const size_t start_index = fastrangesize(rand64(), ns_ - mbs_);
+            const size_t start_index = fastrangesize(rand64(), std::min(ns_ - mbs_, ns_));
             tmpsum = 0.;
             add_block_linear(start_index, tmpsum, nels_added);
             w_.scale(1.0 - eta * lambda_);
             const double scale_factor = eta / nels_added;
-            row(w_.weights_, 0) += row(tmpsum, 0) * scale_factor;
+            wrow += trow * scale_factor;
             const double norm(w_.get_norm_sq());
             if(norm > 1. / lambda_) w_.scale(std::sqrt(1.0 / (lambda_ * norm)));
+            auto avg_row(row(w_avg_.weights_, 0));
             if(t_ >= max_iter_ || false) { // TODO: replace false with epsilon
                 if(avgs_used == 0) w_avg_.weights_ = 0;
-                row(w_avg_.weights_, 0) += row(w_.weights_, 0);
+                avg_row += wrow;
                 ++avgs_used;
             }
         }

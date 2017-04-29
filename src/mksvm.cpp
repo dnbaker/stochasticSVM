@@ -41,6 +41,7 @@ int main(int argc, char *argv[]) {
     SVMTrainer<LinearKernel<double>, double> svm(argv[optind], 0.4, linear_kernel, 256);
     svm.train_linear();
     // cerr << "Matrix in: \n" << svm.get_matrix();
+    cerr << "Frobenius norm of matrix is " << frobenius_norm(svm.get_matrix()) << '\n';
     RBesselKernel<double> rbk(0.1);
 #if 0
     auto row1(row(pair.first, 1));
