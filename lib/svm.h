@@ -172,12 +172,19 @@ private:
             }
         }
     }
+    template<typename RowType>
+    double predict(RowType &datapoint) {
+        double ret(0.);
+        auto wrow(row(w_.weights_, 0));
+        for(size_t i(0), e(wrow.size()); i < e; ++i) {
+            ret += wrow[i] * kernel_(row(m_, i), datapoint);
+        }
+        return ret;
+    }
     void add_entry_linear(const size_t index, DynamicMatrix<MatrixType> &tmpsum, size_t &nels_added) {
         LOG_DEBUG("Get mrow and wrow for index: %zu\n", index);
         auto mrow(row(m_, index));
-        auto wrow(row(w_.weights_, 0));
-        LOG_DEBUG("Got mrow and wrow\n");
-        if(kernel_(mrow, wrow) * v_[index] < 0) {
+        if(predict(mrow) * v_[index] < 0) {
             LOG_DEBUG("kernel evaluated\n");
             row(tmpsum, 0) += mrow * v_[index];
         }
@@ -199,7 +206,7 @@ public:
         auto trow(row(tmpsum, 0));
         LOG_DEBUG("Set wrow and trow\n");
         while(avgs_used < avg_size_) {
-            const size_t start_index = fastrangesize(rand64(), std::min(ns_ - mbs_, ns_));
+            const size_t start_index = rand64() % std::min(ns_ - mbs_, ns_);
             tmpsum = 0.;
             add_block_linear(start_index, tmpsum, nels_added);
             w_.scale(1.0 - eta * lambda_);
