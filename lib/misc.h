@@ -92,7 +92,7 @@ using u64 = std::uint64_t;
 using i64 = std::int64_t;
 using blaze::DynamicVector;
 using blaze::DynamicMatrix;
-using blaze::SparseMatrix;
+using blaze::CompressedMatrix;
 
 struct dims_t {
     size_t ns_, nd_;

@@ -15,18 +15,16 @@ namespace svm {
 // TODONE: Polynomial kernels
 // TODONE: Gradients
 
-template<typename MatrixType, class MatrixKind>
+template<typename MatrixType>
 class WeightMatrix {
+    using SparseMatrixKind = CompressedMatrix<MatrixType>;
     MatrixType norm_;
 public:
-    MatrixKind weights_;
-    operator MatrixKind&() {return weights_;}
-    operator const MatrixKind&() const {return weights_;}
+    SparseMatrixKind weights_;
+    operator SparseMatrixKind&() {return weights_;}
+    operator const SparseMatrixKind&() const {return weights_;}
     WeightMatrix(size_t ns, size_t nc, MatrixType lambda):
-        norm_{0.}, weights_{MatrixKind(nc == 2 ? 1: nc, ns)} {
-        const MatrixType val(ns == 2 ? std::sqrt(1 / lambda) / ns: 0.);
-        weights_ = val;
-    }
+        norm_{0.}, weights_{SparseMatrixKind(nc == 2 ? 1: nc, ns)} {}
     WeightMatrix(): norm_(0.) {}
     void scale(MatrixType factor) {
         norm_ *= factor * factor;
@@ -88,7 +86,7 @@ template<class Kernel,
          class LearningPolicy=PegasosLearningRate<MatrixType>>
 class SVMTrainer {
 
-    using WMType = WeightMatrix<MatrixType, MatrixKind>;
+    using WMType = WeightMatrix<MatrixType>;
 
     MatrixKind                m_; // Training Data
     // Weights. one-dimensional for 2-class, nc_-dimensional for more.
@@ -207,6 +205,7 @@ public:
         LOG_DEBUG("Set wrow and trow\n");
         while(avgs_used < avg_size_) {
             const size_t start_index = rand64() % std::min(ns_ - mbs_, ns_);
+            LOG_DEBUG("Start index: %zu\n", start_index);
             tmpsum = 0.;
             add_block_linear(start_index, tmpsum, nels_added);
             w_.scale(1.0 - eta * lambda_);
@@ -216,7 +215,6 @@ public:
             if(norm > 1. / lambda_) w_.scale(std::sqrt(1.0 / (lambda_ * norm)));
             auto avg_row(row(w_avg_.weights_, 0));
             if(t_ >= max_iter_ || false) { // TODO: replace false with epsilon
-                if(avgs_used == 0) w_avg_.weights_ = 0;
                 avg_row += wrow;
                 ++avgs_used;
             }
