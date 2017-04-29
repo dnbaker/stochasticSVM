@@ -22,6 +22,7 @@ int main(int argc, char *argv[]) {
     unsigned nthreads(1);
     char cerr_buf[1 << 16];
     cerr.rdbuf()->pubsetbuf(cerr_buf, sizeof cerr_buf);
+    cerr << std::nounitbuf;
     std::ios::sync_with_stdio(false);
     for(char **p(argv + 1); *p; ++p) if(strcmp(*p, "--help") == 0) goto usage;
     while((c = getopt(argc, argv, "c:w:M:S:p:k:f:h?")) >= 0) {
@@ -38,7 +39,7 @@ int main(int argc, char *argv[]) {
     blaze::setNumThreads(nthreads);
     LOG_ASSERT(blaze::getNumThreads() == nthreads);
     LinearKernel<double> linear_kernel;
-    SVMTrainer<LinearKernel<double>, double> svm(argv[optind], 0.4, linear_kernel, 256);
+    SVMTrainer<LinearKernel<double>, double> svm(argv[optind], 0.4, linear_kernel, 1);
     svm.train_linear();
     // cerr << "Matrix in: \n" << svm.get_matrix();
     cerr << "Frobenius norm of matrix is " << frobenius_norm(svm.get_matrix()) << '\n';

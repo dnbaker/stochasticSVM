@@ -15,23 +15,34 @@ namespace svm {
 // TODONE: Polynomial kernels
 // TODONE: Gradients
 
-template<typename MatrixType>
+template<typename MatrixType, typename WeightMatrixKind=CompressedMatrix<MatrixType>>
 class WeightMatrix {
-    using SparseMatrixKind = CompressedMatrix<MatrixType>;
     MatrixType norm_;
 public:
-    SparseMatrixKind weights_;
-    operator SparseMatrixKind&() {return weights_;}
-    operator const SparseMatrixKind&() const {return weights_;}
+    WeightMatrixKind weights_;
+    operator WeightMatrixKind&() {return weights_;}
+    operator const WeightMatrixKind&() const {return weights_;}
     WeightMatrix(size_t ns, size_t nc, MatrixType lambda):
-        norm_{0.}, weights_{SparseMatrixKind(nc == 2 ? 1: nc, ns)} {}
+        norm_{0.}, weights_{WeightMatrixKind(nc == 2 ? 1: nc, ns)} {}
     WeightMatrix(): norm_(0.) {}
     void scale(MatrixType factor) {
         norm_ *= factor * factor;
         weights_ *= factor;
     }
     MatrixType get_norm_sq() {
-        return norm_ = dot(row(weights_, 0), row(weights_, 0));
+        LOG_DEBUG("Trying to make a norm_sq\n");
+        try {
+            LOG_DEBUG("If you see this, then we didn't do the exception\n");
+            return norm_ = dot(row(weights_, 0), row(weights_, 0));
+        } catch(std::invalid_argument &ia) {
+            LOG_DEBUG("Dot product between row of size %zu and %zu failed...\n", row(weights_, 0).size(), row(weights_, 0).size());
+            MatrixType ret(0.);
+            const auto wrow(row(weights_, 0));
+            for(const auto i: wrow) {
+                ret += i.value() * i.value();
+            }
+            return ret;
+        }
     }
 };
 
@@ -171,53 +182,85 @@ private:
         }
     }
     template<typename RowType>
-    double predict(RowType &datapoint) {
+    double predict_linear(RowType &datapoint) {
         double ret(0.);
-        auto wrow(row(w_.weights_, 0));
-        for(size_t i(0), e(wrow.size()); i < e; ++i) {
-            ret += wrow[i] * kernel_(row(m_, i), datapoint);
+        LOG_DEBUG("About to start predicting. Number of rows in weights: %zu\n", w_.weights_.rows());
+        // Nota bene: the CompressedMatrix type skips all zero entries, so classification is pretty fast while sparse.
+//#if USE_COMPRESSED
+#if 1
+        // This can be done with std::enable_if, but I'm lazy for now
+        for(auto i(w_.weights_.cbegin(0)), e(w_.weights_.cend(0));
+            i != e; ++i) {
+            LOG_DEBUG("Size of row: %zu. dp: %zu\n", row(m_, i->index()).size(), datapoint.size());
+            ret += i->value() * kernel_(row(m_, i->index()), datapoint);
         }
+#else
+        for(auto i(0ul); i < ns_; ++i) {
+            ret += kernel_(row(m_, i), datapoint);
+        }
+#endif
+        LOG_DEBUG("Okay I'm done. Prediction: %lf\n", ret);
         return ret;
     }
-    void add_entry_linear(const size_t index, DynamicMatrix<MatrixType> &tmpsum, size_t &nels_added) {
+    template<typename WeightMatrixKind>
+    void add_entry_linear(const size_t index, WeightMatrixKind &tmpsum, size_t &nels_added) {
         LOG_DEBUG("Get mrow and wrow for index: %zu\n", index);
         auto mrow(row(m_, index));
-        if(predict(mrow) * v_[index] < 0) {
-            LOG_DEBUG("kernel evaluated\n");
-            row(tmpsum, 0) += mrow * v_[index];
+        if(predict_linear(mrow) * v_[index] < 1.) {
+            LOG_DEBUG("LOSS! Size of row: %zu. Size of matrix row: %zu\n", row(tmpsum, 0).size(), mrow.size());
+            tmpsum(0, index) += v_[index];
+        } else {
+            LOG_DEBUG("No loss!\n");
         }
+        LOG_DEBUG("kernel evaluated\n");
         ++nels_added;
     }
-    void add_block_linear(const size_t index, DynamicMatrix<MatrixType> &tmpsum,
+    template<typename WeightMatrixKind>
+    void add_block_linear(const size_t index, WeightMatrixKind &tmpsum,
                           size_t &nels_added) {
-        for(size_t i(index), end(index + mbs_); i < end; ++i)
+        for(size_t i(index), end(index + mbs_); i < end; ++i) {
+            //cerr << "Adding block at index " << i << ", which is less than " << end << ".\n";
+            assert(index < end);
             add_entry_linear(index, tmpsum, nels_added);
+        }
+        LOG_DEBUG("All blocks added for block starting at %zu\n", index);
     }
 public:
     void train_linear() {
-        const double eta(lp_(t_));
         size_t avgs_used(0);
-        DynamicMatrix<MatrixType> tmpsum(1, nd_);
+        decltype(w_.weights_) tmpsum(1, ns_);
         size_t nels_added(0);
         LOG_DEBUG("About to start training\n");
         auto wrow(row(w_.weights_, 0));
         auto trow(row(tmpsum, 0));
         LOG_DEBUG("Set wrow and trow\n");
-        while(avgs_used < avg_size_) {
+        for(t_ = 0; avgs_used < avg_size_; ++t_) {
+            if((t_ & 255uL) == 0) {
+                cerr << "Weights currently: " << w_.weights_ << '\n';
+            }
+            const double eta(lp_(t_));
             const size_t start_index = rand64() % std::min(ns_ - mbs_, ns_);
             LOG_DEBUG("Start index: %zu\n", start_index);
-            tmpsum = 0.;
+            for(auto &i: row(tmpsum, 0)) i = 0.;
             add_block_linear(start_index, tmpsum, nels_added);
             w_.scale(1.0 - eta * lambda_);
             const double scale_factor = eta / nels_added;
+            LOG_DEBUG("About to add tmp row to weight row\n");
             wrow += trow * scale_factor;
+            LOG_DEBUG("About to get row norm\n");
             const double norm(w_.get_norm_sq());
-            if(norm > 1. / lambda_) w_.scale(std::sqrt(1.0 / (lambda_ * norm)));
-            auto avg_row(row(w_avg_.weights_, 0));
+            if(norm > 1. / lambda_) {
+                LOG_DEBUG("Scaling down bc too big\n");
+                w_.scale(std::sqrt(1.0 / (lambda_ * norm)));
+            }
             if(t_ >= max_iter_ || false) { // TODO: replace false with epsilon
+                if(w_avg_.weights_.rows() == 0) w_avg_ = WMType(ns_, nc_ == 2 ? 1: nc_, lambda_);
+                auto avg_row(row(w_avg_.weights_, 0));
+                LOG_DEBUG("Updating averages\n");
                 avg_row += wrow;
                 ++avgs_used;
             }
+            LOG_DEBUG("Finishing loop\n");
         }
         row(w_avg_.weights_, 0) *= 1. / avg_size_;
     }
