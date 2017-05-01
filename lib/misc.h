@@ -112,13 +112,15 @@ static inline u64 rand64() {
 
 template<typename MatrixType, typename FloatType=float>
 INLINE MatrixType min(MatrixType &a, MatrixType &b) {
-    if(a.size() != b.size())
+    if(a.rows() != b.rows() || row(a, 0).size() != row(b, 0).size())
         throw std::out_of_range(std::string("Could not calculate min between arrays of different sizes (") + std::to_string(a.size()) + ", " + std::to_string(b.size()) + ")");
     // Note: Could accelerate with SIMD/parallelism and avoid a copy/memory allocation.
-    DynamicVector<FloatType> ret(a.size());
-    auto rit(ret.cbegin());
-    for(auto ait(a.cbegin()), bit(b.cbegin()); ait != a.cend(); ++ait, ++bit)
-        *rit++ = std::min(*ait++, *bit++);
+    MatrixType ret(a.rows(), a.columns());
+    for(size_t i(0), e(a.rows()); i < e; ++i) {
+        auto rit(ret.begin(i));
+        for(auto ait(a.cbegin(i)), bit(b.cbegin(i)); ait != a.cend();)
+            *rit++ = std::min(*ait++, *bit++);
+    }
     return ret;
 }
 
@@ -142,7 +144,7 @@ double variance(const Container &c) {
     for(const auto entry: c) sum += entry;
     sum /= c.size();
     cerr << "Computed variance for matrix with mean " << sum << '\n';
-    return variance(c, sum / c.size());
+    return variance(c, sum);
 }
 
 } // namespace svm

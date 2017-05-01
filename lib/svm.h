@@ -126,7 +126,7 @@ public:
         const MatrixType lambda,
         Kernel kernel=LinearKernel<MatrixType>(),
         size_t mini_batch_size=1,
-        size_t max_iter=1000,  const MatrixType eps=1e-12,
+        size_t max_iter=100000,  const MatrixType eps=1e-12,
         long avg_size=-1)
         : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size),
@@ -206,8 +206,10 @@ private:
     void add_entry_linear(const size_t index, WeightMatrixKind &tmpsum, size_t &nels_added) {
         LOG_DEBUG("Get mrow and wrow for index: %zu\n", index);
         auto mrow(row(m_, index));
-        if(predict_linear(mrow) * v_[index] < 1.) {
-            LOG_DEBUG("LOSS! Size of row: %zu. Size of matrix row: %zu\n", row(tmpsum, 0).size(), mrow.size());
+        MatrixType pred;
+        if((pred = predict_linear(mrow) * v_[index]) < 1.) {
+            LOG_DEBUG("%zu, %zu (round, index) loss: %lf\n",
+                      t_, index, pred);
             tmpsum(0, index) += v_[index];
         } else {
             LOG_DEBUG("No loss!\n");
