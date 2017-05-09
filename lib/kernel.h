@@ -17,8 +17,8 @@ struct MultiplicativeKernel: KernelBase<FloatType> {
     // TODO: Expand this to use fold expressions and a variable number of kernels.
     const std::pair<Kernel1, Kernel2> kernels_;
     const FloatType a_, b_;
-    template<typename MatrixType>
-    FloatType operator()(const MatrixType &a, const MatrixType &b) const {
+    template<typename MatrixType1, typename MatrixType2>
+    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
         return a_ * std::get<0>(kernels_)(a, b) * std::get<1>(kernels_)(a, b) + b_;
     }
     MultiplicativeKernel(std::pair<Kernel1, Kernel2> &kernels,
@@ -30,8 +30,8 @@ struct AdditiveKernel: KernelBase<FloatType> {
     // TODO: Expand this to use fold expressions and a variable number of kernels.
     const std::pair<Kernel1, Kernel2> kernels_;
     const FloatType a_, b_, c_;
-    template<typename MatrixType>
-    FloatType operator()(const MatrixType &a, const MatrixType &b) const {
+    template<typename MatrixType1, typename, MatrixType2>
+    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
         return std::get<0>(kernels_)(a, b) * a_ + std::get<1>(kernels_)(a, b) * b_;
     }
     AdditiveKernel(std::pair<Kernel1, Kernel2> &kernels,

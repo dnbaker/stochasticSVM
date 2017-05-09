@@ -246,11 +246,6 @@ public:
         return static_cast<double>(mistakes) / ns_;
     }
     void train() {
-#if !NDEBUG
-        cerr << "Starting to train\n";
-        cerr << "Matrix: \n" << str(m_);
-        cerr << "Labels: \n" << vecstr(v_);
-#endif
         size_t avgs_used(0);
         decltype(w_.weights_) tmpsum(1, nd_);
         decltype(w_.weights_) last_weights(1, nd_);
@@ -294,7 +289,6 @@ public:
         cleanup();
     }
     void cleanup() {
-        // TODO: Free memory from training data and leave only data for classifier.
         free_matrix(m_);
         free_vector(v_);
         row(w_.weights_, 0) = row(w_avg_.weights_, 0);
@@ -302,6 +296,7 @@ public:
     }
     void write(FILE *fp) {
         fprintf(fp, "#Dimensions: %zu.\n", nd_);
+        fprintf(fp, "#LinearKernel\n");
         ks::KString line;
         line.resize(5 * row(w_.weights_, 0).size());
         for(const auto i: row(w_.weights_, 0)) {
