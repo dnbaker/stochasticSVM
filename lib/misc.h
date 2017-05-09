@@ -92,8 +92,8 @@ struct dims_t {
     dims_t(const char *fn);
 };
 
-template<typename MatrixType, typename FloatType=float>
-INLINE FloatType diffnorm(MatrixType &a, MatrixType &b) {
+template<typename MatrixType1, typename MatrixType2, typename FloatType=double>
+INLINE FloatType diffnorm(const MatrixType1 &a, const MatrixType2 &b) {
     // Note: Could accelerate with SIMD/parallelism and avoid a copy/memory allocation.
     return dot(a - b, a - b);
 }

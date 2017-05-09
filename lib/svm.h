@@ -11,7 +11,7 @@
 
 namespace svm {
 
-#define NOTIFICATION_INTERVAL (1uLL)
+#define NOTIFICATION_INTERVAL (100uLL)
 
 // TODONE: Polynomial kernels
 // TODONE: Gradients
@@ -25,7 +25,6 @@ public:
     operator const WeightMatrixKind&() const {return weights_;}
     WeightMatrix(size_t ns, size_t nc, MatrixType lambda):
         norm_{0.}, weights_{WeightMatrixKind(nc == 2 ? 1: nc, ns)} {
-        cerr << "Initialized WeightMatrix with " << nc << " classes and " << ns << " samples\n";
     }
     WeightMatrix(): norm_(0.) {}
     void scale(MatrixType factor) {
@@ -62,15 +61,16 @@ class SVMTrainer {
     const MatrixType     lambda_; // Lambda Parameter
     const Kernel         kernel_;
     size_t                   nc_; // Number of classes
-    size_t                  mbs_; // Mini-batch size
+    const size_t            mbs_; // Mini-batch size
     size_t                   ns_; // Number samples
     size_t                   nd_; // Number of dimensions
-    size_t             max_iter_; // Maximum iterations.
+    const size_t       max_iter_; // Maximum iterations.
                                   // If -1, use epsilon termination conditions.
     size_t                    t_; // Timepoint.
-    LearningPolicy           lp_; // Calculates learning rate at a timestep t.
-    MatrixType              eps_; // epsilon termination.
-    size_t             avg_size_; // Number to average at end.
+    const LearningPolicy     lp_; // Calculates learning rate at a timestep t.
+    const MatrixType        eps_; // epsilon termination.
+    const size_t       avg_size_; // Number to average at end.
+    const bool          project_; // Whether or not to perform projection step.
     std::unordered_map<VectorType, std::string> class_name_map_;
     
 
@@ -80,30 +80,29 @@ public:
                const MatrixType lambda,
                LearningPolicy lp,
                Kernel kernel=LinearKernel<MatrixType>(),
-               size_t mini_batch_size=1,
-               size_t max_iter=100000,  const MatrixType eps=1e-12,
-               long avg_size=-1)
+               size_t mini_batch_size=256uL,
+               size_t max_iter=100000,  const MatrixType eps=1e-6,
+               long avg_size=-1, bool project=false)
         : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size),
           max_iter_(max_iter), t_(0), lp_(lp), eps_(eps),
-          avg_size_(avg_size < 0 ? 1000: avg_size)
+          avg_size_(avg_size < 0 ? 1000: avg_size),
+          project_(project)
     {
-        cerr << "Dense loader!\n";
         load_data(path);
     }
     SVMTrainer(const char *path, size_t ndims,
                const MatrixType lambda,
                LearningPolicy lp,
                Kernel kernel=LinearKernel<MatrixType>(),
-               size_t mini_batch_size=1,
-               size_t max_iter=100000,  const MatrixType eps=1e-12,
-               long avg_size=-1)
+               size_t mini_batch_size=256uL,
+               size_t max_iter=100000,  const MatrixType eps=1e-6,
+               long avg_size=-1, bool project=false)
         : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size), nd_(ndims),
           max_iter_(max_iter), t_(0), lp_(lp), eps_(eps),
-          avg_size_(avg_size < 0 ? 1000: avg_size)
+          avg_size_(avg_size < 0 ? 10: avg_size), project_(project)
     {
-        cerr << "Sparse loader with " << ndims << " dimensions\n";
         sparse_load(path);
     }
     size_t get_nsamples() {return ns_;}
@@ -126,10 +125,9 @@ private:
         for(auto &pair: class_name_map_) new_cmap[map[pair.first]] = pair.second;
         class_name_map_ = std::move(new_cmap);
         nc_ = map.size();
-        for(auto &pair: class_name_map_) {
-            cerr << "Key: " << pair.second << " value: " << pair.first << '\n';
-        }
+#if !NDEBUG
         for(const auto i: v_) assert(i == -1 || i == 1);
+#endif
     }
     void load_data(const char *path) {
         dims_t dims(path);
@@ -224,11 +222,11 @@ private:
     }
     template<typename RowType>
     double predict_linear(const RowType &datapoint) const {
-        return dot(row(w_.weights_, 0), datapoint));
+        return dot(row(w_.weights_, 0), datapoint);
     }
     template<typename WeightMatrixKind>
     void add_entry_linear(const size_t index, WeightMatrixKind &tmpsum, size_t &nels_added) {
-        if(predict_linear(row(m_, index) * v_[index] < 1.) row(tmpsum, 0) += mrow * v_[index];
+        if(predict_linear(row(m_, index)) * v_[index] < 1.) row(tmpsum, 0) += row(m_, index) * v_[index];
         ++nels_added;
     }
     template<typename RowType>
@@ -249,54 +247,56 @@ public:
         return static_cast<double>(mistakes) / ns_;
     }
     void train_linear() {
+#if !NDEBUG
         cerr << "Starting to train\n";
         cerr << "Matrix: \n" << str(m_);
         cerr << "Labels: \n" << vecstr(v_);
+#endif
         size_t avgs_used(0);
         decltype(w_.weights_) tmpsum(1, nd_);
+        decltype(w_.weights_) last_weights(1, nd_);
         size_t nels_added(0);
         auto wrow(row(w_.weights_, 0));
         auto trow(row(tmpsum, 0));
-        cerr << ("Set wrow and trow\n");
         const size_t max_end_index(std::min(ns_ - mbs_, ns_));
         for(t_ = 0; avgs_used < avg_size_; ++t_) {
             nels_added = 0;
+#if !NDEBUG
             if((t_ % NOTIFICATION_INTERVAL) == 0) {
                 const double ls(loss()), current_norm(w_.get_norm_sq());
                 cerr << "Loss: " << ls * 100 << "%" << " at time = " << t_ << 
                         " with norm of w = " << current_norm << ".\n";
             }
+#endif
             const double eta(lp_(t_));
             tmpsum = 0.; // reset to 0 each time.
             for(size_t i(0); i < mbs_; ++i) {
                 const size_t start_index = fastrangesize(rand64(), max_end_index);
                 add_entry_linear(start_index, tmpsum, nels_added);
             }
+            if(t_ < max_iter_) {
+                last_weights = w_.weights_;
+            }
             w_.scale(1.0 - eta * lambda_);
             wrow += trow * (eta / nels_added);
-            const double norm(w_.get_norm_sq());
-            if(norm > 1. / lambda_) {
-                LOG_DEBUG("Scaling down bc too big\n");
-                w_.scale(std::sqrt(1.0 / (lambda_ * norm)));
+            if(project_) {
+                const double norm(w_.get_norm_sq());
+                if(norm > 1. / lambda_)
+                    w_.scale(std::sqrt(1.0 / (lambda_ * norm)));
             }
-            if(t_ >= max_iter_ || false) { // TODO: replace false with epsilon
+            if(t_ >= max_iter_ || diffnorm(row(last_weights, 0), row(w_.weights_, 0)) < eps_) { // TODO: replace false with epsilon
                 if(w_avg_.weights_.rows() == 0) w_avg_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
-                auto avg_row(row(w_avg_.weights_, 0));
-                LOG_DEBUG("Updating averages. t_: %zu. max: %zu\n", t_, max_iter_);
-                avg_row += wrow;
+                w_avg_.weights_ = 0.;
+                row(w_avg_.weights_, 0) += wrow;
                 ++avgs_used;
             }
-            //LOG_DEBUG("Finishing loop\n");
         }
         row(w_avg_.weights_, 0) *= 1. / avg_size_;
-        LOG_DEBUG("Trained!\n");
+        cleanup();
     }
-    // Training
-    // For kernel, see fig. 3. http://ttic.uchicago.edu/~nati/Publications/PegasosMPB.pdf
-    // For linear, see section 2. http://www.ee.oulu.fi/research/imag/courses/Vedaldi/ShalevSiSr07.pdf
-    // Consists of a gradient step ∇t = λ wt - \frac{1}{|A_t|}\sum{x,y \in A_{minibatch}}y^Tx
-    // followed by a projection onto a ball around w_t.
-    // I think it should be simple enough to write one that handles both linear and kernels.
+    void cleanup() {
+        // TODO: Free memory from training data and leave only data for classifier.
+    }
 }; // SVMTrainer
 
 } // namespace svm
