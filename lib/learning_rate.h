@@ -7,7 +7,7 @@ template<typename FloatType>
 struct PegasosLearningRate {
     const FloatType lambda_inv_;
     FloatType operator()(u64 t) {
-        return lambda_inv_ / (t + 2);
+        return lambda_inv_ / (t + 1);
     }
     PegasosLearningRate(FloatType lambda): lambda_inv_(1./lambda) {}
 };
@@ -25,7 +25,7 @@ template<typename FloatType>
 struct NormaLearningRate {
     const FloatType eta_;
     FloatType operator()(u64 t) {
-        return eta_ / std::sqrt(t + 2);
+        return eta_ / std::sqrt(t + 1);
     }
     NormaLearningRate(FloatType eta): eta_(eta) {}
 };

@@ -8,8 +8,8 @@ namespace svm {
 template<typename FloatType>
 struct KernelBase {
     using float_type = FloatType;
-    template<typename MatrixType>
-    FloatType operator()(const MatrixType &a, const MatrixType &b) const;
+    template<typename MatrixType1, typename MatrixType2>
+    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const;
 };
 
 template<typename FloatType, typename Kernel1, typename Kernel2>
@@ -42,8 +42,8 @@ struct AdditiveKernel: KernelBase<FloatType> {
 template<typename FloatType>
 struct LinearKernel: KernelBase<FloatType> {
     // TODO: Expand this to somehow exploit matrix structure/instrinsics for better performance?
-    template<typename MatrixType>
-    FloatType operator()(const MatrixType &a, const MatrixType &b) const {
+    template<typename MatrixType1, typename MatrixType2>
+    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
         return dot(a, b);
     }
 };

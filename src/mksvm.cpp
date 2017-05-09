@@ -19,6 +19,7 @@ int main(int argc, char *argv[]) {
     int c;
     double kappa(0.0025);
     double kc(-0.25);
+    size_t max_iter(100000);
     unsigned nthreads(1);
     char cerr_buf[1 << 16];
     cerr.rdbuf()->pubsetbuf(cerr_buf, sizeof cerr_buf);
@@ -30,6 +31,7 @@ int main(int argc, char *argv[]) {
             case 'p': nthreads = atoi(optarg); break;
             case 'k': kappa    = atof(optarg); break;
             case 'c': kc       = atof(optarg); break;
+            case 'M': max_iter = strtoull(optarg, 0, 10); break;
             case 'h': case '?': usage: return usage(*argv);
         }
     }
@@ -39,7 +41,7 @@ int main(int argc, char *argv[]) {
     blaze::setNumThreads(nthreads);
     LOG_ASSERT(blaze::getNumThreads() == nthreads);
     LinearKernel<double> linear_kernel;
-    SVMTrainer<LinearKernel<double>, double> svm(argv[optind], 0.4, linear_kernel, 1);
+    SVMTrainer<LinearKernel<double>, double> svm(argv[optind], 0.0001, linear_kernel, 100, max_iter);
     svm.train_linear();
     // cerr << "Matrix in: \n" << svm.get_matrix();
     cerr << "Frobenius norm of matrix is " << frobenius_norm(svm.get_matrix()) << '\n';

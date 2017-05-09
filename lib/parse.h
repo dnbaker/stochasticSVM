@@ -23,7 +23,7 @@ std::tuple<DynamicMatrix<MatrixType>, DynamicVector<VectorType>, std::unordered_
     char *line_end;
 #endif
     int c;
-    DynamicMatrix<MatrixType> m(dims.ns_, dims.nd_);
+    DynamicMatrix<MatrixType> m(dims.ns_, dims.nd_ + 1);
     DynamicVector<VectorType> v(dims.ns_);
     std::string class_name;
     VectorType  class_id(0);
