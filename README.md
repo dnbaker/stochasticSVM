@@ -22,7 +22,8 @@ Data may be provided in either sparse SVM form (SVM-light format) or a dense tab
 |OpenMP|OpenMP is currently required for certain operations, but this requirement could be easily removed.|
 
 
-##TODO
+## TODO
+
 0. Add simple streaming classifier using already-built SVM.
 1. Add kernel implementation.
 2. Expand to multiclass.
