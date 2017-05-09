@@ -10,6 +10,9 @@ int usage(char *ex) {
                          "-[h?]:\tHelp menu.\n"
                          "-l:\tSet lambda parameter.\n"
                          "-e:\tSet eta parameter (NORMA and Zhang algorithms only).\n"
+                         "-M:\tMax iter (100000)\n"
+                         "-b:\tBatch size\n"
+                         "-s:\tNumber of dimensions for sparse parsing. Also determines the use of sparse rather than dense parsing.\n"
                  , ex);
     cerr << buf;
     return EXIT_FAILURE;

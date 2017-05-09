@@ -18,7 +18,7 @@ namespace svm {
 
 template<typename MatrixType, typename WeightMatrixKind=DynamicMatrix<MatrixType>>
 class WeightMatrix {
-    MatrixType norm_;
+    double norm_;
 public:
     WeightMatrixKind weights_;
     operator WeightMatrixKind&() {return weights_;}
@@ -33,64 +33,9 @@ public:
         weights_ *= factor;
     }
     MatrixType get_norm_sq() {
-        LOG_DEBUG("Trying to make a norm_sq\n");
-        try {
-            LOG_DEBUG("If you see this, then we didn't do the exception\n");
-            return norm_ = dot(row(weights_, 0), row(weights_, 0));
-        } catch(std::invalid_argument &ia) {
-            LOG_DEBUG("Dot product between row of size %zu and %zu failed...\n", row(weights_, 0).size(), row(weights_, 0).size());
-            MatrixType ret(0.);
-            const auto wrow(row(weights_, 0));
-            for(const auto i: wrow) {
-                ret += i.value() * i.value();
-            }
-            return ret;
-        }
+        return norm_ = dot(row(weights_, 0), row(weights_, 0));
     }
-};
-
-template<class Kernel, typename MatrixType=float,
-         class MatrixKind=DynamicMatrix<MatrixType>,                            
-         typename VectorType=int>
-class SVMClassifier {
-    const Kernel         kernel_;
-    size_t                   nc_; // Number of classes
-    size_t                   nd_; // Number of dimensions
-    size_t                 msvs_;
-    size_t                 nsvs_;
-    std::unordered_map<VectorType, std::string> class_name_map_;
-    MatrixKind              svs_;
-public:
-    template<typename RowType>
-    VectorType classify(const RowType &data) const {
-        double sum(0.);
-        for(size_t i(0); i < svs_.rows(); ++i) {
-            sum += kernel_(row(svs_, i), data);
-        }
-        if(nc_ == 2) {
-            return std::signbit(sum);
-        } else {
-            throw std::runtime_error("NotImplementedError");
-        }
-    }
-    template<typename ClassifyMatrixKind>
-    DynamicVector<VectorType> classify(const ClassifyMatrixKind &data) const {
-        DynamicVector<VectorType> ret(data.rows());
-        for(size_t i(0); i < data.rows(); ++i) ret[i] = classify(row(data, i));
-        return ret;
-    }
-    template<typename RowType>
-    size_t add_sv(RowType &sv) {
-        if(msvs_ < svs_.rows() + 1) {
-            // Double the number of rows in powers of two to amortize creation.
-            msvs_ = msvs_ ? msvs_ << 1: 16;
-            svs_.resize(msvs_, nd_);
-        }
-        row(svs_, nsvs_++) = sv;
-        return nsvs_;
-    }
-    SVMClassifier(Kernel kernel, size_t nc, size_t nd, std::unordered_map<VectorType, std::string> class_name_map):
-        kernel_(kernel), nc_(nc), nd_(nd), nsvs_(0), msvs_(0), class_name_map_(class_name_map) {}
+    double norm() const {return norm_;}
 };
 
 template<class Kernel,
@@ -184,6 +129,7 @@ private:
         for(auto &pair: class_name_map_) {
             cerr << "Key: " << pair.second << " value: " << pair.first << '\n';
         }
+        for(const auto i: v_) assert(i == -1 || i == 1);
     }
     void load_data(const char *path) {
         dims_t dims(path);
@@ -267,10 +213,12 @@ private:
         w_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
         w_.weights_ = 0.;
         cerr << "parsed in! Number of rows in weights? " << w_.weights_.rows() << '\n';
+        LOG_INFO("Norm of weights beginning? %lf\n", w_.get_norm_sq());
     }
     void normalize() {
+#if RENORMALIZE
         // Unneeded according to paper? (??? maybe only unneeded for sparse matrices?)
-#if 0
+        // Not set
         r_ = MatrixKind(nd_, 2);
         // Could/Should rewrite with pthread-type parallelization and get better memory access pattern.
         #pragma omp parallel for schedule(dynamic)
@@ -300,46 +248,17 @@ private:
     }
     template<typename RowType>
     double predict_linear(const RowType &datapoint) const {
-#if 0
-        LOG_DEBUG("About to start predicting. Number of rows in weights: %zu\n", w_.weights_.rows());
-        cerr << "weights: " << row(w_.weights_, 0) <<
-                " dp: "     << datapoint;
-#endif
         const auto ret(dot(row(w_.weights_, 0), datapoint));
-        //cerr << " Prediction: " << ret << '\n';
         return ret;
     }
     template<typename WeightMatrixKind>
     void add_entry_linear(const size_t index, WeightMatrixKind &tmpsum, size_t &nels_added) {
-        //LOG_DEBUG("Get mrow and wrow for index: %zu\n", index);
         auto mrow(row(m_, index));
         MatrixType pred;
         if((pred = predict_linear(mrow) * v_[index]) < 1.) {
-#if 0
-            const VectorType cls(pred < 0 ? -1: 1);
-            cerr << "index: " << index << " loss with pred = " << pred  <<
-                   " predicting " << cls << " where value is " <<
-                    v_[index] << '\n';
-#endif
             row(tmpsum, 0) += mrow * v_[index];
-        } else {
-#if 0
-            cerr << "index: " << index << " correct with pred = " << pred  <<
-                    '\n';
-            cerr << "No loss!\n";
-#endif
         }
-        //LOG_DEBUG("kernel evaluated\n");
         ++nels_added;
-    }
-    template<typename WeightMatrixKind>
-    void add_block_linear(const size_t index, WeightMatrixKind &tmpsum,
-                          size_t &nels_added) {
-        for(size_t i(index), end(index + mbs_); i < end; ++i) {
-            assert(index < end);
-            add_entry_linear(index, tmpsum, nels_added);
-        }
-        //cerr << "All blocks added for block starting at " << index << '\n';
     }
     template<typename RowType>
     VectorType classify(const RowType &data) const {
@@ -348,7 +267,7 @@ private:
         if(nc_ == 2) {
             return tbl[pred < 0];
         } else {
-            throw std::runtime_error("NotImplementedError");
+            throw std::runtime_error(std::string("NotImplementedError: number of classes: ")  + std::to_string(nc_));
         }
     }
 public:
@@ -358,9 +277,6 @@ public:
             const VectorType c(classify(row(m_, index)));
             if(c != v_[index]) {
                 ++mistakes;
-                //cerr << "Error! Classified " << v_[index] << " as " << c << '\n';
-            } else {
-                //cerr << "Correct! " << v_[index] << '\n';
             }
         }
         return static_cast<double>(mistakes) / ns_;
@@ -377,28 +293,23 @@ public:
         for(t_ = 0; avgs_used < avg_size_; ++t_) {
             nels_added = 0;
             if((t_ % NOTIFICATION_INTERVAL) == 0) {
-                cerr << "Weights currently: " << w_.weights_ << '\n';
-                const double ls(loss());
-                cerr << "Loss: " << ls * 100 << "%" << " at time = " << t_ << '\n';
+                const double ls(loss()), current_norm(w_.get_norm_sq());
+                cerr << "Loss: " << ls * 100 << "%" << " at time = " << t_ << 
+                        " with norm of w = " << current_norm << ".\n";
             }
             const double eta(lp_(t_));
-            //cerr << "eta : " << eta << '\n';
             tmpsum = 0.; // reset to 0 each time.
             for(size_t i(0); i < mbs_; ++i) {
                 const size_t start_index = fastrangesize(rand64(), max_end_index);
-                //LOG_DEBUG("Start index: %zu\n", start_index);
                 add_entry_linear(start_index, tmpsum, nels_added);
             }
-            //w_.scale(1.0 - eta * lambda_);
+            w_.scale(1.0 - eta * lambda_);
             wrow += trow * (eta / nels_added);
-#if USE_PROJECTION_STEP
-            LOG_DEBUG("About to get row norm\n");
             const double norm(w_.get_norm_sq());
             if(norm > 1. / lambda_) {
                 LOG_DEBUG("Scaling down bc too big\n");
                 w_.scale(std::sqrt(1.0 / (lambda_ * norm)));
             }
-#endif
             if(t_ >= max_iter_ || false) { // TODO: replace false with epsilon
                 if(w_avg_.weights_.rows() == 0) w_avg_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
                 auto avg_row(row(w_avg_.weights_, 0));
