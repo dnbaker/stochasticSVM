@@ -162,9 +162,11 @@ private:
                 ++ns_;
             }
         }
+        gzrewind(fp); // Rewind
+#if !NDEBUG
         cerr << "ns: " << ns_ << '\n';
         cerr << "nd: " << nd_ << '\n';
-        gzrewind(fp); // Rewind
+#endif
 
         m_ = DynamicMatrix<MatrixType>(ns_, nd_);
         v_ = DynamicVector<VectorType>(ns_);
@@ -201,11 +203,10 @@ private:
             ++linenum;
             line.clear();
         }
-        for(const auto &pair: tmpmap)
-            class_name_map_.emplace(pair.second, pair.first);
-        cerr << "tmpmap size: " << tmpmap.size() << '\n';
         free(offsets);
         gzclose(fp);
+        for(const auto &pair: tmpmap)
+            class_name_map_.emplace(pair.second, pair.first);
         normalize_labels();
         normalize();
         if(nc_ != 2)
@@ -214,7 +215,6 @@ private:
                             std::to_string(nc_));
         w_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
         w_.weights_ = 0.;
-        LOG_INFO("Norm of weights beginning? %lf\n", w_.get_norm_sq());
     }
     void normalize() {
         column(m_, nd_ - 1) = 1.; // Bias term
