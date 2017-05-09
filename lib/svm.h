@@ -5,13 +5,13 @@
 #include "lib/parse.h"
 #include "lib/kernel.h"
 #include "lib/mkernel.h"
-#include "lib/math.h"
+#include "lib/mathutil.h"
 #include "lib/learning_rate.h"
 #include "fastrange/fastrange.h"
 
 namespace svm {
 
-#define NOTIFICATION_INTERVAL (1uLL)
+#define NOTIFICATION_INTERVAL (16uLL)
 
 // TODONE: Polynomial kernels
 // TODONE: Gradients
@@ -130,13 +130,14 @@ class SVMTrainer {
 public:
     SVMTrainer(const char *path,
         const MatrixType lambda,
+        LearningPolicy lp,
         Kernel kernel=LinearKernel<MatrixType>(),
         size_t mini_batch_size=1,
         size_t max_iter=100000,  const MatrixType eps=1e-12,
         long avg_size=-1)
         : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size),
-          max_iter_(max_iter), t_(0), lp_(lambda), eps_(eps),
+          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps),
           avg_size_(avg_size < 0 ? 1000: avg_size) {
         load_data(path);
     }
@@ -151,7 +152,7 @@ private:
         ns_ = dims.ns_; nd_ = dims.nd_;
         std::tie(m_, v_, class_name_map_) = parse_problem<MatrixType, VectorType>(path, dims);
         ++nd_;
-        cout << "Input matrix: \n" << m_ << '\n';
+        if(m_.rows() < 100) cout << "Input matrix: \n" << m_ << '\n';
         // Normalize v_
         std::set<VectorType> set;
         for(auto &pair: class_name_map_) set.insert(pair.first);
@@ -168,7 +169,7 @@ private:
         nc_ = map.size();
         //init_weights();
         w_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
-        cout << "Input labels: \n" << v_ << '\n';
+        if(v_.size() < 100) cout << "Input labels: \n" << v_ << '\n';
         normalize();
         LOG_DEBUG("Number of datapoints: %zu. Number of dimensions: %zu\n", ns_, nd_);
     }
@@ -196,18 +197,22 @@ private:
                 absum += abs(m_(j, i));
         absum /= (ns_ * nd_ - 1);
         column(m_, nd_ - 1) = absum; // Bias term -- use mean absolute value in matrix.
-#else
+#elif SETTING_TO_ONE
         column(m_, nd_ - 1) = 1.;
+#else
+        column(m_, nd_ - 1) = 0.;
 #endif
         //for(size_t i(0); i < ns_; ++i) m_(i, nd_ - 1) = 1.; // Bias term.
     }
     template<typename RowType>
     double predict_linear(const RowType &datapoint) const {
+#if 0
         LOG_DEBUG("About to start predicting. Number of rows in weights: %zu\n", w_.weights_.rows());
         cerr << "weights: " << row(w_.weights_, 0) <<
                 " dp: "     << datapoint;
+#endif
         const auto ret(dot(row(w_.weights_, 0), datapoint));
-        cerr << " Prediction: " << ret << '\n';
+        //cerr << " Prediction: " << ret << '\n';
         return ret;
     }
     template<typename WeightMatrixKind>
@@ -216,15 +221,19 @@ private:
         auto mrow(row(m_, index));
         MatrixType pred;
         if((pred = predict_linear(mrow) * v_[index]) < 1.) {
+#if 0
             const VectorType cls(pred < 0 ? -1: 1);
             cerr << "index: " << index << " loss with pred = " << pred  <<
                    " predicting " << cls << " where value is " <<
                     v_[index] << '\n';
+#endif
             row(tmpsum, 0) += mrow * v_[index];
         } else {
+#if 0
             cerr << "index: " << index << " correct with pred = " << pred  <<
                     '\n';
-            //cerr << "No loss!\n";
+            cerr << "No loss!\n";
+#endif
         }
         //LOG_DEBUG("kernel evaluated\n");
         ++nels_added;
@@ -236,14 +245,14 @@ private:
             assert(index < end);
             add_entry_linear(index, tmpsum, nels_added);
         }
-        cerr << "All blocks added for block starting at " << index << '\n';
+        //cerr << "All blocks added for block starting at " << index << '\n';
     }
     template<typename RowType>
     VectorType classify(const RowType &data) const {
         static const VectorType tbl[]{-1, 1};
         const double pred(predict_linear(data));
         if(nc_ == 2) {
-            return tbl[std::signbit(pred)];
+            return tbl[pred < 0];
         } else {
             throw std::runtime_error("NotImplementedError");
         }
@@ -255,9 +264,9 @@ public:
             const VectorType c(classify(row(m_, index)));
             if(c != v_[index]) {
                 ++mistakes;
-                cerr << "Error! Classified " << v_[index] << " as " << c << '\n';
+                //cerr << "Error! Classified " << v_[index] << " as " << c << '\n';
             } else {
-                cerr << "Correct!\n";
+                //cerr << "Correct! " << v_[index] << '\n';
             }
         }
         return static_cast<double>(mistakes) / ns_;
@@ -272,21 +281,22 @@ public:
         //LOG_DEBUG("Set wrow and trow\n");
         const size_t max_end_index(std::min(ns_ - mbs_, ns_));
         for(t_ = 0; avgs_used < avg_size_; ++t_) {
-            if((t_ & NOTIFICATION_INTERVAL) == 0) {
+            nels_added = 0;
+            if((t_ % NOTIFICATION_INTERVAL) == 0) {
                 //cerr << "Weights currently: " << w_.weights_ << '\n';
                 const double ls(loss());
-                cerr << "Loss: " << ls * 100 << "%\n";
+                cerr << "Loss: " << ls * 100 << "%" << " at time = " << t_ << '\n';
             }
             const double eta(lp_(t_));
-            row(tmpsum, 0) = 0.; // reset to 0 each time.
+            //cerr << "eta : " << eta << '\n';
+            tmpsum = 0.; // reset to 0 each time.
             for(size_t i(0); i < mbs_; ++i) {
                 const size_t start_index = fastrangesize(rand64(), max_end_index);
-                LOG_DEBUG("Start index: %zu\n", start_index);
+                //LOG_DEBUG("Start index: %zu\n", start_index);
                 add_entry_linear(start_index, tmpsum, nels_added);
             }
-            w_.scale(1.0 - eta * lambda_);
-            const double scale_factor = eta / nels_added;
-            wrow += trow * scale_factor;
+            //w_.scale(1.0 - eta * lambda_);
+            wrow += trow * (eta / nels_added);
 #if USE_PROJECTION_STEP
             LOG_DEBUG("About to get row norm\n");
             const double norm(w_.get_norm_sq());
@@ -298,22 +308,14 @@ public:
             if(t_ >= max_iter_ || false) { // TODO: replace false with epsilon
                 if(w_avg_.weights_.rows() == 0) w_avg_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
                 auto avg_row(row(w_avg_.weights_, 0));
-                LOG_DEBUG("Updating averages\n");
+                LOG_DEBUG("Updating averages. t_: %zu. max: %zu\n", t_, max_iter_);
                 avg_row += wrow;
                 ++avgs_used;
             }
-            LOG_DEBUG("Finishing loop\n");
+            //LOG_DEBUG("Finishing loop\n");
         }
         row(w_avg_.weights_, 0) *= 1. / avg_size_;
-    }
-    SVMClassifier<Kernel, MatrixType, VectorType> build_linear_classifier(double eps) {
-        // If w_[i] >= eps, include in classifier.
-        SVMClassifier ret(kernel_, nc_, nd_, class_name_map_);
-        auto wrow(row(w_.weights, 0));
-        for(size_t i(0); i < wrow.size(); ++i) {
-            if(wrow[i] >= eps) ret.add_sv(row(m_, i) * wrow[i]);
-        }
-        return ret;
+        LOG_DEBUG("Trained!\n");
     }
     // Training
     // For kernel, see fig. 3. http://ttic.uchicago.edu/~nati/Publications/PegasosMPB.pdf
