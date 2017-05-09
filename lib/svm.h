@@ -283,6 +283,9 @@ public:
     }
     void train_linear() {
         cerr << "Starting to train\n";
+        cerr << "Matrix: \n" << m_;
+        cerr << "Labels: \n" << v_;
+        exit(1);
         size_t avgs_used(0);
         decltype(w_.weights_) tmpsum(1, nd_);
         size_t nels_added(0);

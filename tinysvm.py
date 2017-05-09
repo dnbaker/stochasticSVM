@@ -2,9 +2,9 @@ import numpy as np
 import math
 import sys
 
-def parse_fn(fn, sparse_dims=-1):
+def parse_fn(fn, sparse_dims=-1, use_bias_term=False):
     if sparse_dims >= 0:
-        return sparse_parse(fn, sparse_dims)
+        return sparse_parse(fn, sparse_dims, use_bias_term)
     labels = []
     vals = []
     for line in open(fn):
@@ -22,14 +22,18 @@ def parse_fn(fn, sparse_dims=-1):
     return np.array(labels), np.array(vals)
 
 
-def sparse_parse(fn, ndims):
+def sparse_parse(fn, ndims, use_bias_term=False):
     labels = []
     vals = []
     for line in open(fn):
         if line[0] in "#\n": continue
         toks = line.strip().split()
         labels.append(int(toks[0]))
-        row = np.zeros((ndims,))
+        if use_bias_term:
+            row = np.zeros((ndims + 1,))
+            row[-1] = 1.
+        else:
+            row = np.zeros((ndims,))
         for tok in toks[1:]:
             subtoks = tok.split(":")[:2]
             row[int(subtoks[0]) - 1] = float(subtoks[1])
@@ -46,10 +50,11 @@ def sparse_parse(fn, ndims):
 
 
 class SVM(object):
-    def __init__(self, path, lb, fixed_eta=-1, rescale=True, project=True, init_from_data=True, sparse_dims=-1):
+    def __init__(self, path, lb, fixed_eta=-1, rescale=True, project=True,
+                 init_from_data=True, sparse_dims=-1, use_bias_term=False):
         self.lb = lb
         self.t  = 0
-        self.labels, self.data = parse_fn(path, sparse_dims)
+        self.labels, self.data = parse_fn(path, sparse_dims, use_bias_term=use_bias_term)
         self.w = np.zeros((len(self.data[0]),))
         self.fixed_eta = fixed_eta
         self.rescale = rescale
@@ -104,10 +109,12 @@ if __name__ == "__main__":
     parser.add_argument("--init-from-data", action='store_true')
     parser.add_argument("--sparse-dims", "-s", type=int, default=-1)
     parser.add_argument("--test", "-t")
+    parser.add_argument("--bias", action="store_true")
     args = parser.parse_args()
     svm = SVM(args.path, args.lb, fixed_eta=args.fixed_eta,
               rescale=not args.no_rescale, project=not args.no_project,
-              init_from_data=args.init_from_data, sparse_dims=args.sparse_dims)
+              init_from_data=args.init_from_data, sparse_dims=args.sparse_dims,
+              use_bias_term=args.bias)
     for j in range(args.outer):
         for i in range(args.inner):
            svm.add(args.bs)
@@ -117,7 +124,7 @@ if __name__ == "__main__":
     sys.stderr.write("Final loss: %f. Total iterations: %i.\n" %
                      (svm.loss(), args.outer * args.inner))
     if args.test:
-        test_labels, test_data = parse_fn(args.test, args.sparse_dims)
+        test_labels, test_data = parse_fn(args.test, args.sparse_dims, args.bias)
         loss = 1. * sum(np.dot(svm.w, test_data[i,:]) * test_labels[i] < 0
                         for i in range(len(test_labels))) / len(test_labels)
         sys.stderr.write("Test loss: %f.\n" % loss)
