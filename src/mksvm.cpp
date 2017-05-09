@@ -16,18 +16,20 @@ int usage(char *ex) {
 }
 
 int main(int argc, char *argv[]) {
-    int c, batch_size(1);
+    int c, batch_size(1), nd_sparse(0);
     double kappa(0.0025);
     double kc(-0.25);
     double lambda(0.5);
     size_t max_iter(100000);
     unsigned nthreads(1);
+#if CERR_BUFF
     char cerr_buf[1 << 16];
     cerr.rdbuf()->pubsetbuf(cerr_buf, sizeof cerr_buf);
     cerr << std::nounitbuf;
+#endif
     std::ios::sync_with_stdio(false);
     for(char **p(argv + 1); *p; ++p) if(strcmp(*p, "--help") == 0) goto usage;
-    while((c = getopt(argc, argv, "c:w:M:S:p:k:b:l:h?")) >= 0) {
+    while((c = getopt(argc, argv, "c:M:s:p:k:b:l:h?")) >= 0) {
         switch(c) {
             case 'p': nthreads   = atoi(optarg); break;
             case 'k': kappa      = atof(optarg); break;
@@ -35,6 +37,9 @@ int main(int argc, char *argv[]) {
             case 'M': max_iter   = strtoull(optarg, 0, 10); break;
             case 'b': batch_size = atoi(optarg); break;
             case 'l': lambda     = atof(optarg); break;
+            case 's': nd_sparse  = atoi(optarg); 
+                cerr << "Sparse value set: " << nd_sparse << '\n';
+                break;
             case 'h': case '?': usage: return usage(*argv);
         }
     }
@@ -45,7 +50,10 @@ int main(int argc, char *argv[]) {
     LOG_ASSERT(blaze::getNumThreads() == nthreads);
     LinearKernel<double> linear_kernel;
     PegasosLearningRate<double> lp(lambda);
-    SVMTrainer<LinearKernel<double>, double, DynamicMatrix<double>, int, decltype(lp)> svm(argv[optind], lambda, lp, linear_kernel, batch_size, max_iter);
+    if(nd_sparse) cerr << "nd sparse " << nd_sparse << '\n';
+    SVMTrainer<LinearKernel<double>, double, DynamicMatrix<double>, int, decltype(lp)> svm =
+        nd_sparse ? SVMTrainer<LinearKernel<double>, double, DynamicMatrix<double>, int, decltype(lp)>(argv[optind], nd_sparse, lambda, lp, linear_kernel, batch_size, max_iter)
+                  : SVMTrainer<LinearKernel<double>, double, DynamicMatrix<double>, int, decltype(lp)>(argv[optind], lambda, lp, linear_kernel, batch_size, max_iter);
     svm.train_linear();
     // cerr << "Matrix in: \n" << svm.get_matrix();
     //cerr << "Frobenius norm of matrix is " << frobenius_norm(svm.get_matrix()) << '\n';
@@ -55,7 +63,6 @@ int main(int argc, char *argv[]) {
     auto row2(row(pair.first, 2));
     RBFKernel<double>           gk(0.2);
     TanhKernel<double>          tk(0.2, 0.4);
-#endif
     TanhKernelMatrix<double>   tkm(kappa, kc);
     DynamicMatrix<double> kernel_matrix(tkm(svm.get_matrix()));
     // cout << kernel_matrix;
@@ -68,4 +75,5 @@ int main(int argc, char *argv[]) {
     cerr << "Kernel result: " << lk(row1, row2) << '\n';
     for(u32 i(0); i < row1.size(); ++i) zomg += row1[i] * row2[i];
     cerr << "Manual result: " << zomg << '\n';
+#endif
 }

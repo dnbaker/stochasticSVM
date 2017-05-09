@@ -11,7 +11,7 @@
 
 namespace svm {
 
-#define NOTIFICATION_INTERVAL (16uLL)
+#define NOTIFICATION_INTERVAL (1uLL)
 
 // TODONE: Polynomial kernels
 // TODONE: Gradients
@@ -24,7 +24,9 @@ public:
     operator WeightMatrixKind&() {return weights_;}
     operator const WeightMatrixKind&() const {return weights_;}
     WeightMatrix(size_t ns, size_t nc, MatrixType lambda):
-        norm_{0.}, weights_{WeightMatrixKind(nc == 2 ? 1: nc, ns)} {}
+        norm_{0.}, weights_{WeightMatrixKind(nc == 2 ? 1: nc, ns)} {
+        cerr << "Initialized WeightMatrix with " << nc << " classes and " << ns << " samples\n";
+    }
     WeightMatrix(): norm_(0.) {}
     void scale(MatrixType factor) {
         norm_ *= factor * factor;
@@ -128,18 +130,36 @@ class SVMTrainer {
     
 
 public:
+    // Dense constructor
     SVMTrainer(const char *path,
-        const MatrixType lambda,
-        LearningPolicy lp,
-        Kernel kernel=LinearKernel<MatrixType>(),
-        size_t mini_batch_size=1,
-        size_t max_iter=100000,  const MatrixType eps=1e-12,
-        long avg_size=-1)
+               const MatrixType lambda,
+               LearningPolicy lp,
+               Kernel kernel=LinearKernel<MatrixType>(),
+               size_t mini_batch_size=1,
+               size_t max_iter=100000,  const MatrixType eps=1e-12,
+               long avg_size=-1)
         : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size),
           max_iter_(max_iter), t_(0), lp_(lp), eps_(eps),
-          avg_size_(avg_size < 0 ? 1000: avg_size) {
+          avg_size_(avg_size < 0 ? 1000: avg_size)
+    {
+        cerr << "Dense loader!\n";
         load_data(path);
+    }
+    SVMTrainer(const char *path, size_t ndims,
+               const MatrixType lambda,
+               LearningPolicy lp,
+               Kernel kernel=LinearKernel<MatrixType>(),
+               size_t mini_batch_size=1,
+               size_t max_iter=100000,  const MatrixType eps=1e-12,
+               long avg_size=-1)
+        : lambda_(lambda), kernel_(std::move(kernel)),
+          nc_(0), mbs_(mini_batch_size), nd_(ndims),
+          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps),
+          avg_size_(avg_size < 0 ? 1000: avg_size)
+    {
+        cerr << "Sparse loader with " << ndims << " dimensions\n";
+        sparse_load(path);
     }
     size_t get_nsamples() {return ns_;}
     size_t get_ndims()    {return nd_;}
@@ -147,13 +167,7 @@ public:
 
 
 private:
-    void load_data(const char *path) {
-        dims_t dims(path);
-        ns_ = dims.ns_; nd_ = dims.nd_;
-        std::tie(m_, v_, class_name_map_) = parse_problem<MatrixType, VectorType>(path, dims);
-        ++nd_;
-        if(m_.rows() < 100) cout << "Input matrix: \n" << m_ << '\n';
-        // Normalize v_
+    void normalize_labels() {
         std::set<VectorType> set;
         for(auto &pair: class_name_map_) set.insert(pair.first);
         std::vector<VectorType> vec(std::begin(set), std::end(set));
@@ -167,12 +181,92 @@ private:
         for(auto &pair: class_name_map_) new_cmap[map[pair.first]] = pair.second;
         class_name_map_ = std::move(new_cmap);
         nc_ = map.size();
+        for(auto &pair: class_name_map_) {
+            cerr << "Key: " << pair.second << " value: " << pair.first << '\n';
+        }
+    }
+    void load_data(const char *path) {
+        dims_t dims(path);
+        ns_ = dims.ns_; nd_ = dims.nd_;
+        std::tie(m_, v_, class_name_map_) = parse_problem<MatrixType, VectorType>(path, dims);
+        ++nd_;
+        if(m_.rows() < 1000) cout << "Input matrix: \n" << m_ << '\n';
+        // Normalize v_
+        normalize_labels();
         //init_weights();
         w_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
-        w_ = 0.;
-        if(v_.size() < 100) cout << "Input labels: \n" << v_ << '\n';
+        w_.weights_ = 0.;
+        if(v_.size() < 1000) cout << "Input labels: \n" << v_ << '\n';
         normalize();
         LOG_DEBUG("Number of datapoints: %zu. Number of dimensions: %zu\n", ns_, nd_);
+    }
+    void sparse_load(const char *path) {
+        ++nd_; // bias term, in case used.
+        gzFile fp(gzopen(path, "rb"));
+        if(fp == nullptr)
+            throw std::runtime_error(std::string("Could not open file at ") + path);
+        ks::KString line;
+        line.resize(1 << 12);
+        size_t linenum(0);
+        char *p;
+
+        // Get number of samples.
+        ns_ = 0;
+        {
+            char buf[1 << 18];
+            while((p = gzgets(fp, buf, sizeof buf))) {
+                switch(*p) case '\n': case '\0': case '#': continue;
+                ++ns_;
+            }
+        }
+        cerr << "ns: " << ns_ << '\n';
+        cerr << "nd: " << nd_ << '\n';
+        gzrewind(fp); // Rewind
+
+        m_ = DynamicMatrix<MatrixType>(ns_, nd_);
+        v_ = DynamicVector<VectorType>(ns_);
+        m_ = 0.; // bc sparse, unused entries are zero.
+        std::string class_name;
+        VectorType  class_id(0);
+        int c, moffsets(16), *offsets((int *)malloc(moffsets * sizeof(int)));
+        std::unordered_map<std::string, int> tmpmap;
+        while((c = gzgetc(fp)) != EOF) {
+            if(c != '\n') {
+                line.putc_(c);
+                continue;
+            }
+            line->s[line->l] = 0;
+            if(line[0] == '#' || line[0] == '\n') {
+                line.clear();
+                continue;
+            }
+            const int ntoks(ksplit_core(line.data(), 0, &moffsets, &offsets));
+            class_name = line.data() + offsets[0];
+            auto m(tmpmap.find(class_name));
+            if(m == tmpmap.end()) {
+                tmpmap.emplace(class_name, class_id++);
+            }
+            for(int i(1); i < ntoks; ++i) {
+                p = line.data() + offsets[i];
+                char *q(strchr(p, ':'));
+                if(q == nullptr) throw std::runtime_error("Malformed sparse file.");
+                *q++ = '\0';
+                const int index(atoi(p) - 1);
+                assert(linenum < m_.rows());
+                m_(linenum, index) = atof(q);
+            }
+            ++linenum;
+            line.clear();
+        }
+        for(const auto &pair: tmpmap) class_name_map_.emplace(pair.second, pair.first);
+        cerr << "tmpmap size: " << tmpmap.size() << '\n';
+        free(offsets);
+        gzclose(fp);
+        normalize_labels();
+        normalize();
+        w_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
+        w_.weights_ = 0.;
+        cerr << "parsed in! Number of rows in weights? " << w_.weights_.rows() << '\n';
     }
     void normalize() {
         // Unneeded according to paper? (??? maybe only unneeded for sparse matrices?)
@@ -272,18 +366,18 @@ public:
         return static_cast<double>(mistakes) / ns_;
     }
     void train_linear() {
+        cerr << "Starting to train\n";
         size_t avgs_used(0);
         decltype(w_.weights_) tmpsum(1, nd_);
         size_t nels_added(0);
-        //LOG_DEBUG("About to start training\n");
         auto wrow(row(w_.weights_, 0));
         auto trow(row(tmpsum, 0));
-        //LOG_DEBUG("Set wrow and trow\n");
+        cerr << ("Set wrow and trow\n");
         const size_t max_end_index(std::min(ns_ - mbs_, ns_));
         for(t_ = 0; avgs_used < avg_size_; ++t_) {
             nels_added = 0;
             if((t_ % NOTIFICATION_INTERVAL) == 0) {
-                //cerr << "Weights currently: " << w_.weights_ << '\n';
+                cerr << "Weights currently: " << w_.weights_ << '\n';
                 const double ls(loss());
                 cerr << "Loss: " << ls * 100 << "%" << " at time = " << t_ << '\n';
             }

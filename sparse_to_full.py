@@ -36,7 +36,7 @@ if __name__ == "__main__":
             label = toks[0]
             for tok in toks[1:]:
                 ind, val = tok.split(":") 
-                data[int(ind)] = float(val)
+                data[int(ind) - 1] = float(val)
             for item in data:
                 out.write("%f " % item)
             out.write(" %i\n" % (int(label)))
