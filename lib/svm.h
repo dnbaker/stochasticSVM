@@ -168,6 +168,7 @@ private:
         nc_ = map.size();
         //init_weights();
         w_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
+        w_ = 0.;
         cout << "Input labels: \n" << v_ << '\n';
         normalize();
         LOG_DEBUG("Number of datapoints: %zu. Number of dimensions: %zu\n", ns_, nd_);
