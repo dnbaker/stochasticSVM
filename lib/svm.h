@@ -144,6 +144,7 @@ private:
         dims_t dims(path);
         ns_ = dims.ns_; nd_ = dims.nd_;
         std::tie(m_, v_, class_name_map_) = parse_problem<MatrixType, VectorType>(path, dims);
+        cout << "Input matrix: " << m_ << '\n';
         // Normalize v_
         std::set<VectorType> set;
         for(auto &pair: class_name_map_) set.insert(pair.first);
@@ -160,6 +161,8 @@ private:
         nc_ = map.size();
         //init_weights();
         w_ = WMType(ns_, nc_ == 2 ? 1: nc_, lambda_);
+        cout << "Input labels: " << v_ << '\n';
+        LOG_EXIT("Number of datapoints: %zu. Number of dimensions: %zu\n", ns_, nd_);
         rescale();
     }
     void rescale() {
@@ -179,6 +182,7 @@ private:
             for(auto cit(col.begin()), cend(col.end()); cit != cend; ++cit) {
                 *cit = (*cit - mean) * r_(i, 1);
             }
+            LOG_DEBUG("Variance: %f\n", variance(col));
         }
     }
     template<typename RowType>
