@@ -1,7 +1,7 @@
 # denseSVM
 
 ## Description
-An implementation of PEGASOS, powered by [Blaze]https://github.com/dnbh/denseSVM.
+An implementation of PEGASOS, powered by [Blaze](https://bitbucket.org/blaze-lib).
 
 Complete: linear [[reference]](http://ttic.uchicago.edu/~shai/papers/SSSICML08.pdf).
 
