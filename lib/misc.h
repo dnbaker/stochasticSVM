@@ -102,6 +102,21 @@ static inline u64 rand64() {
     return ((u64)std::rand() << 32) | std::rand();
 }
 
+using blaze::Matrix;
+using blaze::Vector;
+
+template<typename MatrixKind>
+void free_matrix(MatrixKind &mat)
+{
+    mat = MatrixKind(0, 0);
+}
+
+template<typename MT, bool SO>
+void free_vector(Vector<MT,SO>& vec)
+{
+    vec = Vector<MT, SO>{};
+}
+
 template<typename MatrixType, typename FloatType=float>
 INLINE MatrixType min(MatrixType &a, MatrixType &b) {
     if(a.rows() != b.rows() || row(a, 0).size() != row(b, 0).size())

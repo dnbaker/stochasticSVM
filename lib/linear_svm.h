@@ -42,7 +42,7 @@ template<class Kernel,
          class MatrixKind=DynamicMatrix<MatrixType>,
          typename VectorType=int,
          class LearningPolicy=PegasosLearningRate<MatrixType>>
-class SVMTrainer {
+class LinearSVM {
 
     // Increase nd by 1 and set all the last entries to "1" to add
     // the bias term implicitly.
@@ -57,7 +57,7 @@ class SVMTrainer {
     WMType w_avg_;
     DynamicVector<VectorType> a_; // Only used for kernel.
     DynamicVector<VectorType> v_; // Labels
-    MatrixKind r_; // Renormalization values. Subtraction, then multiplication
+    MatrixKind                r_; // Renormalization values. Subtraction, then multiplication
     const MatrixType     lambda_; // Lambda Parameter
     const Kernel         kernel_;
     size_t                   nc_; // Number of classes
@@ -72,11 +72,10 @@ class SVMTrainer {
     const size_t       avg_size_; // Number to average at end.
     const bool          project_; // Whether or not to perform projection step.
     std::unordered_map<VectorType, std::string> class_name_map_;
-    
 
 public:
     // Dense constructor
-    SVMTrainer(const char *path,
+    LinearSVM(const char *path,
                const MatrixType lambda,
                LearningPolicy lp,
                Kernel kernel=LinearKernel<MatrixType>(),
@@ -91,7 +90,7 @@ public:
     {
         load_data(path);
     }
-    SVMTrainer(const char *path, size_t ndims,
+    LinearSVM(const char *path, size_t ndims,
                const MatrixType lambda,
                LearningPolicy lp,
                Kernel kernel=LinearKernel<MatrixType>(),
@@ -221,18 +220,18 @@ private:
         column(m_, nd_ - 1) = 1.; // Bias term
     }
     template<typename RowType>
-    double predict_linear(const RowType &datapoint) const {
+    double predict(const RowType &datapoint) const {
         return dot(row(w_.weights_, 0), datapoint);
     }
     template<typename WeightMatrixKind>
-    void add_entry_linear(const size_t index, WeightMatrixKind &tmpsum, size_t &nels_added) {
-        if(predict_linear(row(m_, index)) * v_[index] < 1.) row(tmpsum, 0) += row(m_, index) * v_[index];
+    void add_entry(const size_t index, WeightMatrixKind &tmpsum, size_t &nels_added) {
+        if(predict(row(m_, index)) * v_[index] < 1.) row(tmpsum, 0) += row(m_, index) * v_[index];
         ++nels_added;
     }
     template<typename RowType>
     VectorType classify(const RowType &data) const {
         static const VectorType tbl[]{-1, 1};
-        const double pred(predict_linear(data));
+        const double pred(predict(data));
         return tbl[pred > 0.];
     }
 public:
@@ -246,7 +245,7 @@ public:
         }
         return static_cast<double>(mistakes) / ns_;
     }
-    void train_linear() {
+    void train() {
 #if !NDEBUG
         cerr << "Starting to train\n";
         cerr << "Matrix: \n" << str(m_);
@@ -272,7 +271,7 @@ public:
             tmpsum = 0.; // reset to 0 each time.
             for(size_t i(0); i < mbs_; ++i) {
                 const size_t start_index = fastrangesize(rand64(), max_end_index);
-                add_entry_linear(start_index, tmpsum, nels_added);
+                add_entry(start_index, tmpsum, nels_added);
             }
             if(t_ < max_iter_) {
                 last_weights = w_.weights_;
@@ -296,8 +295,23 @@ public:
     }
     void cleanup() {
         // TODO: Free memory from training data and leave only data for classifier.
+        free_matrix(m_);
+        free_vector(v_);
+        row(w_.weights_, 0) = row(w_avg_.weights_, 0);
+        free_matrix(w_avg_.weights_);
     }
-}; // SVMTrainer
+    void write(FILE *fp) {
+        fprintf(fp, "#Dimensions: %zu.\n", nd_);
+        ks::KString line;
+        line.resize(5 * row(w_.weights_, 0).size());
+        for(const auto i: row(w_.weights_, 0)) {
+            line.sprintf("%f, ", i);
+        }
+        line.pop();
+        line[line.size() - 1] = '\n';
+        fwrite(line.data(), line.size(), 1, fp);
+    }
+}; // LinearSVM
 
 } // namespace svm
 
