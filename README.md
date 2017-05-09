@@ -21,6 +21,12 @@ Data may be provided in either sparse SVM form (SVM-light format) or a dense tab
 |C++14||DenseSVM is currently only tested on gcc under 5.2 and 6.3|
 |OpenMP|OpenMP is currently required for certain operations, but this requirement could be easily removed.|
 
+## Building
+
+Simply ``make train_linear``.
+
+If you wish to use floats instead of doubles, which can be twice as fast in arithmetic operations due to SIMD, replace -DFLOAT_TYPE=double with -DFLOAT_TYPE=float.
+
 
 ## TODO
 
