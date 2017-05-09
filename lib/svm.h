@@ -204,71 +204,38 @@ private:
             ++linenum;
             line.clear();
         }
-        for(const auto &pair: tmpmap) class_name_map_.emplace(pair.second, pair.first);
+        for(const auto &pair: tmpmap)
+            class_name_map_.emplace(pair.second, pair.first);
         cerr << "tmpmap size: " << tmpmap.size() << '\n';
         free(offsets);
         gzclose(fp);
         normalize_labels();
         normalize();
+        if(nc_ != 2)
+            throw std::runtime_error(
+                std::string("Number of classes must be 2. Found: ") +
+                            std::to_string(nc_));
         w_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
         w_.weights_ = 0.;
-        cerr << "parsed in! Number of rows in weights? " << w_.weights_.rows() << '\n';
         LOG_INFO("Norm of weights beginning? %lf\n", w_.get_norm_sq());
     }
     void normalize() {
-#if RENORMALIZE
-        // Unneeded according to paper? (??? maybe only unneeded for sparse matrices?)
-        // Not set
-        r_ = MatrixKind(nd_, 2);
-        // Could/Should rewrite with pthread-type parallelization and get better memory access pattern.
-        #pragma omp parallel for schedule(dynamic)
-        for(size_t i = 0; i < nd_ - 1; ++i) {
-            auto col(column(m_, i));
-            assert(ns_ == col.size());
-            double sum(0.);
-            for(auto c: col) sum += c;
-            MatrixType mean(sum / ns_);
-            r_(i, 0) = mean;
-            const auto var(variance(col, mean));
-            r_(i, 1) = 1. / (MatrixType)std::sqrt(var);
-            for(auto cit(col.begin()), cend(col.end()); cit != cend; ++cit)
-                *cit = (*cit - mean) * r_(i, 1);
-        }
-        double absum(0.);
-        for(size_t j(0); j < ns_; ++j)
-           for(size_t i(0); i < nd_ - 1; ++i)
-                absum += abs(m_(j, i));
-        absum /= (ns_ * nd_ - 1);
-        column(m_, nd_ - 1) = absum; // Bias term -- use mean absolute value in matrix.
-#elif SETTING_TO_ONE
-        column(m_, nd_ - 1) = 1.;
-#else
-        column(m_, nd_ - 1) = 0.;
-#endif
+        column(m_, nd_ - 1) = 1.; // Bias term
     }
     template<typename RowType>
     double predict_linear(const RowType &datapoint) const {
-        const auto ret(dot(row(w_.weights_, 0), datapoint));
-        return ret;
+        return dot(row(w_.weights_, 0), datapoint));
     }
     template<typename WeightMatrixKind>
     void add_entry_linear(const size_t index, WeightMatrixKind &tmpsum, size_t &nels_added) {
-        auto mrow(row(m_, index));
-        MatrixType pred;
-        if((pred = predict_linear(mrow) * v_[index]) < 1.) {
-            row(tmpsum, 0) += mrow * v_[index];
-        }
+        if(predict_linear(row(m_, index) * v_[index] < 1.) row(tmpsum, 0) += mrow * v_[index];
         ++nels_added;
     }
     template<typename RowType>
     VectorType classify(const RowType &data) const {
         static const VectorType tbl[]{-1, 1};
         const double pred(predict_linear(data));
-        if(nc_ == 2) {
-            return tbl[pred < 0];
-        } else {
-            throw std::runtime_error(std::string("NotImplementedError: number of classes: ")  + std::to_string(nc_));
-        }
+        return tbl[pred > 0.];
     }
 public:
     MatrixType loss() const {
@@ -283,9 +250,8 @@ public:
     }
     void train_linear() {
         cerr << "Starting to train\n";
-        cerr << "Matrix: \n" << m_;
-        cerr << "Labels: \n" << v_;
-        exit(1);
+        cerr << "Matrix: \n" << str(m_);
+        cerr << "Labels: \n" << vecstr(v_);
         size_t avgs_used(0);
         decltype(w_.weights_) tmpsum(1, nd_);
         size_t nels_added(0);

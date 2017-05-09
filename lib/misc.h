@@ -129,6 +129,36 @@ double variance(const Container &c, const double mean) {
     return sum / c.size();
 }
 
+template<class MatrixKind>
+std::string str(const MatrixKind &mat) {
+    // Returns python-like representation.
+    std::string ret("[");
+    for(unsigned i(0); i < mat.rows(); ++i) {
+        ret += "[";
+        for(const auto val: row(mat, i)) {
+            ret += std::to_string(val);
+            ret += ", ";
+        }
+        ret[ret.size() - 2] = ']';
+        ret[ret.size() - 1] = ',';
+        ret += '\n';
+    }
+    ret[ret.size() - 2] = ']';
+    return ret;
+}
+template<class VectorKind>
+std::string vecstr(const VectorKind &vec) {
+    // Returns python-like representation.
+    std::string ret("[");
+    for(const auto val: vec) {
+        ret += std::to_string(val);
+        ret += ", ";
+    }
+    ret.pop_back();
+    ret[ret.size() - 1] = ']';
+    return ret;
+}
+
 template<class Container>
 double variance(const Container &c) {
     double sum(0.);
