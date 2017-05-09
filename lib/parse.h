@@ -46,10 +46,12 @@ std::tuple<DynamicMatrix<MatrixType>, DynamicVector<VectorType>, std::unordered_
             while(std::isspace(*p)) ++p;
             m(linenum, ind) = atof(p);
             while(!std::isspace(*p)) ++p;
+#if !NDEBUG
             if(p >= line_end) {
                 fprintf(stderr, "line: %s. Line number: %zu. Line length: %zu. token number: %u\n", line.data(), linenum, line_end - line.data(), ind);
             }
             assert(p < line_end);
+#endif
         }
         while(std::isspace(*p)) ++p;
         class_name = p;
