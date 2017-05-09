@@ -23,15 +23,7 @@
 #ifndef _USE_MATH_DEFINES
 #  define _USE_MATH_DEFINES
 #endif
-#ifdef __GNUC__
-#  if (__GNUC__ == 6 && __GNUC_MINOR__ >= 1) || __GNUC__ > 6
-#    include <cmath>
-#  else
-#    include <tr1/cmath>
-#  endif
-#else
-#  include <cmath>
-#endif
+#include <cmath>
 #include "blaze/Math.h"
 #include "logutil.h"
 #include "lib/ks.h"

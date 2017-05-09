@@ -16,9 +16,10 @@ int usage(char *ex) {
 }
 
 int main(int argc, char *argv[]) {
-    int c;
+    int c, batch_size(1);
     double kappa(0.0025);
     double kc(-0.25);
+    double lambda(0.5);
     size_t max_iter(100000);
     unsigned nthreads(1);
     char cerr_buf[1 << 16];
@@ -26,12 +27,14 @@ int main(int argc, char *argv[]) {
     cerr << std::nounitbuf;
     std::ios::sync_with_stdio(false);
     for(char **p(argv + 1); *p; ++p) if(strcmp(*p, "--help") == 0) goto usage;
-    while((c = getopt(argc, argv, "c:w:M:S:p:k:f:h?")) >= 0) {
+    while((c = getopt(argc, argv, "c:w:M:S:p:k:b:l:h?")) >= 0) {
         switch(c) {
-            case 'p': nthreads = atoi(optarg); break;
-            case 'k': kappa    = atof(optarg); break;
-            case 'c': kc       = atof(optarg); break;
-            case 'M': max_iter = strtoull(optarg, 0, 10); break;
+            case 'p': nthreads   = atoi(optarg); break;
+            case 'k': kappa      = atof(optarg); break;
+            case 'c': kc         = atof(optarg); break;
+            case 'M': max_iter   = strtoull(optarg, 0, 10); break;
+            case 'b': batch_size = atoi(optarg); break;
+            case 'l': lambda     = atof(optarg); break;
             case 'h': case '?': usage: return usage(*argv);
         }
     }
@@ -41,10 +44,11 @@ int main(int argc, char *argv[]) {
     blaze::setNumThreads(nthreads);
     LOG_ASSERT(blaze::getNumThreads() == nthreads);
     LinearKernel<double> linear_kernel;
-    SVMTrainer<LinearKernel<double>, double> svm(argv[optind], 0.0001, linear_kernel, 100, max_iter);
+    PegasosLearningRate<double> lp(lambda);
+    SVMTrainer<LinearKernel<double>, double, DynamicMatrix<double>, int, decltype(lp)> svm(argv[optind], lambda, lp, linear_kernel, batch_size, max_iter);
     svm.train_linear();
     // cerr << "Matrix in: \n" << svm.get_matrix();
-    cerr << "Frobenius norm of matrix is " << frobenius_norm(svm.get_matrix()) << '\n';
+    //cerr << "Frobenius norm of matrix is " << frobenius_norm(svm.get_matrix()) << '\n';
     RBesselKernel<double> rbk(0.1);
 #if 0
     auto row1(row(pair.first, 1));
