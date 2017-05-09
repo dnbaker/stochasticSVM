@@ -162,8 +162,8 @@ private:
         //init_weights();
         w_ = WMType(ns_, nc_ == 2 ? 1: nc_, lambda_);
         cout << "Input labels: " << v_ << '\n';
-        LOG_EXIT("Number of datapoints: %zu. Number of dimensions: %zu\n", ns_, nd_);
         rescale();
+        LOG_EXIT("Number of datapoints: %zu. Number of dimensions: %zu\n", ns_, nd_);
     }
     void rescale() {
         r_ = MatrixKind(nd_, 2);
@@ -176,13 +176,11 @@ private:
             for(auto c: col) sum += c;
             MatrixType mean = sum / ns_;
             r_(i, 0) = mean;
-            auto var(variance(col, mean));
-            MatrixType stdev_inv;
-            r_(i, 1) = stdev_inv = 1. / (MatrixType)std::sqrt(var);
-            for(auto cit(col.begin()), cend(col.end()); cit != cend; ++cit) {
+            const auto var(variance(col, mean));
+            r_(i, 1) = 1. / (MatrixType)std::sqrt(var);
+            for(auto cit(col.begin()), cend(col.end()); cit != cend; ++cit)
                 *cit = (*cit - mean) * r_(i, 1);
-            }
-            LOG_DEBUG("Variance: %f\n", variance(col));
+            //LOG_DEBUG("Variance after renormalzation: %f\n", variance(col));
         }
     }
     template<typename RowType>

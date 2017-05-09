@@ -134,7 +134,6 @@ double variance(const Container &c, const double mean) {
         // Note: Could accelerate with SIMD.
     double sum(0.), tmp;
     for(const auto entry: c) tmp = entry - mean, sum += tmp * tmp;
-    cerr << "Sum: " << (double)sum << "variance: " << sum / (double)c.size() << '\n';
     return sum / c.size();
 }
 
@@ -143,7 +142,6 @@ double variance(const Container &c) {
     double sum(0.);
     for(const auto entry: c) sum += entry;
     sum /= c.size();
-    cerr << "Computed variance for matrix with mean " << sum << '\n';
     return variance(c, sum);
 }
 
