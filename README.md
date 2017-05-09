@@ -1,7 +1,7 @@
-# mksvm
+# denseSVM
 
 ## Description
-An implementation (in-progress) of PEGASOS.
+An implementation of PEGASOS, powered by [Blaze]https://github.com/dnbh/denseSVM.
 
 Complete: linear [[reference]](http://ttic.uchicago.edu/~shai/papers/SSSICML08.pdf).
 
