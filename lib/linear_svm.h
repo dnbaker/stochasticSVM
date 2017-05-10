@@ -1,5 +1,5 @@
-#ifndef _PROBLEM_H_
-#define _PROBLEM_H_
+#ifndef _LINEAR_SVM_H_
+#define _LINEAR_SVM_H_
 #include "lib/misc.h"
 #include "blaze/Math.h"
 #include "lib/parse.h"
@@ -11,10 +11,9 @@
 
 namespace svm {
 
-#define NOTIFICATION_INTERVAL (100uLL)
-
-// TODONE: Polynomial kernels
-// TODONE: Gradients
+#if !NDEBUG
+#  define NOTIFICATION_INTERVAL (100uLL)
+#endif
 
 template<typename MatrixType, typename WeightMatrixKind=DynamicMatrix<MatrixType>>
 class WeightMatrix {
@@ -278,7 +277,7 @@ public:
                 if(norm > 1. / lambda_)
                     w_.scale(std::sqrt(1.0 / (lambda_ * norm)));
             }
-            if(t_ >= max_iter_ || diffnorm(row(last_weights, 0), row(w_.weights_, 0)) < eps_) { // TODO: replace false with epsilon
+            if(t_ >= max_iter_ || diffnorm(row(last_weights, 0), row(w_.weights_, 0)) < eps_) {
                 if(w_avg_.weights_.rows() == 0) w_avg_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
                 w_avg_.weights_ = 0.;
                 row(w_avg_.weights_, 0) += wrow;
@@ -294,14 +293,14 @@ public:
         row(w_.weights_, 0) = row(w_avg_.weights_, 0);
         free_matrix(w_avg_.weights_);
     }
-    void write(FILE *fp) {
+    void write(FILE *fp, bool scientific_notation=false) {
         fprintf(fp, "#Dimensions: %zu.\n", nd_);
         fprintf(fp, "#LinearKernel\n");
         ks::KString line;
         line.resize(5 * row(w_.weights_, 0).size());
-        for(const auto i: row(w_.weights_, 0)) {
-            line.sprintf("%f, ", i);
-        }
+        const char *fmt(scientific_notation ? "%e, ": "%f, ");
+        for(const auto i: row(w_.weights_, 0))
+            line.sprintf(fmt, i);
         line.pop();
         line[line.size() - 1] = '\n';
         fwrite(line.data(), line.size(), 1, fp);
@@ -309,6 +308,9 @@ public:
 }; // LinearSVM
 
 } // namespace svm
+#if !NDEBUG
+#  undef NOTIFICATION_INTERVAL
+#endif
 
 
-#endif // _PROBLEM_H_
+#endif // _LINEAR_SVM_H_
