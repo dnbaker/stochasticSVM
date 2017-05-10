@@ -131,13 +131,17 @@ private:
         ns_ = dims.ns_; nd_ = dims.nd_;
         std::tie(m_, v_, class_name_map_) = parse_problem<FloatType, int>(path, dims);
         ++nd_;
+#if !NDEBUG
         if(m_.rows() < 1000) cout << "Input matrix: \n" << m_ << '\n';
+#endif
         // Normalize v_
         normalize_labels();
         //init_weights();
         w_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
         w_.weights_ = 0.;
+#if !NDEBUG
         if(v_.size() < 1000) cout << "Input labels: \n" << v_ << '\n';
+#endif
         normalize();
         if(nc_ != 2)
             throw std::runtime_error(
