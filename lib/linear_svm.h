@@ -232,12 +232,8 @@ private:
 public:
     FloatType loss() const {
         size_t mistakes(0);
-        for(size_t index(0); index < ns_; ++index) {
-            const int c(classify(row(m_, index)));
-            if(c != v_[index]) {
-                ++mistakes;
-            }
-        }
+        for(size_t index(0); index < ns_; ++index)
+            mistakes += (classify(row(m_, index)) != v_[index]);
         return static_cast<double>(mistakes) / ns_;
     }
     void train() {
@@ -260,12 +256,11 @@ public:
             const double eta(lp_(t_));
             tmpsum = 0.; // reset to 0 each time.
             for(size_t i(0); i < mbs_; ++i) {
-                const size_t start_index = fastrangesize(rand64(), max_end_index);
-                add_entry(start_index, tmpsum, nels_added);
+                add_entry(fastrangesize(rand64(), max_end_index), tmpsum, nels_added);
+                // Could be made more cache-friendly by randomly selecting and
+                // processing chunks of the data, but for now this is fine.
             }
-            if(t_ < max_iter_) {
-                last_weights = w_.weights_;
-            }
+            if(t_ < max_iter_) last_weights = w_.weights_;
             w_.scale(1.0 - eta * lambda_);
             wrow += trow * (eta / nels_added);
             if(project_) {

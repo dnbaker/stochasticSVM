@@ -190,23 +190,20 @@ private:
     }
     template<typename WeightMatrixKind>
     void add_entry(const size_t index, WeightMatrixKind &tmpsum, size_t &nels_added) {
-        if(predict(row(m_, index)) * v_[index] < 1.) row(tmpsum, 0) += row(m_, index) * v_[index];
+        if(predict(row(m_, index)) * v_[index] < 1.) ++a_[index];
         ++nels_added;
     }
     template<typename RowType>
     int classify(const RowType &data) const {
         static const int tbl[]{-1, 1};
-        const double pred(predict(data));
-        return tbl[pred > 0.];
+        return tbl[predict(data) > 0.];
     }
 public:
     MatrixType loss() const {
         size_t mistakes(0);
         for(size_t index(0); index < ns_; ++index) {
             const int c(classify(row(m_, index)));
-            if(c != v_[index]) {
-                ++mistakes;
-            }
+            mistakes += (c != v_[index]);
         }
         return static_cast<double>(mistakes) / ns_;
     }

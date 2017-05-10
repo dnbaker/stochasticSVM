@@ -10,7 +10,10 @@ struct KernelBase {
     using float_type = FloatType;
     template<typename MatrixType1, typename MatrixType2>
     FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const;
-    std::string str() const {return "KernelBase";}
+    std::string str() const {
+        throw std::runtime_error("NotImplementedError");
+        return "KernelBase";
+    }
 };
 
 template<typename FloatType>
@@ -224,10 +227,6 @@ struct ANOVAKernel: KernelBase<FloatType> {
             -sigma_ * diffnorm(blaze::pow(a, k_), blaze::pow(b, k_)), d_);
     }
     ANOVAKernel(FloatType d, FloatType k, FloatType sigma): d_(d / 2.), k_(k), sigma_(sigma) {}
-    std::string str() const {
-        throw std::runtime_error("NotImplementedError");
-        return "KernelType";
-    }
 };
 
 template<typename FloatType>
@@ -249,10 +248,6 @@ struct WaveletKernel: KernelBase<FloatType> {
         return ret;
     }
     WaveletKernel(FloatType a, FloatType c): a_inv_(1. / a), c_(c) {}
-    std::string str() const {
-        throw std::runtime_error("NotImplementedError");
-        return "KernelType";
-    }
 };
 
 template<typename FloatType>
@@ -263,10 +258,6 @@ struct LogarithmicKernel: KernelBase<FloatType> {
         return -std::log(std::pow(diffnorm(a, b), d_) + 1);
     }
     LogarithmicKernel(FloatType d): d_(d / 2.) {} // Divide by 2 to get the n-norm.
-    std::string str() const {
-        throw std::runtime_error("NotImplementedError");
-        return "KernelType";
-    }
 };
 
 template<typename FloatType>
@@ -282,10 +273,6 @@ struct HistogramKernel: KernelBase<FloatType> {
         FloatType ret(std::min(*ait, *bit));
         while(++ait != a.cend()) ret += std::min(*ait, *++bit);
         return ret;
-    }
-    std::string str() const {
-        throw std::runtime_error("NotImplementedError");
-        return "KernelType";
     }
 };
 
@@ -303,10 +290,6 @@ struct ExponentialBesselKernel: KernelBase<FloatType> {
     }
     ExponentialBesselKernel(FloatType sigma, FloatType order):
         sigma_(sigma), order_(order) {}
-    std::string str() const {
-        throw std::runtime_error("NotImplementedError");
-        return "KernelType";
-    }
 };
 
 
@@ -321,10 +304,6 @@ struct CylindricalBesselKernel: KernelBase<FloatType> {
     }
     CylindricalBesselKernel(FloatType sigma, FloatType n, FloatType v):
         sigma_(sigma), vp1_(v + 1), minus_nvp1_(-n * vp1_) {}
-    std::string str() const {
-        throw std::runtime_error("NotImplementedError");
-        return "KernelType";
-    }
 };
 
 template<typename FloatType>
@@ -340,10 +319,6 @@ struct CircularKernel: KernelBase<FloatType> {
                                             std::sqrt(1 - norm2 * norm2));
     }
     CircularKernel(FloatType sigma): sigma_inv_(1 / sigma), sigma_(sigma) {}
-    std::string str() const {
-        throw std::runtime_error("NotImplementedError");
-        return "KernelType";
-    }
 };
 
 template<typename FloatType>
@@ -355,10 +330,6 @@ struct TanhKernel: KernelBase<FloatType>{
         return std::tanh(dot(a, b) * k_ + c_);
     }
     TanhKernel(FloatType k, FloatType c): k_(k), c_(c) {}
-    std::string str() const {
-        throw std::runtime_error("NotImplementedError");
-        return "KernelType";
-    }
 };
 
 } // namespace svm
