@@ -220,10 +220,10 @@ public:
     }
     void cleanup() {
         w_ = WMType(1, nd_), w_.weights_ = 0.;
-        #pragma omp parallel reduction(+:w_)
-        for(size_t i(0); i < nd_; ++i) {
-            w_ += a_[i] * row(m_, i);
-        }
+        for(auto it(a_.cbegin()), end(a_.cend()); it != end; ++it)
+            w_.weights_ += a_[it->index()] * v_[it->value()] *
+                           row(m_, it->index());
+        w_.weights_ *= 1. / (lambda * t_);
         free_matrix(m_);
         free_vector(v_);
     }
