@@ -20,28 +20,25 @@ class KernelSVM {
 
     using WMType = WeightMatrix<MatrixType>;
 
-    MatrixKind                m_; // Training Data
+    MatrixKind                   m_; // Training Data
     // Weights. one-dimensional for 2-class, nc_-dimensional for more.
-    WMType w_;
-    WMType w_avg_;
-    DynamicVector<VectorType> a_;
-    DynamicVector<VectorType> v_; // Labels
+    CompressedVector<VectorType> a_;
+    DynamicVector<VectorType>    v_; // Labels
 #if RENORMALIZE
-    MatrixKind                r_; // Renormalization values. Subtraction, then multiplication
+    MatrixKind                   r_; // Renormalization values. Subtraction, then multiplication
                                   // Not required: not used.
 #endif
-    const MatrixType     lambda_; // Lambda Parameter
-    const Kernel         kernel_;
-    size_t                   nc_; // Number of classes
-    const size_t            mbs_; // Mini-batch size
-    size_t                   ns_; // Number samples
-    size_t                   nd_; // Number of dimensions
-    const size_t       max_iter_; // Maximum iterations.
-    size_t                    t_; // Timepoint.
-    const LearningPolicy     lp_; // Calculates learning rate at a timestep t.
-    const MatrixType        eps_; // epsilon termination.
-    const size_t       avg_size_; // Number to average at end.
-    const bool          project_; // Whether or not to perform projection step.
+    const MatrixType        lambda_; // Lambda Parameter
+    const Kernel            kernel_;
+    WMType                       w_; // Final weights: only used at completion.
+    size_t                      nc_; // Number of classes
+    const size_t               mbs_; // Mini-batch size
+    size_t                      ns_; // Number samples
+    size_t                      nd_; // Number of dimensions
+    const size_t          max_iter_; // Maximum iterations.
+    size_t                       t_; // Timepoint.
+    const LearningPolicy        lp_; // Calculates learning rate at a timestep t.
+    const MatrixType           eps_; // epsilon termination.
     std::unordered_map<VectorType, std::string> class_name_map_;
 
 public:
@@ -51,13 +48,10 @@ public:
                LearningPolicy lp,
                Kernel kernel=LinearKernel<MatrixType>(),
                size_t mini_batch_size=256uL,
-               size_t max_iter=100000,  const MatrixType eps=1e-6,
-               long avg_size=-1, bool project=false)
+               size_t max_iter=100000,  const MatrixType eps=1e-6)
         : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size),
           max_iter_(max_iter), t_(0), lp_(lp), eps_(eps),
-          avg_size_(avg_size < 0 ? 1000: avg_size),
-          project_(project)
     {
         load_data(path);
     }
@@ -66,12 +60,10 @@ public:
                LearningPolicy lp,
                Kernel kernel=LinearKernel<MatrixType>(),
                size_t mini_batch_size=256uL,
-               size_t max_iter=100000,  const MatrixType eps=1e-6,
-               long avg_size=-1, bool project=false)
+               size_t max_iter=100000,  const MatrixType eps=1e-6)
         : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size), nd_(ndims),
-          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps),
-          avg_size_(avg_size < 0 ? 10: avg_size), project_(project)
+          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps)
     {
         sparse_load(path);
     }
@@ -184,15 +176,18 @@ private:
             throw std::runtime_error(
                 std::string("Number of classes must be 2. Found: ") +
                             std::to_string(nc_));
-        w_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
-        w_.weights_ = 0.;
+        a_ = CompressedVector<VectorType>(nd_, nc_ == 2 ? 1: nc_);
     }
     void normalize() {
         column(m_, nd_ - 1) = 1.; // Bias term
     }
     template<typename RowType>
     double predict(const RowType &datapoint) const {
-        return dot(row(w_.weights_, 0), datapoint);
+        if(w_.weights_.rows()) return dot(w_.weights_, datapoint);
+        throw std::runtime_error(
+            "NotImplementedError(\"if \frac{y_{it}}{\lambda t_}\sum_{j \notin I}"
+            "y_{it if this papers has no error jt if it does like I think it "
+            "does}K(x_{it}, x_j) < 1: ++a[i]\")");
     }
     template<typename WeightMatrixKind>
     void add_entry(const size_t index, WeightMatrixKind &tmpsum, size_t &nels_added) {
@@ -217,53 +212,20 @@ public:
         return static_cast<double>(mistakes) / ns_;
     }
     void train() {
-        size_t avgs_used(0);
-        decltype(w_.weights_) tmpsum(1, nd_);
-        decltype(w_.weights_) last_weights(1, nd_);
-        size_t nels_added(0);
-        auto wrow(row(w_.weights_, 0));
-        auto trow(row(tmpsum, 0));
-        const size_t max_end_index(std::min(ns_ - mbs_, ns_));
-        for(t_ = 0; avgs_used < avg_size_; ++t_) {
-            nels_added = 0;
-#if !NDEBUG
-            if((t_ % NOTIFICATION_INTERVAL) == 0) {
-                const double ls(loss()), current_norm(w_.get_norm_sq());
-                cerr << "Loss: " << ls * 100 << "%" << " at time = " << t_ << 
-                        " with norm of w = " << current_norm << ".\n";
-            }
-#endif
-            const double eta(lp_(t_));
-            tmpsum = 0.; // reset to 0 each time.
-            for(size_t i(0); i < mbs_; ++i) {
-                const size_t start_index = fastrangesize(rand64(), max_end_index);
-                add_entry(start_index, tmpsum, nels_added);
-            }
-            if(t_ < max_iter_) {
-                last_weights = w_.weights_;
-            }
-            w_.scale(1.0 - eta * lambda_);
-            wrow += trow * (eta / nels_added);
-            if(project_) {
-                const double norm(w_.get_norm_sq());
-                if(norm > 1. / lambda_)
-                    w_.scale(std::sqrt(1.0 / (lambda_ * norm)));
-            }
-            if(t_ >= max_iter_ || diffnorm(row(last_weights, 0), row(w_.weights_, 0)) < eps_) { // TODO: replace false with epsilon
-                if(w_avg_.weights_.rows() == 0) w_avg_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
-                w_avg_.weights_ = 0.;
-                row(w_avg_.weights_, 0) += wrow;
-                ++avgs_used;
-            }
-        }
-        row(w_avg_.weights_, 0) *= 1. / avg_size_;
+        throw std::runtime_error(
+            "NotImplementedError(\"if \frac{y_{it}}{\lambda t_}\sum_{j \notin I}"
+            "y_{it if this papers has no error jt if it does like I think it "
+            "does}K(x_{it}, x_j) < 1: ++a[i]\")");
         cleanup();
     }
     void cleanup() {
+        w_ = WMType(1, nd_), w_.weights_ = 0.;
+        #pragma omp parallel reduction(+:w_)
+        for(size_t i(0); i < nd_; ++i) {
+            w_ += a_[i] * row(m_, i);
+        }
         free_matrix(m_);
         free_vector(v_);
-        row(w_.weights_, 0) = row(w_avg_.weights_, 0);
-        free_matrix(w_avg_.weights_);
     }
     void write(FILE *fp, bool scientific_notation=false) {
         fprintf(fp, "#Dimensions: %zu.\n", nd_);

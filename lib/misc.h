@@ -85,6 +85,7 @@ using i64 = std::int64_t;
 using blaze::DynamicVector;
 using blaze::DynamicMatrix;
 using blaze::CompressedMatrix;
+using blaze::CompressedVector;
 
 struct dims_t {
     size_t ns_, nd_;
