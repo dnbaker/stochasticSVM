@@ -11,8 +11,7 @@ KHASH_SET_INIT_INT64(I) // 64-bit set for randomly selected batch sizes.
 
 template<class Kernel,
          typename MatrixType=float,
-         class MatrixKind=DynamicMatrix<MatrixType>,
-         class LearningPolicy=PegasosLearningRate<MatrixType>>
+         class MatrixKind=DynamicMatrix<MatrixType>>
 class KernelSVM {
 
     // Increase nd by 1 and set all the last entries to "1" to add
@@ -39,7 +38,6 @@ class KernelSVM {
     size_t                      nd_; // Number of dimensions
     const size_t          max_iter_; // Maximum iterations.
     size_t                       t_; // Timepoint.
-    const LearningPolicy        lp_; // Calculates learning rate at a timestep t.
     const MatrixType           eps_; // epsilon termination.
     std::unordered_map<int, std::string> class_name_map_;
     khash_t(I)                  *h_; // Hash set of elements being used.
@@ -48,25 +46,23 @@ public:
     // Dense constructor
     KernelSVM(const char *path,
                const MatrixType lambda,
-               LearningPolicy lp,
                Kernel kernel=LinearKernel<MatrixType>(),
                size_t mini_batch_size=256uL,
                size_t max_iter=100000,  const MatrixType eps=1e-6)
         : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size),
-          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps), h_(kh_init(I))
+          max_iter_(max_iter), t_(0), eps_(eps), h_(kh_init(I))
     {
         load_data(path);
     }
     KernelSVM(const char *path, size_t ndims,
                const MatrixType lambda,
-               LearningPolicy lp,
                Kernel kernel=LinearKernel<MatrixType>(),
                size_t mini_batch_size=256uL,
                size_t max_iter=100000,  const MatrixType eps=1e-6)
         : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size), nd_(ndims),
-          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps), h_(kh_init(I))
+          max_iter_(max_iter), t_(0), eps_(eps), h_(kh_init(I))
     {
         sparse_load(path);
     }
