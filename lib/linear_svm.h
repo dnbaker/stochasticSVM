@@ -53,7 +53,10 @@ class LinearSVM {
     // Weights. one-dimensional for 2-class, nc_-dimensional for more.
     WMType w_;
     WMType w_avg_;
-    DynamicVector<int>        v_; // Labels
+    DynamicVector<int>        v_;
+    // Labels [could be compressed by requiring sorted data and checking
+    // an index is before or after a threshold. Likely unnecessary, but could
+    // aid cache efficiency.
     MatrixKind                r_; // Renormalization values. Subtraction, then multiplication
     const FloatType      lambda_; // Lambda Parameter
     const KernelType     kernel_;
