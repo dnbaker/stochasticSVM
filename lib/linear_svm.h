@@ -286,6 +286,8 @@ public:
                 ++avgs_used;
             }
         }
+        double ls(loss());
+        cerr << "Final loss: " << ls * 100 << '\n';
         row(w_avg_.weights_, 0) *= 1. / avg_size_;
         cleanup();
     }
