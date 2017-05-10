@@ -15,31 +15,30 @@ namespace svm {
 #  define NOTIFICATION_INTERVAL (100uLL)
 #endif
 
-template<typename MatrixType, typename WeightMatrixKind=DynamicMatrix<MatrixType>>
+template<typename FloatType, typename WeightMatrixKind=DynamicMatrix<FloatType>>
 class WeightMatrix {
     double norm_;
 public:
     WeightMatrixKind weights_;
     operator WeightMatrixKind&() {return weights_;}
     operator const WeightMatrixKind&() const {return weights_;}
-    WeightMatrix(size_t ns, size_t nc, MatrixType lambda):
+    WeightMatrix(size_t ns, size_t nc, FloatType lambda):
         norm_{0.}, weights_{WeightMatrixKind(nc == 2 ? 1: nc, ns)} {
     }
     WeightMatrix(): norm_(0.) {}
-    void scale(MatrixType factor) {
+    void scale(FloatType factor) {
         norm_ *= factor * factor;
         weights_ *= factor;
     }
-    MatrixType get_norm_sq() {
+    FloatType get_norm_sq() {
         return norm_ = dot(row(weights_, 0), row(weights_, 0));
     }
     double norm() const {return norm_;}
 };
 
-template<typename MatrixType=float,
-         class MatrixKind=DynamicMatrix<MatrixType>,
-         typename VectorType=int,
-         class LearningPolicy=PegasosLearningRate<MatrixType>>
+template<typename FloatType=float,
+         class MatrixKind=DynamicMatrix<FloatType>,
+         class LearningPolicy=PegasosLearningRate<FloatType>>
 class LinearSVM {
 
     // Increase nd by 1 and set all the last entries to "1" to add
@@ -47,16 +46,16 @@ class LinearSVM {
     // (See http://ttic.uchicago.edu/~nati/Publications/PegasosMPB.pdf,
     //  section 6.)
 
-    using WMType     = WeightMatrix<MatrixType>;
-    using KernelType = LinearKernel<MatrixType>;
+    using WMType     = WeightMatrix<FloatType>;
+    using KernelType = LinearKernel<FloatType>;
 
     MatrixKind                m_; // Training Data
     // Weights. one-dimensional for 2-class, nc_-dimensional for more.
     WMType w_;
     WMType w_avg_;
-    DynamicVector<VectorType> v_; // Labels
+    DynamicVector<int>        v_; // Labels
     MatrixKind                r_; // Renormalization values. Subtraction, then multiplication
-    const MatrixType     lambda_; // Lambda Parameter
+    const FloatType      lambda_; // Lambda Parameter
     const KernelType     kernel_;
     size_t                   nc_; // Number of classes
     const size_t            mbs_; // Mini-batch size
@@ -66,18 +65,18 @@ class LinearSVM {
                                   // If -1, use epsilon termination conditions.
     size_t                    t_; // Timepoint.
     const LearningPolicy     lp_; // Calculates learning rate at a timestep t.
-    const MatrixType        eps_; // epsilon termination.
+    const FloatType         eps_; // epsilon termination.
     const size_t       avg_size_; // Number to average at end.
     const bool          project_; // Whether or not to perform projection step.
-    std::unordered_map<VectorType, std::string> class_name_map_;
+    std::unordered_map<int, std::string> class_name_map_;
 
 public:
     // Dense constructor
     LinearSVM(const char *path,
-              const MatrixType lambda,
+              const FloatType lambda,
               LearningPolicy lp,
               size_t mini_batch_size=256uL,
-              size_t max_iter=100000,  const MatrixType eps=1e-6,
+              size_t max_iter=100000,  const FloatType eps=1e-6,
               long avg_size=-1, bool project=false)
         : lambda_(lambda),
           nc_(0), mbs_(mini_batch_size),
@@ -88,10 +87,10 @@ public:
         load_data(path);
     }
     LinearSVM(const char *path, size_t ndims,
-               const MatrixType lambda,
+               const FloatType lambda,
                LearningPolicy lp,
                size_t mini_batch_size=256uL,
-               size_t max_iter=100000,  const MatrixType eps=1e-6,
+               size_t max_iter=100000,  const FloatType eps=1e-6,
                long avg_size=-1, bool project=false)
         : lambda_(lambda),
           nc_(0), mbs_(mini_batch_size), nd_(ndims),
@@ -107,11 +106,11 @@ public:
 
 private:
     void normalize_labels() {
-        std::set<VectorType> set;
+        std::set<int> set;
         for(auto &pair: class_name_map_) set.insert(pair.first);
-        std::vector<VectorType> vec(std::begin(set), std::end(set));
+        std::vector<int> vec(std::begin(set), std::end(set));
         std::sort(std::begin(vec), std::end(vec));
-        std::unordered_map<VectorType, int> map;
+        std::unordered_map<int, int> map;
         int index(0);
         if(vec.size() == 2) map[vec[0]] = -1, map[vec[1]] = 1;
         else for(auto i(std::begin(vec)), e(std::end(vec)); i != e; ++i) map[*i] = ++index;
@@ -127,7 +126,7 @@ private:
     void load_data(const char *path) {
         dims_t dims(path);
         ns_ = dims.ns_; nd_ = dims.nd_;
-        std::tie(m_, v_, class_name_map_) = parse_problem<MatrixType, VectorType>(path, dims);
+        std::tie(m_, v_, class_name_map_) = parse_problem<FloatType, int>(path, dims);
         ++nd_;
         if(m_.rows() < 1000) cout << "Input matrix: \n" << m_ << '\n';
         // Normalize v_
@@ -164,11 +163,11 @@ private:
         cerr << "nd: " << nd_ << '\n';
 #endif
 
-        m_ = DynamicMatrix<MatrixType>(ns_, nd_);
-        v_ = DynamicVector<VectorType>(ns_);
+        m_ = DynamicMatrix<FloatType>(ns_, nd_);
+        v_ = DynamicVector<int>(ns_);
         m_ = 0.; // bc sparse, unused entries are zero.
         std::string class_name;
-        VectorType  class_id(0);
+        int  class_id(0);
         int c, moffsets(16), *offsets((int *)malloc(moffsets * sizeof(int)));
         std::unordered_map<std::string, int> tmpmap;
         while((c = gzgetc(fp)) != EOF) {
@@ -225,16 +224,16 @@ private:
         ++nels_added;
     }
     template<typename RowType>
-    VectorType classify(const RowType &data) const {
-        static const VectorType tbl[]{-1, 1};
+    int classify(const RowType &data) const {
+        static const int tbl[]{-1, 1};
         const double pred(predict(data));
         return tbl[pred > 0.];
     }
 public:
-    MatrixType loss() const {
+    FloatType loss() const {
         size_t mistakes(0);
         for(size_t index(0); index < ns_; ++index) {
-            const VectorType c(classify(row(m_, index)));
+            const int c(classify(row(m_, index)));
             if(c != v_[index]) {
                 ++mistakes;
             }

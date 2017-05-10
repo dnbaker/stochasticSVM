@@ -9,7 +9,6 @@ namespace svm {
 template<class Kernel,
          typename MatrixType=float,
          class MatrixKind=DynamicMatrix<MatrixType>,
-         typename VectorType=int,
          class LearningPolicy=PegasosLearningRate<MatrixType>>
 class KernelSVM {
 
@@ -22,8 +21,8 @@ class KernelSVM {
 
     MatrixKind                   m_; // Training Data
     // Weights. one-dimensional for 2-class, nc_-dimensional for more.
-    CompressedVector<VectorType> a_;
-    DynamicVector<VectorType>    v_; // Labels
+    CompressedVector<int>        a_;
+    DynamicVector<int>           v_; // Labels
 #if RENORMALIZE
     MatrixKind                   r_; // Renormalization values. Subtraction, then multiplication
                                   // Not required: not used.
@@ -39,7 +38,7 @@ class KernelSVM {
     size_t                       t_; // Timepoint.
     const LearningPolicy        lp_; // Calculates learning rate at a timestep t.
     const MatrixType           eps_; // epsilon termination.
-    std::unordered_map<VectorType, std::string> class_name_map_;
+    std::unordered_map<int, std::string> class_name_map_;
 
 public:
     // Dense constructor
@@ -74,11 +73,11 @@ public:
 
 private:
     void normalize_labels() {
-        std::set<VectorType> set;
+        std::set<int> set;
         for(auto &pair: class_name_map_) set.insert(pair.first);
-        std::vector<VectorType> vec(std::begin(set), std::end(set));
+        std::vector<int> vec(std::begin(set), std::end(set));
         std::sort(std::begin(vec), std::end(vec));
-        std::unordered_map<VectorType, int> map;
+        std::unordered_map<int, int> map;
         int index(0);
         if(vec.size() == 2) map[vec[0]] = -1, map[vec[1]] = 1;
         else for(auto i(std::begin(vec)), e(std::end(vec)); i != e; ++i) map[*i] = ++index;
@@ -94,7 +93,7 @@ private:
     void load_data(const char *path) {
         dims_t dims(path);
         ns_ = dims.ns_; nd_ = dims.nd_;
-        std::tie(m_, v_, class_name_map_) = parse_problem<MatrixType, VectorType>(path, dims);
+        std::tie(m_, v_, class_name_map_) = parse_problem<MatrixType, int>(path, dims);
         ++nd_;
         if(m_.rows() < 1000) cout << "Input matrix: \n" << m_ << '\n';
         // Normalize v_
@@ -132,10 +131,10 @@ private:
 #endif
 
         m_ = DynamicMatrix<MatrixType>(ns_, nd_);
-        v_ = DynamicVector<VectorType>(ns_);
+        v_ = DynamicVector<int>(ns_);
         m_ = 0.; // bc sparse, unused entries are zero.
         std::string class_name;
-        VectorType  class_id(0);
+        int  class_id(0);
         int c, moffsets(16), *offsets((int *)malloc(moffsets * sizeof(int)));
         std::unordered_map<std::string, int> tmpmap;
         while((c = gzgetc(fp)) != EOF) {
@@ -176,7 +175,7 @@ private:
             throw std::runtime_error(
                 std::string("Number of classes must be 2. Found: ") +
                             std::to_string(nc_));
-        a_ = CompressedVector<VectorType>(nd_, nc_ == 2 ? 1: nc_);
+        a_ = CompressedVector<int>(nd_, nc_ == 2 ? 1: nc_);
     }
     void normalize() {
         column(m_, nd_ - 1) = 1.; // Bias term
@@ -195,8 +194,8 @@ private:
         ++nels_added;
     }
     template<typename RowType>
-    VectorType classify(const RowType &data) const {
-        static const VectorType tbl[]{-1, 1};
+    int classify(const RowType &data) const {
+        static const int tbl[]{-1, 1};
         const double pred(predict(data));
         return tbl[pred > 0.];
     }
@@ -204,7 +203,7 @@ public:
     MatrixType loss() const {
         size_t mistakes(0);
         for(size_t index(0); index < ns_; ++index) {
-            const VectorType c(classify(row(m_, index)));
+            const int c(classify(row(m_, index)));
             if(c != v_[index]) {
                 ++mistakes;
             }
