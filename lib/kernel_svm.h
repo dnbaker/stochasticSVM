@@ -185,8 +185,10 @@ private:
     double predict(size_t index) const {
         double ret(0.);
         for(auto it(a_.cbegin()), e(a_.cend()); it != e; ++it) {
-            if(kh_get(I, h_, it->value()) == kh_end(h_))
+            if(kh_get(I, h_, it->value()) == kh_end(h_)) {
                 ret += v_[it->index()] * it->value() * kernel_(row(m_, it->index()), row(m_, index));
+                //ret += v_[it->index()] * it->value() * kernel_(mrow, orow);
+            }
         }
         return ret;
     }
@@ -206,7 +208,15 @@ public:
     FloatType loss() const {
         size_t mistakes(0);
         for(size_t index(0); index < ns_; ++index) {
-            mistakes += (classify(row(m_, index)) != v_[index]);
+            mistakes += (classify(index) != v_[index]);
+        }
+        return static_cast<double>(mistakes) / ns_;
+    }
+    FloatType loss(const DynamicMatrix<FloatType> &matrix,
+                   const DynamicVector<FloatType> &labels) const {
+        size_t mistakes(0);
+        for(size_t index(0), e(matrix.rows()); index < e; ++index) {
+            mistakes += (classify(row(matrix, index)) != labels[index]);
         }
         return static_cast<double>(mistakes) / ns_;
     }
@@ -221,13 +231,15 @@ public:
                 // Iterating through all alphas and processing each element for it.
                 kh_put(I, h_, fastrangesize(rand64(), ns_), &khr);
                 for(khiter_t ki(0); ki != kh_end(h_); ++ki) {
-                    add_entry(kh_key(h_, ki));
+                    if(kh_exist(h_, ki))
+                        add_entry(kh_key(h_, ki));
                 }
             }
             if(diffnorm(a_, last_alphas) < eps_) break;
             // If the results are the same (or close enough).
             // This should probably be updated to reflect the weight components
             // involved in the norm of the difference. Minor detail, however.
+            if(t_ % 10 == 0) cerr << "loss: " << loss() * 100 << "%\n";
         }
         cleanup();
     }
@@ -239,6 +251,7 @@ public:
             wrow += a_[it->index()] * v_[it->value()] *
                   row(m_, it->index());
         w_ *= 1. / (lambda_ * (t_ - 1));
+        cerr << "final loss: " << loss(m_, v_) * 100 << "%\n";
         free_matrix(m_);
         free_vector(v_);
     }
