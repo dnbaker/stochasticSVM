@@ -2,9 +2,12 @@
 #define _KERNEL_SVM_H_
 #include "lib/linear_svm.h"
 #include "lib/kernel.h"
+#include "lib/khash64.h"
 #include "fastrange/fastrange.h"
 
 namespace svm {
+
+KHASH_SET_INIT_INT64(I) // 64-bit set for randomly selected batch sizes.
 
 template<class Kernel,
          typename MatrixType=float,
@@ -39,6 +42,7 @@ class KernelSVM {
     const LearningPolicy        lp_; // Calculates learning rate at a timestep t.
     const MatrixType           eps_; // epsilon termination.
     std::unordered_map<int, std::string> class_name_map_;
+    khash_t(I)                  *h_; // Hash set of elements being used.
 
 public:
     // Dense constructor
@@ -50,7 +54,7 @@ public:
                size_t max_iter=100000,  const MatrixType eps=1e-6)
         : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size),
-          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps),
+          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps), h_(kh_init(I))
     {
         load_data(path);
     }
@@ -62,10 +66,11 @@ public:
                size_t max_iter=100000,  const MatrixType eps=1e-6)
         : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size), nd_(ndims),
-          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps)
+          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps), h_(kh_init(I))
     {
         sparse_load(path);
     }
+    ~KernelSVM() {kh_destroy(I, h_);}
     size_t get_nsamples() {return ns_;}
     size_t get_ndims()    {return nd_;}
     auto  &get_matrix()   {return m_;}
@@ -99,10 +104,13 @@ private:
         // Normalize v_
         normalize_labels();
         //init_weights();
-        w_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
-        w_.weights_ = 0.;
         if(v_.size() < 1000) cout << "Input labels: \n" << v_ << '\n';
         normalize();
+        if(nc_ != 2)
+            throw std::runtime_error(
+                std::string("Number of classes must be 2. Found: ") +
+                            std::to_string(nc_));
+        a_ = CompressedVector<int>(nd_, nc_ == 2 ? 1: nc_);
         LOG_DEBUG("Number of datapoints: %zu. Number of dimensions: %zu\n", ns_, nd_);
     }
     void sparse_load(const char *path) {
@@ -180,18 +188,20 @@ private:
     void normalize() {
         column(m_, nd_ - 1) = 1.; // Bias term
     }
+    double predict(size_t index) const {
+        double ret(0.);
+        for(auto it(a_.cbegin()), e(a_.cend()); it != e; ++it) {
+            if(kh_get(I, h_, it->value()) == kh_end(h_))
+                ret += v_[it->index()] * it->value() * kernel_(row(m_, it->index()), row(m_, index));
+        }
+        return ret;
+    }
     template<typename RowType>
     double predict(const RowType &datapoint) const {
-        if(w_.weights_.rows()) return dot(w_.weights_, datapoint);
-        throw std::runtime_error(
-            "NotImplementedError(\"if \frac{y_{it}}{\lambda t_}\sum_{j \notin I}"
-            "y_{it if this papers has no error jt if it does like I think it "
-            "does}K(x_{it}, x_j) < 1: ++a[i]\")");
+        return kernel_(w_.weights_, datapoint);
     }
-    template<typename WeightMatrixKind>
-    void add_entry(const size_t index, WeightMatrixKind &tmpsum, size_t &nels_added) {
-        if(predict(row(m_, index)) * v_[index] < 1.) ++a_[index];
-        ++nels_added;
+    void add_entry(const size_t index) {
+        if(predict(index) * v_[index] < 1.) ++a_[index];
     }
     template<typename RowType>
     int classify(const RowType &data) const {
@@ -202,16 +212,29 @@ public:
     MatrixType loss() const {
         size_t mistakes(0);
         for(size_t index(0); index < ns_; ++index) {
-            const int c(classify(row(m_, index)));
-            mistakes += (c != v_[index]);
+            mistakes += (classify(row(m_, index)) != v_[index]);
         }
         return static_cast<double>(mistakes) / ns_;
     }
     void train() {
-        throw std::runtime_error(
-            "NotImplementedError(\"if \frac{y_{it}}{\lambda t_}\sum_{j \notin I}"
-            "y_{it if this papers has no error jt if it does like I think it "
-            "does}K(x_{it}, x_j) < 1: ++a[i]\")");
+        decltype(a_) last_alphas;
+        for(t_ = 0; t_ < max_iter_; ++t_) {
+            last_alphas = a_;
+            int khr;
+            kh_clear(h_);
+            for(size_t i(0); i < mbs_; ++i) {
+                // Could probably speed up by changing loop iteration:
+                // Iterating through all alphas and processing each element for it.
+                kh_put(I, h_, fastrange(rand64(), ns_), &khr);
+                for(khiter_t ki(0); ki != kh_end(h_); ++ki) {
+                    add_entry(kh_key(h_, ki));
+                }
+            }
+            if(diffnorm(a_, last_alphas) < eps_) break;
+            // If the results are the same (or close enough).
+            // This should probably be updated to reflect the weight components
+            // involved in the norm of the difference. Minor detail, however.
+        }
         cleanup();
     }
     void cleanup() {

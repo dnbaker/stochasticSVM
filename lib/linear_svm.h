@@ -136,6 +136,10 @@ private:
         w_.weights_ = 0.;
         if(v_.size() < 1000) cout << "Input labels: \n" << v_ << '\n';
         normalize();
+        if(nc_ != 2)
+            throw std::runtime_error(
+                std::string("Number of classes must be 2. Found: ") +
+                            std::to_string(nc_));
         LOG_DEBUG("Number of datapoints: %zu. Number of dimensions: %zu\n", ns_, nd_);
     }
     void sparse_load(const char *path) {
