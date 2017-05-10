@@ -9,7 +9,8 @@ int usage(char *ex) {
                        "Flags:\n-p:\tNumber of processes [1]\n\n"
                        "-[h?]:\tHelp menu.\n"
                        "-l:\tSet lambda parameter.\n"
-                       "-e:\tSet eta parameter (NORMA and Zhang algorithms only).\n"
+                       "-E:\tSet eta parameter (NORMA and Zhang algorithms only).\n"
+                       "-e:\tSet epsilon parameter (for termination). Set to 0 to always execute <max_iter> times.\n"
                        "-M:\tMax iter (100000)\n"
                        "-b:\tBatch size\n"
                        "-s:\tNumber of dimensions for sparse parsing. Also determines the use of sparse rather than dense parsing.\n"
@@ -28,16 +29,17 @@ enum Policy:size_t{
 
 int main(int argc, char *argv[]) {
     int c, batch_size(256), nd_sparse(0);
-    FLOAT_TYPE lambda(0.5), eta(0.0);
+    FLOAT_TYPE lambda(0.5), eta(0.0), eps(1e-6);
     size_t max_iter(100000);
     unsigned nthreads(1);
     std::ios::sync_with_stdio(false);
     FILE *ofp(stdout);
     Policy policy(PEGASOS);
     for(char **p(argv + 1); *p; ++p) if(strcmp(*p, "--help") == 0) goto usage;
-    while((c = getopt(argc, argv, "e:M:s:p:b:l:o:FNh?")) >= 0) {
+    while((c = getopt(argc, argv, "E:e:M:s:p:b:l:o:FNh?")) >= 0) {
         switch(c) {
-            case 'e': eta        = atof(optarg); break;
+            case 'E': eta        = atof(optarg); break;
+            case 'e': eps        = atof(optarg); break;
             case 'p': nthreads   = atoi(optarg); break;
             case 'M': max_iter   = strtoull(optarg, 0, 10); break;
             case 'b': batch_size = atoi(optarg); break;
@@ -54,7 +56,7 @@ int main(int argc, char *argv[]) {
     }
     if((policy == NORMA || policy == FIXED) && eta == 0.0) {
         throw std::runtime_error(
-            "eta (-e) must be set for Norma or Fixed Learning rate policies.");
+            "eta (-E) must be set for Norma or Fixed Learning rate policies.");
     }
 
     if(optind == argc) goto usage;
@@ -64,20 +66,20 @@ int main(int argc, char *argv[]) {
     FixedLearningRate<FLOAT_TYPE>  flp(eta);
     if(policy == NORMA) {
         LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(nlp)> svm =
-            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(nlp)>(argv[optind], nd_sparse, lambda, nlp, batch_size, max_iter)
-                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(nlp)>(argv[optind], lambda, nlp, batch_size, max_iter);
+            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(nlp)>(argv[optind], nd_sparse, lambda, nlp, batch_size, max_iter, eps)
+                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(nlp)>(argv[optind], lambda, nlp, batch_size, max_iter, eps);
         svm.train();
         svm.write(ofp);
     } else if(policy == FIXED) {
         LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(flp)> svm =
-            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(flp)>(argv[optind], nd_sparse, lambda, flp, batch_size, max_iter)
-                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(flp)>(argv[optind], lambda, flp, batch_size, max_iter);
+            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(flp)>(argv[optind], nd_sparse, lambda, flp, batch_size, max_iter, eps)
+                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(flp)>(argv[optind], lambda, flp, batch_size, max_iter, eps);
         svm.train();
         svm.write(ofp);
     } else {
         LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(lp)> svm =
-            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(lp)>(argv[optind], nd_sparse, lambda, lp, batch_size, max_iter)
-                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(lp)>(argv[optind], lambda, lp, batch_size, max_iter);
+            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(lp)>(argv[optind], nd_sparse, lambda, lp, batch_size, max_iter, eps)
+                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(lp)>(argv[optind], lambda, lp, batch_size, max_iter, eps);
         svm.train();
         svm.write(ofp);
     }

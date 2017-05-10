@@ -76,17 +76,35 @@ private:
         for(auto &pair: class_name_map_) set.insert(pair.first);
         std::vector<int> vec(std::begin(set), std::end(set));
         std::sort(std::begin(vec), std::end(vec));
+        if(vec.size() != 2)
+            throw std::runtime_error(
+                std::string("raise NotImplementedError(\"Only binary "
+                            "classification currently supported. "
+                            "Number of classes found: ") +
+                            std::to_string(nc_) + + "\")");
         std::unordered_map<int, int> map;
-        int index(0);
-        if(vec.size() == 2) map[vec[0]] = -1, map[vec[1]] = 1;
-        else for(auto i(std::begin(vec)), e(std::end(vec)); i != e; ++i) map[*i] = ++index;
-        for(auto &i: v_) i = map[i];
+        std::fprintf(stderr, "Map: {%i: %i, %i: %i}", vec[0], -1, vec[1], 1);
+        map[vec[0]] = -1, map[vec[1]] = 1;
+        cerr <<"vec: " << vec[0] << ", " << vec[1] << '\n';
+        try {
+            vec.at(2);
+            throw std::runtime_error("Should not have gotten here!");
+        } catch(std::out_of_range &ex) { // Do nothing.
+        }
+        for(auto &i: v_) {
+            fprintf(stderr, "Replacing %i with %i.\n",
+                    i, map[i]);
+            i = map[i];
+        }
         decltype(class_name_map_) new_cmap;
         for(auto &pair: class_name_map_) new_cmap[map[pair.first]] = pair.second;
         class_name_map_ = std::move(new_cmap);
         nc_ = map.size();
 #if !NDEBUG
         for(const auto i: v_) assert(i == -1 || i == 1);
+        std::unordered_map<int, int> label_counts;
+        for(const auto i: v_) ++label_counts[i];
+        for(auto &pair: label_counts) cerr << "Label " << pair.first << " occurs " << pair.second << "times.\n";
 #endif
     }
     void load_data(const char *path) {
@@ -152,9 +170,8 @@ private:
             const int ntoks(ksplit_core(line.data(), 0, &moffsets, &offsets));
             class_name = line.data() + offsets[0];
             auto m(tmpmap.find(class_name));
-            if(m == tmpmap.end()) {
-                tmpmap.emplace(class_name, class_id++);
-            }
+            if(m == tmpmap.end()) m = tmpmap.emplace(class_name, class_id++).first;
+            v_[linenum] = m->second;
             for(int i(1); i < ntoks; ++i) {
                 p = line.data() + offsets[i];
                 char *q(strchr(p, ':'));
@@ -187,7 +204,6 @@ private:
         for(auto it(a_.cbegin()), e(a_.cend()); it != e; ++it) {
             if(kh_get(I, h_, it->value()) == kh_end(h_)) {
                 ret += v_[it->index()] * it->value() * kernel_(row(m_, it->index()), row(m_, index));
-                //ret += v_[it->index()] * it->value() * kernel_(mrow, orow);
             }
         }
         return ret;
@@ -216,7 +232,13 @@ public:
                    const DynamicVector<FloatType> &labels) const {
         size_t mistakes(0);
         for(size_t index(0), e(matrix.rows()); index < e; ++index) {
+#if !NDEBUG
+            auto c(classify(row(matrix, index)));
+            if(c != labels[index]) cerr << "label " << labels[index] << " misclassified as " << c << '\n';
             mistakes += (classify(row(matrix, index)) != labels[index]);
+#else
+            mistakes += (c != labels[index]);
+#endif
         }
         return static_cast<double>(mistakes) / ns_;
     }
@@ -235,12 +257,13 @@ public:
                         add_entry(kh_key(h_, ki));
                 }
             }
+            cerr << "loss: " << loss() * 100 << "%\n"
+                 << "nonzeros: " << nonZeros(a_) 
+                 << "iteration: " << t_ << '\n';
             if(diffnorm(a_, last_alphas) < eps_) break;
             // If the results are the same (or close enough).
             // This should probably be updated to reflect the weight components
             // involved in the norm of the difference. Minor detail, however.
-            if((t_ + 1) % 10 == 0) cerr << "loss: " << loss() * 100 << "%\n"
-                                        << "nonzeros: " << nonZeros(a_) << '\n';
         }
         cleanup();
     }

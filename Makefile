@@ -4,7 +4,7 @@ CC=gcc
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
          -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
          -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter
-DBG:= -DNDEBUG
+DBG:= # -DNDEBUG
 OPT:= -O3 -funroll-loops -pipe -fno-strict-aliasing -march=native -fopenmp
 OS:=$(shell uname)
 ifeq ($(OS),Darwin)

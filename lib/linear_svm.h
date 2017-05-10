@@ -113,24 +113,34 @@ private:
         for(auto &pair: class_name_map_) set.insert(pair.first);
         std::vector<int> vec(std::begin(set), std::end(set));
         std::sort(std::begin(vec), std::end(vec));
+        if(vec.size() != 2)
+            throw std::runtime_error(
+                std::string("raise NotImplementedError(\"Only binary "
+                            "classification currently supported. "
+                            "Number of classes found: ") +
+                            std::to_string(nc_) + + "\")");
+        //std::fprintf(stderr, "Map: {%i: %i, %i: %i}", vec[0], -1, vec[1], 1);
         std::unordered_map<int, int> map;
-        int index(0);
-        if(vec.size() == 2) map[vec[0]] = -1, map[vec[1]] = 1;
-        else for(auto i(std::begin(vec)), e(std::end(vec)); i != e; ++i) map[*i] = ++index;
-        for(auto &i: v_) i = map[i];
+        map[vec[0]] = -1, map[vec[1]] = 1;
+        for(auto &i: v_) {
+            i = map[i];
+        }
         decltype(class_name_map_) new_cmap;
         for(auto &pair: class_name_map_) new_cmap[map[pair.first]] = pair.second;
         class_name_map_ = std::move(new_cmap);
         nc_ = map.size();
 #if !NDEBUG
         for(const auto i: v_) assert(i == -1 || i == 1);
+        std::unordered_map<int, int> label_counts;
+        for(const auto i: v_) ++label_counts[i];
+        for(auto &pair: label_counts) cerr << "Label " << pair.first << " occurs " << pair.second << "times.\n";
 #endif
     }
     void load_data(const char *path) {
         dims_t dims(path);
         ns_ = dims.ns_; nd_ = dims.nd_;
         std::tie(m_, v_, class_name_map_) = parse_problem<FloatType, int>(path, dims);
-        ++nd_;
+        ++nd_; // bias term
 #if !NDEBUG
         if(m_.rows() < 1000) cout << "Input matrix: \n" << m_ << '\n';
 #endif
@@ -150,7 +160,7 @@ private:
         LOG_DEBUG("Number of datapoints: %zu. Number of dimensions: %zu\n", ns_, nd_);
     }
     void sparse_load(const char *path) {
-        ++nd_; // bias term, in case used.
+        ++nd_; // bias term.
         gzFile fp(gzopen(path, "rb"));
         if(fp == nullptr)
             throw std::runtime_error(std::string("Could not open file at ") + path);
@@ -194,9 +204,8 @@ private:
             const int ntoks(ksplit_core(line.data(), 0, &moffsets, &offsets));
             class_name = line.data() + offsets[0];
             auto m(tmpmap.find(class_name));
-            if(m == tmpmap.end()) {
-                tmpmap.emplace(class_name, class_id++);
-            }
+            if(m == tmpmap.end()) m = tmpmap.emplace(class_name, class_id++).first;
+            v_[linenum] = m->second;
             for(int i(1); i < ntoks; ++i) {
                 p = line.data() + offsets[i];
                 char *q(strchr(p, ':'));
@@ -287,7 +296,7 @@ public:
             }
         }
         double ls(loss());
-        cerr << "Final loss: " << ls * 100 << '\n';
+        cerr << "Final loss: " << ls * 100 << "% after " << t_ + 1 << " iterations "<<'\n';
         row(w_avg_.weights_, 0) *= 1. / avg_size_;
         cleanup();
     }
