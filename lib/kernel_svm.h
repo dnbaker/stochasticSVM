@@ -1,69 +1,42 @@
-#ifndef _LINEAR_SVM_H_
-#define _LINEAR_SVM_H_
-#include "lib/misc.h"
-#include "blaze/Math.h"
-#include "lib/parse.h"
-#include "lib/metakernel.h"
-#include "lib/matrixkernel.h"
-#include "lib/mathutil.h"
-#include "lib/learning_rate.h"
+#ifndef _KERNEL_SVM_H_
+#define _KERNEL_SVM_H_
+#include "lib/linear_svm.h"
+#include "lib/kernel.h"
 #include "fastrange/fastrange.h"
 
 namespace svm {
 
-#if !NDEBUG
-#  define NOTIFICATION_INTERVAL (100uLL)
-#endif
-
-template<typename MatrixType, typename WeightMatrixKind=DynamicMatrix<MatrixType>>
-class WeightMatrix {
-    double norm_;
-public:
-    WeightMatrixKind weights_;
-    operator WeightMatrixKind&() {return weights_;}
-    operator const WeightMatrixKind&() const {return weights_;}
-    WeightMatrix(size_t ns, size_t nc, MatrixType lambda):
-        norm_{0.}, weights_{WeightMatrixKind(nc == 2 ? 1: nc, ns)} {
-    }
-    WeightMatrix(): norm_(0.) {}
-    void scale(MatrixType factor) {
-        norm_ *= factor * factor;
-        weights_ *= factor;
-    }
-    MatrixType get_norm_sq() {
-        return norm_ = dot(row(weights_, 0), row(weights_, 0));
-    }
-    double norm() const {return norm_;}
-};
-
-template<typename MatrixType=float,
+template<class Kernel,
+         typename MatrixType=float,
          class MatrixKind=DynamicMatrix<MatrixType>,
          typename VectorType=int,
          class LearningPolicy=PegasosLearningRate<MatrixType>>
-class LinearSVM {
+class KernelSVM {
 
     // Increase nd by 1 and set all the last entries to "1" to add
     // the bias term implicitly.
     // (See http://ttic.uchicago.edu/~nati/Publications/PegasosMPB.pdf,
     //  section 6.)
 
-    using WMType     = WeightMatrix<MatrixType>;
-    using KernelType = LinearKernel<MatrixType>;
+    using WMType = WeightMatrix<MatrixType>;
 
     MatrixKind                m_; // Training Data
     // Weights. one-dimensional for 2-class, nc_-dimensional for more.
     WMType w_;
     WMType w_avg_;
+    DynamicVector<VectorType> a_;
     DynamicVector<VectorType> v_; // Labels
+#if RENORMALIZE
     MatrixKind                r_; // Renormalization values. Subtraction, then multiplication
+                                  // Not required: not used.
+#endif
     const MatrixType     lambda_; // Lambda Parameter
-    const KernelType     kernel_;
+    const Kernel         kernel_;
     size_t                   nc_; // Number of classes
     const size_t            mbs_; // Mini-batch size
     size_t                   ns_; // Number samples
     size_t                   nd_; // Number of dimensions
     const size_t       max_iter_; // Maximum iterations.
-                                  // If -1, use epsilon termination conditions.
     size_t                    t_; // Timepoint.
     const LearningPolicy     lp_; // Calculates learning rate at a timestep t.
     const MatrixType        eps_; // epsilon termination.
@@ -73,13 +46,14 @@ class LinearSVM {
 
 public:
     // Dense constructor
-    LinearSVM(const char *path,
-              const MatrixType lambda,
-              LearningPolicy lp,
-              size_t mini_batch_size=256uL,
-              size_t max_iter=100000,  const MatrixType eps=1e-6,
-              long avg_size=-1, bool project=false)
-        : lambda_(lambda),
+    KernelSVM(const char *path,
+               const MatrixType lambda,
+               LearningPolicy lp,
+               Kernel kernel=LinearKernel<MatrixType>(),
+               size_t mini_batch_size=256uL,
+               size_t max_iter=100000,  const MatrixType eps=1e-6,
+               long avg_size=-1, bool project=false)
+        : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size),
           max_iter_(max_iter), t_(0), lp_(lp), eps_(eps),
           avg_size_(avg_size < 0 ? 1000: avg_size),
@@ -87,13 +61,14 @@ public:
     {
         load_data(path);
     }
-    LinearSVM(const char *path, size_t ndims,
+    KernelSVM(const char *path, size_t ndims,
                const MatrixType lambda,
                LearningPolicy lp,
+               Kernel kernel=LinearKernel<MatrixType>(),
                size_t mini_batch_size=256uL,
                size_t max_iter=100000,  const MatrixType eps=1e-6,
                long avg_size=-1, bool project=false)
-        : lambda_(lambda),
+        : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size), nd_(ndims),
           max_iter_(max_iter), t_(0), lp_(lp), eps_(eps),
           avg_size_(avg_size < 0 ? 10: avg_size), project_(project)
@@ -274,7 +249,7 @@ public:
                 if(norm > 1. / lambda_)
                     w_.scale(std::sqrt(1.0 / (lambda_ * norm)));
             }
-            if(t_ >= max_iter_ || diffnorm(row(last_weights, 0), row(w_.weights_, 0)) < eps_) {
+            if(t_ >= max_iter_ || diffnorm(row(last_weights, 0), row(w_.weights_, 0)) < eps_) { // TODO: replace false with epsilon
                 if(w_avg_.weights_.rows() == 0) w_avg_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
                 w_avg_.weights_ = 0.;
                 row(w_avg_.weights_, 0) += wrow;
@@ -292,7 +267,7 @@ public:
     }
     void write(FILE *fp, bool scientific_notation=false) {
         fprintf(fp, "#Dimensions: %zu.\n", nd_);
-        fprintf(fp, "#LinearKernel\n");
+        fprintf(fp, "#%s\n", kernel_.str().data());
         ks::KString line;
         line.resize(5 * row(w_.weights_, 0).size());
         const char *fmt(scientific_notation ? "%e, ": "%f, ");
@@ -305,9 +280,6 @@ public:
 }; // LinearSVM
 
 } // namespace svm
-#if !NDEBUG
-#  undef NOTIFICATION_INTERVAL
-#endif
 
 
-#endif // _LINEAR_SVM_H_
+#endif // _KERNEL_SVM_H_

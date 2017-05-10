@@ -19,6 +19,7 @@ struct LinearKernel: KernelBase<FloatType> {
     FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
         return dot(a, b);
     }
+    LinearKernel() {}
     std::string str() const {return "LinearKernel";}
 };
 

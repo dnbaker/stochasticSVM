@@ -59,26 +59,25 @@ int main(int argc, char *argv[]) {
 
     if(optind == argc) goto usage;
     blaze::setNumThreads(nthreads);
-    LinearKernel<FLOAT_TYPE> linear_kernel;
     PegasosLearningRate<FLOAT_TYPE> lp(lambda);
     NormaLearningRate<FLOAT_TYPE>  nlp(eta);
     FixedLearningRate<FLOAT_TYPE>  flp(eta);
     if(policy == NORMA) {
-        LinearSVM<LinearKernel<FLOAT_TYPE>, FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, int, decltype(nlp)> svm =
-            nd_sparse ? LinearSVM<LinearKernel<FLOAT_TYPE>, FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, int, decltype(nlp)>(argv[optind], nd_sparse, lambda, nlp, linear_kernel, batch_size, max_iter)
-                      : LinearSVM<LinearKernel<FLOAT_TYPE>, FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, int, decltype(nlp)>(argv[optind], lambda, nlp, linear_kernel, batch_size, max_iter);
+        LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, int, decltype(nlp)> svm =
+            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, int, decltype(nlp)>(argv[optind], nd_sparse, lambda, nlp, batch_size, max_iter)
+                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, int, decltype(nlp)>(argv[optind], lambda, nlp, batch_size, max_iter);
         svm.train();
         svm.write(ofp);
     } else if(policy == FIXED) {
-        LinearSVM<LinearKernel<FLOAT_TYPE>, FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, int, decltype(flp)> svm =
-            nd_sparse ? LinearSVM<LinearKernel<FLOAT_TYPE>, FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, int, decltype(flp)>(argv[optind], nd_sparse, lambda, flp, linear_kernel, batch_size, max_iter)
-                      : LinearSVM<LinearKernel<FLOAT_TYPE>, FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, int, decltype(flp)>(argv[optind], lambda, flp, linear_kernel, batch_size, max_iter);
+        LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, int, decltype(flp)> svm =
+            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, int, decltype(flp)>(argv[optind], nd_sparse, lambda, flp, batch_size, max_iter)
+                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, int, decltype(flp)>(argv[optind], lambda, flp, batch_size, max_iter);
         svm.train();
         svm.write(ofp);
     } else {
-        LinearSVM<LinearKernel<FLOAT_TYPE>, FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, int, decltype(lp)> svm =
-            nd_sparse ? LinearSVM<LinearKernel<FLOAT_TYPE>, FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, int, decltype(lp)>(argv[optind], nd_sparse, lambda, lp, linear_kernel, batch_size, max_iter)
-                      : LinearSVM<LinearKernel<FLOAT_TYPE>, FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, int, decltype(lp)>(argv[optind], lambda, lp, linear_kernel, batch_size, max_iter);
+        LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, int, decltype(lp)> svm =
+            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, int, decltype(lp)>(argv[optind], nd_sparse, lambda, lp, batch_size, max_iter)
+                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, int, decltype(lp)>(argv[optind], lambda, lp, batch_size, max_iter);
         svm.train();
         svm.write(ofp);
     }
