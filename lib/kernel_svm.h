@@ -239,7 +239,8 @@ public:
             // If the results are the same (or close enough).
             // This should probably be updated to reflect the weight components
             // involved in the norm of the difference. Minor detail, however.
-            if(t_ % 10 == 0) cerr << "loss: " << loss() * 100 << "%\n";
+            if((t_ + 1) % 10 == 0) cerr << "loss: " << loss() * 100 << "%\n"
+                                        << "nonzeros: " << nonZeros(a_) << '\n';
         }
         cleanup();
     }
@@ -249,9 +250,9 @@ public:
         auto wrow = row(w_, 0);
         for(auto it(a_.cbegin()), end(a_.cend()); it != end; ++it)
             wrow += a_[it->index()] * v_[it->value()] *
-                  row(m_, it->index());
+                    row(m_, it->index());
         w_ *= 1. / (lambda_ * (t_ - 1));
-        cerr << "final loss: " << loss(m_, v_) * 100 << "%\n";
+        cerr << "final loss: " << loss(m_, v_) * 100 << "%. Number of iterations: " << t_ << "\n";
         free_matrix(m_);
         free_vector(v_);
     }

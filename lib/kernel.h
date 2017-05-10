@@ -114,7 +114,7 @@ struct RBFKernel: KernelBase<FloatType> {
     }
     RBFKernel(FloatType gamma): mgamma_(-gamma) {}
     std::string str() const {
-        return std::string("RBFKernel:{") + std::to_string(mgamma_) + '}';
+        return std::string("RBFKernel:{") + std::to_string(-mgamma_) + '}';
     }
 };
 
