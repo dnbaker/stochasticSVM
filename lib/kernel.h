@@ -227,6 +227,10 @@ struct ANOVAKernel: KernelBase<FloatType> {
             -sigma_ * diffnorm(blaze::pow(a, k_), blaze::pow(b, k_)), d_);
     }
     ANOVAKernel(FloatType d, FloatType k, FloatType sigma): d_(d / 2.), k_(k), sigma_(sigma) {}
+    std::string str() const {
+        return std::string("ANOVAKernel:{") + std::to_string(d_ * 2.) +
+            ", " + std::to_string(k_) + ", " + std::to_string(sigma_) + '}';
+    }
 };
 
 template<typename FloatType>
@@ -248,6 +252,10 @@ struct WaveletKernel: KernelBase<FloatType> {
         return ret;
     }
     WaveletKernel(FloatType a, FloatType c): a_inv_(1. / a), c_(c) {}
+    std::string str() const {
+        return std::string("WaveletKernel:{") + std::to_string(1. / a_inv_) +
+            ", " + std::to_string(c_) + '}';
+    }
 };
 
 template<typename FloatType>
@@ -258,6 +266,9 @@ struct LogarithmicKernel: KernelBase<FloatType> {
         return -std::log(std::pow(diffnorm(a, b), d_) + 1);
     }
     LogarithmicKernel(FloatType d): d_(d / 2.) {} // Divide by 2 to get the n-norm.
+    std::string str() const {
+        return std::string("LogarithmicKernel:{") + std::to_string(d_) + '}';
+    }
 };
 
 template<typename FloatType>
@@ -273,6 +284,9 @@ struct HistogramKernel: KernelBase<FloatType> {
         FloatType ret(std::min(*ait, *bit));
         while(++ait != a.cend()) ret += std::min(*ait, *++bit);
         return ret;
+    }
+    std::string str() const {
+        return "HistogramKernel";
     }
 };
 
@@ -290,6 +304,11 @@ struct ExponentialBesselKernel: KernelBase<FloatType> {
     }
     ExponentialBesselKernel(FloatType sigma, FloatType order):
         sigma_(sigma), order_(order) {}
+    std::string str() const {
+        return std::string("ExponentialBesselKernel:{") +
+            std::to_string(sigma_) +
+            ", " + std::to_string(order_) + '}';
+    }
 };
 
 
@@ -304,6 +323,12 @@ struct CylindricalBesselKernel: KernelBase<FloatType> {
     }
     CylindricalBesselKernel(FloatType sigma, FloatType n, FloatType v):
         sigma_(sigma), vp1_(v + 1), minus_nvp1_(-n * vp1_) {}
+    std::string str() const {
+        return std::string("CylindricalBesselKernel:{") +
+            std::to_string(sigma_) + ", " +
+            std::to_string(minus_nvp1_ / -(vp1_ - 1)) + ", " +
+            std::to_string(vp1_ - 1) + '}';
+    }
 };
 
 template<typename FloatType>
@@ -319,6 +344,10 @@ struct CircularKernel: KernelBase<FloatType> {
                                             std::sqrt(1 - norm2 * norm2));
     }
     CircularKernel(FloatType sigma): sigma_inv_(1 / sigma), sigma_(sigma) {}
+    std::string str() const {
+        return std::string("CircularKernel:{") +
+            std::to_string(sigma_) + '}';
+    }
 };
 
 template<typename FloatType>
@@ -330,6 +359,10 @@ struct TanhKernel: KernelBase<FloatType>{
         return std::tanh(dot(a, b) * k_ + c_);
     }
     TanhKernel(FloatType k, FloatType c): k_(k), c_(c) {}
+    std::string str() const {
+        return std::string("TanhKernel:{") +
+            std::to_string(k_) + ", " + std::to_string(c_) + '}';
+    }
 };
 
 } // namespace svm
