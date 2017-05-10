@@ -10,16 +10,14 @@ namespace svm {
 KHASH_SET_INIT_INT64(I) // 64-bit set for randomly selected batch sizes.
 
 template<class Kernel,
-         typename MatrixType=float,
-         class MatrixKind=DynamicMatrix<MatrixType>>
+         typename FloatType=float,
+         class MatrixKind=DynamicMatrix<FloatType>>
 class KernelSVM {
 
     // Increase nd by 1 and set all the last entries to "1" to add
     // the bias term implicitly.
     // (See http://ttic.uchicago.edu/~nati/Publications/PegasosMPB.pdf,
     //  section 6.)
-
-    using WMType = WeightMatrix<MatrixType>;
 
     MatrixKind                   m_; // Training Data
     // Weights. one-dimensional for 2-class, nc_-dimensional for more.
@@ -29,26 +27,26 @@ class KernelSVM {
     MatrixKind                   r_; // Renormalization values. Subtraction, then multiplication
                                   // Not required: not used.
 #endif
-    const MatrixType        lambda_; // Lambda Parameter
+    const FloatType        lambda_; // Lambda Parameter
     const Kernel            kernel_;
-    WMType                       w_; // Final weights: only used at completion.
+    DynamicMatrix<FloatType>     w_; // Final weights: only used at completion.
     size_t                      nc_; // Number of classes
     const size_t               mbs_; // Mini-batch size
     size_t                      ns_; // Number samples
     size_t                      nd_; // Number of dimensions
     const size_t          max_iter_; // Maximum iterations.
     size_t                       t_; // Timepoint.
-    const MatrixType           eps_; // epsilon termination.
+    const FloatType           eps_; // epsilon termination.
     std::unordered_map<int, std::string> class_name_map_;
     khash_t(I)                  *h_; // Hash set of elements being used.
 
 public:
     // Dense constructor
     KernelSVM(const char *path,
-               const MatrixType lambda,
-               Kernel kernel=LinearKernel<MatrixType>(),
-               size_t mini_batch_size=256uL,
-               size_t max_iter=100000,  const MatrixType eps=1e-6)
+              const FloatType lambda,
+              Kernel kernel=LinearKernel<FloatType>(),
+              size_t mini_batch_size=256uL,
+              size_t max_iter=100000,  const FloatType eps=1e-6)
         : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size),
           max_iter_(max_iter), t_(0), eps_(eps), h_(kh_init(I))
@@ -56,10 +54,10 @@ public:
         load_data(path);
     }
     KernelSVM(const char *path, size_t ndims,
-               const MatrixType lambda,
-               Kernel kernel=LinearKernel<MatrixType>(),
-               size_t mini_batch_size=256uL,
-               size_t max_iter=100000,  const MatrixType eps=1e-6)
+              const FloatType lambda,
+              Kernel kernel=LinearKernel<FloatType>(),
+              size_t mini_batch_size=256uL,
+              size_t max_iter=100000,  const FloatType eps=1e-6)
         : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size), nd_(ndims),
           max_iter_(max_iter), t_(0), eps_(eps), h_(kh_init(I))
@@ -94,7 +92,7 @@ private:
     void load_data(const char *path) {
         dims_t dims(path);
         ns_ = dims.ns_; nd_ = dims.nd_;
-        std::tie(m_, v_, class_name_map_) = parse_problem<MatrixType, int>(path, dims);
+        std::tie(m_, v_, class_name_map_) = parse_problem<FloatType, int>(path, dims);
         ++nd_;
         if(m_.rows() < 1000) cout << "Input matrix: \n" << m_ << '\n';
         // Normalize v_
@@ -106,7 +104,7 @@ private:
             throw std::runtime_error(
                 std::string("Number of classes must be 2. Found: ") +
                             std::to_string(nc_));
-        a_ = CompressedVector<int>(nd_, nc_ == 2 ? 1: nc_);
+        a_ = CompressedVector<int>(ns_);
         LOG_DEBUG("Number of datapoints: %zu. Number of dimensions: %zu\n", ns_, nd_);
     }
     void sparse_load(const char *path) {
@@ -134,7 +132,7 @@ private:
         cerr << "nd: " << nd_ << '\n';
 #endif
 
-        m_ = DynamicMatrix<MatrixType>(ns_, nd_);
+        m_ = DynamicMatrix<FloatType>(ns_, nd_);
         v_ = DynamicVector<int>(ns_);
         m_ = 0.; // bc sparse, unused entries are zero.
         std::string class_name;
@@ -179,7 +177,7 @@ private:
             throw std::runtime_error(
                 std::string("Number of classes must be 2. Found: ") +
                             std::to_string(nc_));
-        a_ = CompressedVector<int>(nd_, nc_ == 2 ? 1: nc_);
+        a_ = CompressedVector<int>(ns_);
     }
     void normalize() {
         column(m_, nd_ - 1) = 1.; // Bias term
@@ -194,7 +192,7 @@ private:
     }
     template<typename RowType>
     double predict(const RowType &datapoint) const {
-        return kernel_(w_.weights_, datapoint);
+        return kernel_(row(w_, 0), datapoint);
     }
     void add_entry(const size_t index) {
         if(predict(index) * v_[index] < 1.) ++a_[index];
@@ -205,7 +203,7 @@ private:
         return tbl[predict(data) > 0.];
     }
 public:
-    MatrixType loss() const {
+    FloatType loss() const {
         size_t mistakes(0);
         for(size_t index(0); index < ns_; ++index) {
             mistakes += (classify(row(m_, index)) != v_[index]);
@@ -216,12 +214,12 @@ public:
         decltype(a_) last_alphas;
         for(t_ = 0; t_ < max_iter_; ++t_) {
             last_alphas = a_;
+            kh_clear(I, h_);
             int khr;
-            kh_clear(h_);
             for(size_t i(0); i < mbs_; ++i) {
                 // Could probably speed up by changing loop iteration:
                 // Iterating through all alphas and processing each element for it.
-                kh_put(I, h_, fastrange(rand64(), ns_), &khr);
+                kh_put(I, h_, fastrangesize(rand64(), ns_), &khr);
                 for(khiter_t ki(0); ki != kh_end(h_); ++ki) {
                     add_entry(kh_key(h_, ki));
                 }
@@ -234,11 +232,13 @@ public:
         cleanup();
     }
     void cleanup() {
-        w_ = WMType(1, nd_), w_.weights_ = 0.;
+        w_ = DynamicMatrix<FloatType>(1, nd_);
+        w_ = 0.;
+        auto wrow = row(w_, 0);
         for(auto it(a_.cbegin()), end(a_.cend()); it != end; ++it)
-            w_.weights_ += a_[it->index()] * v_[it->value()] *
-                           row(m_, it->index());
-        w_.weights_ *= 1. / (lambda * t_);
+            wrow += a_[it->index()] * v_[it->value()] *
+                  row(m_, it->index());
+        w_ *= 1. / (lambda_ * (t_ - 1));
         free_matrix(m_);
         free_vector(v_);
     }
@@ -246,9 +246,9 @@ public:
         fprintf(fp, "#Dimensions: %zu.\n", nd_);
         fprintf(fp, "#%s\n", kernel_.str().data());
         ks::KString line;
-        line.resize(5 * row(w_.weights_, 0).size());
+        line.resize(5 * row(w_, 0).size());
         const char *fmt(scientific_notation ? "%e, ": "%f, ");
-        for(const auto i: row(w_.weights_, 0))
+        for(const auto i: row(w_, 0))
             line.sprintf(fmt, i);
         line.pop();
         line[line.size() - 1] = '\n';
