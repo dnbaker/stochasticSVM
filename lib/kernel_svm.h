@@ -22,7 +22,11 @@ class KernelSVM {
 
     MatrixKind                   m_; // Training Data
     // Weights. one-dimensional for 2-class, nc_-dimensional for more.
+#if COMPRESSED_AVEC
     CompressedVector<int>        a_;
+#else
+    DynamicVector<int>           a_;
+#endif
     DynamicVector<int>           v_; // Labels
 #if RENORMALIZE
     MatrixKind                   r_; // Renormalization values. Subtraction, then multiplication
@@ -115,7 +119,11 @@ private:
             throw std::runtime_error(
                 std::string("Number of classes must be 2. Found: ") +
                             std::to_string(nc_));
+#if COMPRESSED_AVEC
         a_ = CompressedVector<int>(ns_, ns_ >> 1);
+#else
+        a_ = DynamicVector<int>(ns_);
+#endif
         LOG_DEBUG("Number of datapoints: %zu. Number of dimensions: %zu\n", ns_, nd_);
     }
     void sparse_load(const char *path) {
@@ -187,7 +195,11 @@ private:
             throw std::runtime_error(
                 std::string("Number of classes must be 2. Found: ") +
                             std::to_string(nc_));
-        a_ = CompressedVector<int>(ns_, ns_ >> 1); // Pre-allocate space.
+#if COMPRESSED_AVEC
+        a_ = CompressedVector<int>(ns_, ns_ >> 1);
+#else
+        a_ = DynamicVector<int>(ns_);
+#endif
     }
     void normalize() {
         column(m_, nd_ - 1) = 1.; // Bias term
@@ -195,20 +207,28 @@ private:
     template<typename RowType>
     double predict(const RowType &datapoint) const {
         double ret(0.);
+#if COMPRESSED_AVEC
         for(auto it(a_.cbegin()), e(a_.cend()); it != e; ++it) {
             if(kh_get(I, h_, it->value()) == kh_end(h_)) {
                 ret += v_[it->index()] * it->value() * kernel_(row(m_, it->index()), datapoint);
             }
         }
+#else
+        #pragma omp parallel reduction(+:ret)
+        for(khiter_t i = 0; i < a_.size(); ++i) {
+            if(a_[i])
+                ret += v_[i] * a_[i] * kernel_(row(m_, i), datapoint);
+        }
+#endif
         return ret;
     }
     double predict(size_t index) const {
         return predict(row(m_, index));
     }
-    int add_entry(const size_t index, std::mutex &m) {
+    //int add_entry(const size_t index, std::mutex &m) {
+    int add_entry(const size_t index) {
         const double prediction(predict(index));
         if(prediction * v_[index] < 1.) {
-            std::unique_lock<std::mutex>(m);
             ++a_[index];
             return 1;
         }
@@ -234,15 +254,15 @@ public:
             last_alphas = a_;
             int khr;
             size_t ndiff(0);
-            std::vector<std::mutex> muts(nd_ >> 6);
-            #pragma omp parallel for
+            //std::vector<std::mutex> muts(nd_ >> 6);
             for(size_t i = 0; i < mbs_; ++i) {
                 // Could probably speed up by changing loop iteration:
                 // Iterating through all alphas and processing each element for it.
                 kh_put(I, h_, fastrangesize(rand64(), ns_), &khr);
                 for(khiter_t ki(0); ki != kh_end(h_); ++ki) {
                     if(kh_exist(h_, ki))
-                        ndiff += add_entry(kh_key(h_, ki), muts[kh_key(h_, ki) >> 6]);
+                        //ndiff += add_entry(kh_key(h_, ki), muts[kh_key(h_, ki) >> 6]);
+                        ndiff += add_entry(kh_key(h_, ki));
                 }
             }
             kh_clear(I, h_);
@@ -288,9 +308,16 @@ public:
         ks::KString line;
         line.resize(5 * a_.nonZeros());
         const char *fmt(scientific_notation ? "%e, ": "%f, ");
+#if COMPRESSED_AVEC
         for(const auto &it: a_) {
-            line.sprintf("i:%i,v:%i,y:%i|", it.index(), it.value(), v_[it.value()]);
+            line.sprintf("i:%i,v:%i,y:%i|", it.index(), it.value(), v_[it.index()]);
         }
+#else
+        for(size_t i(0); i < a_.size(); ++i) {
+            if(a_[i])
+                line.sprintf("i:%i,v:%i,y:%i|", i, a_[i], v_[i]);
+        }
+#endif
         line[line.size() - 1] = '\n';
         fwrite(line.data(), line.size(), 1, fp);
     }

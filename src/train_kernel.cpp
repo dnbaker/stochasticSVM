@@ -46,6 +46,7 @@ int main(int argc, char *argv[]) {
 
     if(optind == argc) goto usage;
     blaze::setNumThreads(nthreads);
+    omp_set_num_threads(nthreads);
     RBFKernel<FLOAT_TYPE> kernel(gamma);
     KernelSVM<decltype(kernel), FLOAT_TYPE> svm(
             nd_sparse ? KernelSVM<decltype(kernel), FLOAT_TYPE>(argv[optind], nd_sparse, lambda, kernel, batch_size, max_iter, eps)
