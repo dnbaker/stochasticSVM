@@ -83,17 +83,9 @@ private:
                             "Number of classes found: ") +
                             std::to_string(nc_) + + "\")");
         std::unordered_map<int, int> map;
-        std::fprintf(stderr, "Map: {%i: %i, %i: %i}", vec[0], -1, vec[1], 1);
+        //std::fprintf(stderr, "Map: {%i: %i, %i: %i}", vec[0], -1, vec[1], 1);
         map[vec[0]] = -1, map[vec[1]] = 1;
-        cerr <<"vec: " << vec[0] << ", " << vec[1] << '\n';
-        try {
-            vec.at(2);
-            throw std::runtime_error("Should not have gotten here!");
-        } catch(std::out_of_range &ex) { // Do nothing.
-        }
         for(auto &i: v_) {
-            fprintf(stderr, "Replacing %i with %i.\n",
-                    i, map[i]);
             i = map[i];
         }
         decltype(class_name_map_) new_cmap;
@@ -122,7 +114,7 @@ private:
             throw std::runtime_error(
                 std::string("Number of classes must be 2. Found: ") +
                             std::to_string(nc_));
-        a_ = CompressedVector<int>(ns_);
+        a_ = CompressedVector<int>(ns_, ns_ >> 1);
         LOG_DEBUG("Number of datapoints: %zu. Number of dimensions: %zu\n", ns_, nd_);
     }
     void sparse_load(const char *path) {
@@ -194,7 +186,7 @@ private:
             throw std::runtime_error(
                 std::string("Number of classes must be 2. Found: ") +
                             std::to_string(nc_));
-        a_ = CompressedVector<int>(ns_);
+        a_ = CompressedVector<int>(ns_, ns_ >> 1); // Pre-allocate space.
     }
     void normalize() {
         column(m_, nd_ - 1) = 1.; // Bias term
@@ -212,8 +204,14 @@ private:
     double predict(const RowType &datapoint) const {
         return kernel_(row(w_, 0), datapoint);
     }
-    void add_entry(const size_t index) {
-        if(predict(index) * v_[index] < 1.) ++a_[index];
+    int add_entry(const size_t index) {
+        const double prediction(predict(index));
+        if(prediction * v_[index] < 1.) {
+            //cerr << "Prediction: " << prediction * v_[index] << " < 1.\n";
+            ++a_[index];
+            return 1;
+        }
+        return 0;
     }
     template<typename RowType>
     int classify(const RowType &data) const {
@@ -248,19 +246,23 @@ public:
             last_alphas = a_;
             kh_clear(I, h_);
             int khr;
+            size_t ndiff(0);
             for(size_t i(0); i < mbs_; ++i) {
                 // Could probably speed up by changing loop iteration:
                 // Iterating through all alphas and processing each element for it.
                 kh_put(I, h_, fastrangesize(rand64(), ns_), &khr);
                 for(khiter_t ki(0); ki != kh_end(h_); ++ki) {
                     if(kh_exist(h_, ki))
-                        add_entry(kh_key(h_, ki));
+                        ndiff += add_entry(kh_key(h_, ki));
                 }
             }
             cerr << "loss: " << loss() * 100 << "%\n"
-                 << "nonzeros: " << nonZeros(a_) 
+                 << "nonzeros: " << nonZeros(a_)
+                 << "Number incremented (bc < 1): " << ndiff
                  << "iteration: " << t_ << '\n';
-            if(diffnorm(a_, last_alphas) < eps_) break;
+            const double dn(diffnorm(a_, last_alphas));
+            //cerr << "Diff norm: " << dn << '\n';
+            if(dn < eps_) break;
             // If the results are the same (or close enough).
             // This should probably be updated to reflect the weight components
             // involved in the norm of the difference. Minor detail, however.
