@@ -3,6 +3,10 @@
 #include <iostream>
 using namespace svm;
 
+#if BLAZE_BLAS_MODE == 0
+#  error("Need BLAS")
+#endif
+
 class IntCounter {
     std::map<int, int> map_;
 public:
@@ -44,8 +48,8 @@ enum Policy:size_t{
 
 #define TRAIN_SVM(policy) \
         LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)> svm = \
-            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)>(argv[optind], nd_sparse, lambda, policy, batch_size, max_iter, eps) \
-                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)>(argv[optind], lambda, policy, batch_size, max_iter, eps)
+            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)>(argv[optind], nd_sparse, lambda, policy, batch_size, max_iter, eps, 1000, project) \
+                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)>(argv[optind], lambda, policy, batch_size, max_iter, eps, 1000, project)
 
 #define RUN_SVM \
         svm.train();\
@@ -89,12 +93,14 @@ int main(int argc, char *argv[]) {
     std::ios::sync_with_stdio(false);
     FILE *ofp(stdout);
     Policy policy(PEGASOS);
+    bool project(false);
     for(char **p(argv + 1); *p; ++p) if(strcmp(*p, "--help") == 0) goto usage;
-    while((c = getopt(argc, argv, "E:e:M:s:p:b:l:o:FNh?")) >= 0) {
+    while((c = getopt(argc, argv, "E:e:M:s:P:p:b:l:o:FNh?")) >= 0) {
         switch(c) {
             case 'E': eta        = atof(optarg); break;
             case 'e': eps        = atof(optarg); break;
             case 'p': nthreads   = atoi(optarg); break;
+            case 'P': project    = true;         break;
             case 'M': max_iter   = strtoull(optarg, 0, 10); break;
             case 'b': batch_size = atoi(optarg); break;
             case 'l': lambda     = atof(optarg); break;

@@ -68,6 +68,7 @@ class LinearSVM {
     const size_t       avg_size_; // Number to average at end.
     const bool          project_; // Whether or not to perform projection step.
     std::unordered_map<int, std::string> class_name_map_;
+    std::shared_mutex        sm_;
 
 public:
     // Dense constructor
@@ -76,7 +77,7 @@ public:
               LearningPolicy lp,
               size_t mini_batch_size=256uL,
               size_t max_iter=100000,  const FloatType eps=1e-6,
-              long avg_size=-1, bool project=false)
+              long avg_size=-1, bool project=true)
         : lambda_(lambda),
           nc_(0), mbs_(mini_batch_size),
           max_iter_(max_iter), t_(0), lp_(lp), eps_(eps),
@@ -234,11 +235,6 @@ private:
     double predict(const RowType &datapoint) const {
         return dot(row(w_.weights_, 0), datapoint);
     }
-    template<typename WeightMatrixKind>
-    void add_entry(const size_t index, WeightMatrixKind &tmpsum, size_t &nels_added) {
-        if(predict(row(m_, index)) * v_[index] < 1.) row(tmpsum, 0) += row(m_, index) * v_[index];
-        ++nels_added;
-    }
 public:
     template<typename RowType>
     int classify(const RowType &data) const {
@@ -257,12 +253,11 @@ public:
         size_t avgs_used(0);
         decltype(w_.weights_) tmpsum(1, nd_);
         decltype(w_.weights_) last_weights(1, nd_);
-        size_t nels_added(0);
         auto wrow(row(w_.weights_, 0));
         auto trow(row(tmpsum, 0));
         const size_t max_end_index(std::min(ns_ - mbs_, ns_));
+        std::vector<size_t> indices;
         for(t_ = 0; avgs_used < avg_size_; ++t_) {
-            nels_added = 0;
 #if !NDEBUG
             if((t_ % interval) == 0) {
                 const double ls(loss()), current_norm(w_.get_norm_sq());
@@ -272,11 +267,18 @@ public:
 #endif
             const double eta(lp_(t_));
             tmpsum = 0.; // reset to 0 each time.
-            for(size_t i(0); i < mbs_; ++i) {
-                add_entry(fastrangesize(rand64(), max_end_index), tmpsum, nels_added);
+            indices.clear();
+            #pragma omp parallel for
+            for(size_t i = 0; i < mbs_; ++i) {
+                const size_t index(fastrangesize(rand64(), max_end_index));
+                if(predict(row(m_, index)) * v_[index] < 1.) {
+                    #pragma omp critical
+                    row(tmpsum, 0) += row(m_, index) * v_[index];
+                }
                 // Could be made more cache-friendly by randomly selecting and
                 // processing chunks of the data, but for now this is fine.
             }
+            const size_t nels_added(mbs_);
             if(t_ < max_iter_) last_weights = w_.weights_;
             w_.scale(1.0 - eta * lambda_);
             wrow += trow * (eta / nels_added);

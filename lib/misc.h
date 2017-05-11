@@ -20,6 +20,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <functional>
+#include <shared_mutex>
 #ifndef _USE_MATH_DEFINES
 #  define _USE_MATH_DEFINES
 #endif
