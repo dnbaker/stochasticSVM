@@ -4,6 +4,7 @@
 #include "lib/kernel.h"
 #include "lib/khash64.h"
 #include "fastrange/fastrange.h"
+#include <mutex>
 
 namespace svm {
 
@@ -29,7 +30,7 @@ class KernelSVM {
 #endif
     const FloatType        lambda_; // Lambda Parameter
     const Kernel            kernel_;
-    DynamicMatrix<FloatType>     w_; // Final weights: only used at completion.
+    //DynamicMatrix<FloatType>     w_; // Final weights: only used at completion.
     size_t                      nc_; // Number of classes
     const size_t               mbs_; // Mini-batch size
     size_t                      ns_; // Number samples
@@ -191,23 +192,23 @@ private:
     void normalize() {
         column(m_, nd_ - 1) = 1.; // Bias term
     }
-    double predict(size_t index) const {
+    template<typename RowType>
+    double predict(const RowType &datapoint) const {
         double ret(0.);
         for(auto it(a_.cbegin()), e(a_.cend()); it != e; ++it) {
             if(kh_get(I, h_, it->value()) == kh_end(h_)) {
-                ret += v_[it->index()] * it->value() * kernel_(row(m_, it->index()), row(m_, index));
+                ret += v_[it->index()] * it->value() * kernel_(row(m_, it->index()), datapoint);
             }
         }
         return ret;
     }
-    template<typename RowType>
-    double predict(const RowType &datapoint) const {
-        return kernel_(row(w_, 0), datapoint);
+    double predict(size_t index) const {
+        return predict(row(m_, index));
     }
-    int add_entry(const size_t index) {
+    int add_entry(const size_t index, std::mutex &m) {
         const double prediction(predict(index));
         if(prediction * v_[index] < 1.) {
-            //cerr << "Prediction: " << prediction * v_[index] << " < 1.\n";
+            std::unique_lock<std::mutex>(m);
             ++a_[index];
             return 1;
         }
@@ -226,40 +227,29 @@ public:
         }
         return static_cast<double>(mistakes) / ns_;
     }
-    FloatType loss(const DynamicMatrix<FloatType> &matrix,
-                   const DynamicVector<FloatType> &labels) const {
-        size_t mistakes(0);
-        for(size_t index(0), e(matrix.rows()); index < e; ++index) {
-#if !NDEBUG
-            auto c(classify(row(matrix, index)));
-            if(c != labels[index]) cerr << "label " << labels[index] << " misclassified as " << c << '\n';
-            mistakes += (classify(row(matrix, index)) != labels[index]);
-#else
-            mistakes += (c != labels[index]);
-#endif
-        }
-        return static_cast<double>(mistakes) / ns_;
-    }
     void train() {
         decltype(a_) last_alphas;
         for(t_ = 0; t_ < max_iter_; ++t_) {
             last_alphas = a_;
-            kh_clear(I, h_);
             int khr;
             size_t ndiff(0);
-            for(size_t i(0); i < mbs_; ++i) {
+            std::vector<std::mutex> muts(nd_ >> 6);
+            #pragma omp parallel for
+            for(size_t i = 0; i < mbs_; ++i) {
                 // Could probably speed up by changing loop iteration:
                 // Iterating through all alphas and processing each element for it.
                 kh_put(I, h_, fastrangesize(rand64(), ns_), &khr);
                 for(khiter_t ki(0); ki != kh_end(h_); ++ki) {
                     if(kh_exist(h_, ki))
-                        ndiff += add_entry(kh_key(h_, ki));
+                        ndiff += add_entry(kh_key(h_, ki), muts[kh_key(h_, ki) >> 6]);
                 }
             }
-            cerr << "loss: " << loss() * 100 << "%\n"
-                 << "nonzeros: " << nonZeros(a_)
-                 << "Number incremented (bc < 1): " << ndiff
-                 << "iteration: " << t_ << '\n';
+            kh_clear(I, h_);
+            if(t_ + 1 % 1 == 0)
+                cerr << "loss: " << loss() * 100 << "%\n"
+                     << "nonzeros: " << nonZeros(a_)
+                     << "Number incremented (bc < 1): " << ndiff
+                     << "iteration: " << t_ << '\n';
             const double dn(diffnorm(a_, last_alphas));
             //cerr << "Diff norm: " << dn << '\n';
             if(dn < eps_) break;
@@ -270,26 +260,36 @@ public:
         cleanup();
     }
     void cleanup() {
+        cerr << "final loss: " << loss() * 100 << "%. Number of iterations: " << t_ << "\n";
+#if 0
+        /*
+        This can only work if we apply a Taylor expansion to our support vectors
+        and our input data, which makes it such that we can't free memory like
+        we'd like to.
         w_ = DynamicMatrix<FloatType>(1, nd_);
-        w_ = 0.;
         auto wrow = row(w_, 0);
+        wrow = 0.;
+        cerr << "Size of vector: " << a_.size() << '\n';
+        cerr << "Rows in matrix: " << m_.rows()  << '\n';
+        assert(a_.size() == m_.rows());
         for(auto it(a_.cbegin()), end(a_.cend()); it != end; ++it)
             wrow += a_[it->index()] * v_[it->value()] *
                     row(m_, it->index());
         w_ *= 1. / (lambda_ * (t_ - 1));
-        cerr << "final loss: " << loss(m_, v_) * 100 << "%. Number of iterations: " << t_ << "\n";
         free_matrix(m_);
         free_vector(v_);
+        */
+#endif
     }
     void write(FILE *fp, bool scientific_notation=false) {
         fprintf(fp, "#Dimensions: %zu.\n", nd_);
         fprintf(fp, "#%s\n", kernel_.str().data());
         ks::KString line;
-        line.resize(5 * row(w_, 0).size());
+        line.resize(5 * a_.nonZeros());
         const char *fmt(scientific_notation ? "%e, ": "%f, ");
-        for(const auto i: row(w_, 0))
-            line.sprintf(fmt, i);
-        line.pop();
+        for(const auto &it: a_) {
+            line.sprintf("i:%i,v:%i,y:%i|", it.index(), it.value(), v_[it.value()]);
+        }
         line[line.size() - 1] = '\n';
         fwrite(line.data(), line.size(), 1, fp);
     }
