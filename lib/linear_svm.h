@@ -243,13 +243,13 @@ private:
         if(predict(row(m_, index)) * v_[index] < 1.) row(tmpsum, 0) += row(m_, index) * v_[index];
         ++nels_added;
     }
+public:
     template<typename RowType>
     int classify(const RowType &data) const {
         static const int tbl[]{-1, 1};
         const double pred(predict(data));
         return tbl[pred > 0.];
     }
-public:
     FloatType loss() const {
         size_t mistakes(0);
         for(size_t index(0); index < ns_; ++index)
@@ -318,6 +318,7 @@ public:
         line[line.size() - 1] = '\n';
         fwrite(line.data(), line.size(), 1, fp);
     }
+    auto ndims() const {return nd_;}
 }; // LinearSVM
 
 } // namespace svm
