@@ -4,11 +4,10 @@
 #include "lib/kernel.h"
 #include "lib/khash64.h"
 #include "fastrange/fastrange.h"
+#include <unordered_set>
 #include <mutex>
 
 namespace svm {
-
-#define COMPRESSED_AVEC
 
 KHASH_SET_INIT_INT64(I) // 64-bit set for randomly selected batch sizes.
 
@@ -24,11 +23,7 @@ class KernelSVM {
 
     MatrixKind                   m_; // Training Data
     // Weights. one-dimensional for 2-class, nc_-dimensional for more.
-#if COMPRESSED_AVEC
     CompressedVector<int>        a_;
-#else
-    DynamicVector<int>           a_;
-#endif
     DynamicVector<int>           v_; // Labels
 #if RENORMALIZE
     MatrixKind                   r_; // Renormalization values. Subtraction, then multiplication
@@ -121,11 +116,7 @@ private:
             throw std::runtime_error(
                 std::string("Number of classes must be 2. Found: ") +
                             std::to_string(nc_));
-#if COMPRESSED_AVEC
         a_ = CompressedVector<int>(ns_, ns_ >> 1);
-#else
-        a_ = DynamicVector<int>(ns_);
-#endif
         LOG_DEBUG("Number of datapoints: %zu. Number of dimensions: %zu\n", ns_, nd_);
     }
     void sparse_load(const char *path) {
@@ -197,11 +188,7 @@ private:
             throw std::runtime_error(
                 std::string("Number of classes must be 2. Found: ") +
                             std::to_string(nc_));
-#if COMPRESSED_AVEC
         a_ = CompressedVector<int>(ns_, ns_ >> 1);
-#else
-        a_ = DynamicVector<int>(ns_);
-#endif
     }
     void normalize() {
         column(m_, nd_ - 1) = 1.; // Bias term
@@ -209,32 +196,17 @@ private:
     template<typename RowType>
     double predict(const RowType &datapoint) const {
         double ret(0.);
-#if COMPRESSED_AVEC
+        if(t_ == 0) cerr << "nonZeros: " << a_.nonZeros() << '\n';
         for(auto it(a_.cbegin()), e(a_.cend()); it != e; ++it) {
             if(kh_get(I, h_, it->value()) == kh_end(h_)) {
                 ret += v_[it->index()] * it->value() * kernel_(row(m_, it->index()), datapoint);
             }
         }
-#else
-        #pragma omp parallel reduction(+:ret)
-        for(khiter_t i = 0; i < a_.size(); ++i) {
-            if(a_[i])
-                ret += v_[i] * a_[i] * kernel_(row(m_, i), datapoint);
-        }
-#endif
+        if(t_ == 0) cerr << "ret: " << ret << '\n';
         return ret;
     }
     double predict(size_t index) const {
         return predict(row(m_, index));
-    }
-    //int add_entry(const size_t index, std::mutex &m) {
-    int add_entry(const size_t index) {
-        const double prediction(predict(index));
-        if(prediction * v_[index] < 1.) {
-            ++a_[index];
-            return 1;
-        }
-        return 0;
     }
     template<typename RowType>
     int classify(const RowType &data) const {
@@ -252,7 +224,10 @@ public:
     void train() {
         decltype(a_) last_alphas;
         kh_resize(I, h_, mbs_ * 1.5);
+        kh_clear(I, h_);
+        std::set<size_t> indices;
         for(t_ = 0; t_ < max_iter_; ++t_) {
+            indices.clear();
             last_alphas = a_;
             int khr;
             size_t ndiff(0);
@@ -261,18 +236,26 @@ public:
                 // Could probably speed up by changing loop iteration:
                 // Iterating through all alphas and processing each element for it.
                 kh_put(I, h_, fastrangesize(rand64(), ns_), &khr);
-                for(khiter_t ki(0); ki != kh_end(h_); ++ki) {
-                    if(kh_exist(h_, ki))
-                        //ndiff += add_entry(kh_key(h_, ki), muts[kh_key(h_, ki) >> 6]);
-                        ndiff += add_entry(kh_key(h_, ki));
+            }
+            if(t_ == 0) assert(a_.nonZeros() == 0);
+            #pragma omp parallel for
+            for(khiter_t ki = 0; ki < kh_end(h_); ++ki) {
+                if(kh_exist(h_, ki)) {
+                    const double prediction(predict(kh_key(h_, ki)));
+                    if(prediction * v_[kh_key(h_, ki)] < 1.) {
+                        #pragma omp critical
+                        indices.insert(kh_key(h_, ki));
+                        ++ndiff;
+                    }
                 }
             }
+            if(t_ == 0) assert(a_.nonZeros() == 0);
+            for(const auto index: indices) ++a_[index];
             kh_clear(I, h_);
-            if(t_ + 1 % 1 == 0)
-                cerr << "loss: " << loss() * 100 << "%\n"
-                     << "nonzeros: " << nonZeros(a_)
-                     << "Number incremented (bc < 1): " << ndiff
-                     << "iteration: " << t_ << '\n';
+            cerr << "loss: " << loss() * 100 << "%\n"
+                 << "nonzeros: " << nonZeros(a_)
+                 << " Number incremented (bc < 1): " << ndiff
+                 << " iteration: " << t_ << '\n';
             const double dn(diffnorm(a_, last_alphas));
             //cerr << "Diff norm: " << dn << '\n';
             if(dn < eps_) break;
@@ -310,16 +293,9 @@ public:
         ks::KString line;
         line.resize(5 * a_.nonZeros());
         const char *fmt(scientific_notation ? "%e, ": "%f, ");
-#if COMPRESSED_AVEC
         for(const auto &it: a_) {
             line.sprintf("i:%i,v:%i,y:%i|", it.index(), it.value(), v_[it.index()]);
         }
-#else
-        for(size_t i(0); i < a_.size(); ++i) {
-            if(a_[i])
-                line.sprintf("i:%i,v:%i,y:%i|", i, a_[i], v_[i]);
-        }
-#endif
         line[line.size() - 1] = '\n';
         fwrite(line.data(), line.size(), 1, fp);
     }
