@@ -11,10 +11,6 @@
 
 namespace svm {
 
-#if !NDEBUG
-#  define NOTIFICATION_INTERVAL (100uLL)
-#endif
-
 template<typename FloatType, typename WeightMatrixKind=DynamicMatrix<FloatType>>
 class WeightMatrix {
     double norm_;
@@ -257,6 +253,7 @@ public:
         return static_cast<double>(mistakes) / ns_;
     }
     void train() {
+        const size_t interval(std::min(max_iter_ / 10, size_t(5000)));
         size_t avgs_used(0);
         decltype(w_.weights_) tmpsum(1, nd_);
         decltype(w_.weights_) last_weights(1, nd_);
@@ -267,7 +264,7 @@ public:
         for(t_ = 0; avgs_used < avg_size_; ++t_) {
             nels_added = 0;
 #if !NDEBUG
-            if((t_ % NOTIFICATION_INTERVAL) == 0) {
+            if((t_ % interval) == 0) {
                 const double ls(loss()), current_norm(w_.get_norm_sq());
                 cerr << "Loss: " << ls * 100 << "%" << " at time = " << t_ << 
                         " with norm of w = " << current_norm << ".\n";
@@ -295,9 +292,10 @@ public:
                 ++avgs_used;
             }
         }
-        double ls(loss());
-        cerr << "Final loss: " << ls * 100 << "% after " << t_ + 1 << " iterations "<<'\n';
         row(w_avg_.weights_, 0) *= 1. / avg_size_;
+        double ls(loss());
+        cout << "Train error: " << ls * 100 << "%\nafter "
+             << t_ + 1 << " iterations "<<'\n';
         cleanup();
     }
     void cleanup() {
