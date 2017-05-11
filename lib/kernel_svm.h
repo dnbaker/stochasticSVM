@@ -229,6 +229,7 @@ public:
     }
     void train() {
         decltype(a_) last_alphas;
+        kh_resize(I, h_, mbs_ * 1.5);
         for(t_ = 0; t_ < max_iter_; ++t_) {
             last_alphas = a_;
             int khr;
