@@ -3,6 +3,21 @@
 #include <iostream>
 using namespace svm;
 
+class IntCounter {
+    std::map<int, int> map_;
+public:
+    void add(int val) {
+        ++map_[val];
+    }
+    std::string str() const {
+        std::string ret("{");
+        for(auto &pair: map_) ret += std::to_string(pair.first) + ": " + std::to_string(pair.second) + ", ";
+        ret.pop_back();
+        ret[ret.size() - 1] = '}';
+        return ret;
+    }
+};
+
 int usage(char *ex) {
     char buf[1024];
     std::sprintf(buf, "Usage: %s <opts> data\n"
@@ -26,6 +41,45 @@ enum Policy:size_t{
     NORMA   = 1,
     FIXED   = 2
 };
+
+#define TRAIN_SVM(policy) \
+        LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)> svm = \
+            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)>(argv[optind], nd_sparse, lambda, policy, batch_size, max_iter, eps) \
+                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)>(argv[optind], lambda, policy, batch_size, max_iter, eps)
+
+#define RUN_SVM \
+        svm.train();\
+        svm.write(ofp);\
+        if(argc > optind + 1) {\
+            IntCounter counter;\
+            size_t nlines(0), nerror(0);\
+            DynamicVector<FLOAT_TYPE> vec(svm.ndims());\
+            vec[vec.size() - 1] = 1.;\
+            std::ifstream is(argv[optind + 1]);\
+            int label;\
+            for(std::string line;std::getline(is, line);) {\
+                cerr << line << '\n';\
+                vec = 0.; vec[vec.size() - 1] = 1.;\
+                label = atoi(line.data());\
+                char *p(line.data());\
+                while(!std::isspace(*p)) ++p;\
+                for(;;) {\
+                    while(*p == '\t' || *p == ' ') ++p;\
+                    if(*p == '\n' || *p == '\0' || p > line.data() + line.size()) break;\
+                    const int ind(atoi(p) - 1);\
+                    p = strchr(p, ':');\
+                    if(p) ++p;\
+                    else throw std::runtime_error("No ':' found!");\
+                    vec[ind] = atof(p);\
+                    while(!std::isspace(*p)) ++p;\
+                }\
+                /*cerr << vec;*/\
+                if(svm.classify(vec) != label) {++nerror;counter.add(label);}\
+                ++nlines;\
+            }\
+            cout << "Test error rate: " << 100. * nerror / nlines << "%\n";\
+            cout << "Mislabeling: " << counter.str() << '\n';\
+        }
 
 int main(int argc, char *argv[]) {
     int c, batch_size(256), nd_sparse(0);
@@ -61,27 +115,18 @@ int main(int argc, char *argv[]) {
 
     if(optind == argc) goto usage;
     blaze::setNumThreads(nthreads);
-    PegasosLearningRate<FLOAT_TYPE> lp(lambda);
+    PegasosLearningRate<FLOAT_TYPE> plp(lambda);
     NormaLearningRate<FLOAT_TYPE>  nlp(eta);
     FixedLearningRate<FLOAT_TYPE>  flp(eta);
     if(policy == NORMA) {
-        LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(nlp)> svm =
-            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(nlp)>(argv[optind], nd_sparse, lambda, nlp, batch_size, max_iter, eps)
-                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(nlp)>(argv[optind], lambda, nlp, batch_size, max_iter, eps);
-        svm.train();
-        svm.write(ofp);
+        TRAIN_SVM(nlp);
+        RUN_SVM
     } else if(policy == FIXED) {
-        LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(flp)> svm =
-            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(flp)>(argv[optind], nd_sparse, lambda, flp, batch_size, max_iter, eps)
-                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(flp)>(argv[optind], lambda, flp, batch_size, max_iter, eps);
-        svm.train();
-        svm.write(ofp);
+        TRAIN_SVM(flp);
+        RUN_SVM
     } else {
-        LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(lp)> svm =
-            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(lp)>(argv[optind], nd_sparse, lambda, lp, batch_size, max_iter, eps)
-                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(lp)>(argv[optind], lambda, lp, batch_size, max_iter, eps);
-        svm.train();
-        svm.write(ofp);
+        TRAIN_SVM(plp);
+        RUN_SVM
     }
     if(ofp != stdout) fclose(ofp);
 }

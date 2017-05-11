@@ -13,7 +13,7 @@ else
     OPT := $(OPT) -flto
 endif
 XXFLAGS=-fno-rtti
-CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS) -DFLOAT_TYPE=double
+CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS) -DFLOAT_TYPE=float
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread
 LD=-L.
@@ -45,6 +45,9 @@ test/%.o: test/%.cpp
 
 %: src/%.o $(OBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
+
+%_float: src/%.o $(OBJS)
+	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=float $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
 %.o: %.c
 	$(CC) $(CCFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
