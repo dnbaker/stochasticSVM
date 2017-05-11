@@ -8,6 +8,8 @@
 
 namespace svm {
 
+#define COMPRESSED_AVEC
+
 KHASH_SET_INIT_INT64(I) // 64-bit set for randomly selected batch sizes.
 
 template<class Kernel,
