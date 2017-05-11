@@ -202,7 +202,7 @@ private:
                 ret += v_[it->index()] * it->value() * kernel_(row(m_, it->index()), datapoint);
             }
         }
-        if(t_ == 0) cerr << "ret: " << ret << '\n';
+        ret /= (lambda_ * (t_ + 1));
         return ret;
     }
     double predict(size_t index) const {
@@ -222,6 +222,7 @@ public:
         return static_cast<double>(mistakes) / ns_;
     }
     void train() {
+        const size_t interval(max_iter_ / 10);
         decltype(a_) last_alphas;
         kh_resize(I, h_, mbs_ * 1.5);
         kh_clear(I, h_);
@@ -246,19 +247,23 @@ public:
                         #pragma omp critical
                         indices.insert(kh_key(h_, ki));
                         ++ndiff;
+                        //cerr << "Prediction * v: " << prediction * v_[kh_key(h_, ki)] << '\n';
                     }
                 }
             }
             if(t_ == 0) assert(a_.nonZeros() == 0);
             for(const auto index: indices) ++a_[index];
             kh_clear(I, h_);
-            cerr << "loss: " << loss() * 100 << "%\n"
-                 << "nonzeros: " << nonZeros(a_)
-                 << " Number incremented (bc < 1): " << ndiff
-                 << " iteration: " << t_ << '\n';
+            if((t_ % interval) == 0) {
+                cerr << "loss: " << loss() * 100 << "%\n"
+                     << "nonzeros: " << nonZeros(a_)
+                     << " Number incremented (bc < 1): " << ndiff
+                     << " iteration: " << t_ << '\n';
+            }
             const double dn(diffnorm(a_, last_alphas));
             //cerr << "Diff norm: " << dn << '\n';
             if(dn < eps_) break;
+            // TODO: Add new termination conditions based on the change of loss.
             // If the results are the same (or close enough).
             // This should probably be updated to reflect the weight components
             // involved in the norm of the difference. Minor detail, however.
