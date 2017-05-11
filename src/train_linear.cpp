@@ -65,7 +65,7 @@ enum Policy:size_t{
                 cerr << line << '\n';\
                 vec = 0.; vec[vec.size() - 1] = 1.;\
                 label = atoi(line.data());\
-                char *p(line.data());\
+                const char *p(line.data());\
                 while(!std::isspace(*p)) ++p;\
                 for(;;) {\
                     while(*p == '\t' || *p == ' ') ++p;\

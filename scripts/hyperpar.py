@@ -15,7 +15,8 @@ HYPERPAR_SETTINGS = [(A8A_FILES, A8A_LAMBDAS, A8A_BATCHSZ, 123),
 if __name__ == "__main__":
     devnull = open(os.devnull, 'w')
     for settings in HYPERPAR_SETTINGS[::-1]:
-        train_results, test_results = [], []
+        sys.stderr.write("Processing %s, %s\n" % (settings[0][0], settings[0][1]))
+        results = []
         for batch_size in settings[2]:
             for lb in settings[1]:
                 tmpstr = ""
@@ -31,18 +32,12 @@ if __name__ == "__main__":
                     output = [line for line in co(cstr, shell=True, stderr=devnull).decode().split('\n')
                               if "error" in line.lower()]
                 for line in output:
-                    print(line)
                     if "test" in line.lower():
                         testout = float(line.split(":")[1][:-1])
                     if "train" in line.lower():
                         trainout = float(line.split(":")[1][:-1])
-                train_results.append((trainout, lb, batch_size))
-                test_results.append((trainout, lb, batch_size))
-        train_results.sort()
-        test_results.sort()
-        sys.stdout.write("Best parameters for %s (%f): {lambda: %f, bs: %i}\n" %
-                         (settings[0][0], test_results[0][0], 
-                          test_results[0][1], test_results[0][2]))
-        sys.stdout.write("Best parameters for %s (%f): {lambda: %f, bs: %i}\n" %
-                         (settings[0][0], train_results[0][0], 
-                          train_results[0][1], train_results[0][2]))
+                results.append((testout, trainout, lb, batch_size))
+        results.sort(key=lambda x: x[0] * 10 + x[1])
+        sys.stdout.write("Best parameters for %s (test %f, train %f): {lambda: %f, bs: %i}\n" %
+                         (settings[0][0], results[0][0], results[0][1],
+                          results[0][2], results[0][3]))

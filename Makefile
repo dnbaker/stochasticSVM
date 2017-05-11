@@ -26,7 +26,6 @@ EX=$(patsubst src/%.o,%,$(EXEC_OBJS))
 
 # If compiling with c++ < 17 and your compiler does not provide
 # bessel functions with c++14, you must compile against boost.
-#BOOST_INCLUDE_PATH =
 
 INCLUDE=-I. -Ilib -Iblaze
 
