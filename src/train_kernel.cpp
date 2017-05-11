@@ -19,6 +19,56 @@ int usage(char *ex) {
     return EXIT_FAILURE;
 }
 
+class IntCounter {
+    std::map<int, int> map_;
+public:
+    void add(int val) {
+        ++map_[val];
+    }
+    std::string str() const {
+        std::string ret("{");
+        for(auto &pair: map_) ret += std::to_string(pair.first) + ": " + std::to_string(pair.second) + ", ";
+        ret.pop_back();
+        ret[ret.size() - 1] = '}';
+        return ret;
+    }
+};
+
+#define TEST_SVM \
+        if(argc > optind + 1) {\
+            IntCounter counter;\
+            size_t nlines(0), nerror(0);\
+            DynamicMatrix<FLOAT_TYPE> vec(1, svm.ndims());\
+            row(vec, 0) = 0.;\
+            vec(0, vec.columns() - 1) = 1.;\
+            std::ifstream is(argv[optind + 1]);\
+            int label;\
+            for(std::string line;std::getline(is, line);) {\
+                cerr << line << '\n';\
+                row(vec, 0) = 0.;\
+                vec(0, vec.columns() - 1)= 1.;\
+                label = atoi(line.data());\
+                char *p(&line[0]);\
+                while(!std::isspace(*p)) ++p;\
+                for(;;) {\
+                    while(*p == '\t' || *p == ' ') ++p;\
+                    if(*p == '\n' || *p == '\0' || p > line.data() + line.size()) break;\
+                    cerr << p << '\n';\
+                    const int ind(atoi(p) - 1);\
+                    p = strchr(p, ':');\
+                    if(p) ++p;\
+                    else throw std::runtime_error("No ':' found!");\
+                    vec(0, ind) = atof(p);\
+                    while(!std::isspace(*p)) ++p;\
+                }\
+                /*cerr << vec;*/\
+                if(svm.classify(row(vec, 0)) != label) {++nerror;counter.add(label);}\
+                ++nlines;\
+            }\
+            cout << "Test error rate: " << 100. * nerror / nlines << "%\n";\
+            cout << "Mislabeling: " << counter.str() << '\n';\
+        }
+
 int main(int argc, char *argv[]) {
     int c, batch_size(256), nd_sparse(0);
     FLOAT_TYPE lambda(0.5), gamma(1.0), eps(1e-6);
@@ -53,5 +103,6 @@ int main(int argc, char *argv[]) {
                       : KernelSVM<decltype(kernel), FLOAT_TYPE>(argv[optind], lambda, kernel, batch_size, max_iter, eps));
     svm.train();
     svm.write(ofp);
+    TEST_SVM
     if(ofp != stdout) fclose(ofp);
 }

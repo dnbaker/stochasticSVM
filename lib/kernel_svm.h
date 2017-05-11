@@ -208,12 +208,12 @@ private:
     double predict(size_t index) const {
         return predict(row(m_, index));
     }
+public:
     template<typename RowType>
     int classify(const RowType &data) const {
         static const int tbl[]{-1, 1};
         return tbl[predict(data) > 0.];
     }
-public:
     FloatType loss() const {
         size_t mistakes(0);
         for(size_t index(0); index < ns_; ++index) {
@@ -260,9 +260,9 @@ public:
                      << " Number incremented (bc < 1): " << ndiff
                      << " iteration: " << t_ << '\n';
             }
-            const double dn(diffnorm(a_, last_alphas));
+            const double dnf(diffnorm(a_, last_alphas) / dot(a_, a_));
             //cerr << "Diff norm: " << dn << '\n';
-            if(dn < eps_) break;
+            if(dnf < eps_) break;
             // TODO: Add new termination conditions based on the change of loss.
             // If the results are the same (or close enough).
             // This should probably be updated to reflect the weight components
@@ -304,6 +304,7 @@ public:
         line[line.size() - 1] = '\n';
         fwrite(line.data(), line.size(), 1, fp);
     }
+    auto ndims() const {return nd_;}
 }; // LinearSVM
 
 } // namespace svm
