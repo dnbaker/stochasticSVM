@@ -20,7 +20,7 @@ if __name__ == "__main__":
         for batch_size in settings[2]:
             for lb in settings[1]:
                 tmpstr = ""
-                cstr = ("./train_linear -s%i -b%i -l%f %s %s" %
+                cstr = ("./train_linear -r -s%i -b%i -l%f %s %s" %
                         (settings[3], batch_size, lb, settings[0][0], settings[0][1]))
                 try:
                     output = [line for line in co(cstr, shell=True,

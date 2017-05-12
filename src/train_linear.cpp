@@ -117,9 +117,10 @@ int main(int argc, char *argv[]) {
             case 'h': case '?': usage: return usage(*argv);
         }
     }
-    if((policy == NORMA || policy == FIXED) && eta == 0.0) {
+    if(policy == NORMA && eta == 0.0) eta = 1./lambda;
+    if(policy == FIXED && eta == 0.0) {
         throw std::runtime_error(
-            "eta (-E) must be set for Norma or Fixed Learning rate policies.");
+            "eta (-E) must be set for Fixed Learning rate policies.");
     }
 
     if(optind == argc) goto usage;
