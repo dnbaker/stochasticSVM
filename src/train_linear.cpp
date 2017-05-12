@@ -35,6 +35,7 @@ int usage(char *ex) {
                        "-s:\tNumber of dimensions for sparse parsing. Also determines the use of sparse rather than dense parsing.\n"
                        "-N:\tUse Norma learning rate. Requires -e.\n"
                        "-F:\tUse fixed learning rate. Requires -e.\n"
+                       "-r: Rescale data. Default: false.\n"
                  , ex);
     cerr << buf;
     return EXIT_FAILURE;
@@ -48,8 +49,8 @@ enum Policy:size_t{
 
 #define TRAIN_SVM(policy) \
         LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)> svm = \
-            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)>(argv[optind], nd_sparse, lambda, policy, batch_size, max_iter, eps, 1000, project) \
-                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)>(argv[optind], lambda, policy, batch_size, max_iter, eps, 1000, project)
+            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)>(argv[optind], nd_sparse, lambda, policy, batch_size, max_iter, eps, 1000, project, rescale) \
+                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)>(argv[optind], lambda, policy, batch_size, max_iter, eps, 1000, project, rescale)
 
 #define RUN_SVM \
         svm.train();\
@@ -62,7 +63,7 @@ enum Policy:size_t{
             std::ifstream is(argv[optind + 1]);\
             int label;\
             for(std::string line;std::getline(is, line);) {\
-                cerr << line << '\n';\
+                /*cerr << line << '\n';*/\
                 vec = 0.; vec[vec.size() - 1] = 1.;\
                 label = atoi(line.data());\
                 const char *p(line.data());\
@@ -78,7 +79,7 @@ enum Policy:size_t{
                     while(!std::isspace(*p)) ++p;\
                 }\
                 /*cerr << vec;*/\
-                if(svm.classify(vec) != label) {++nerror;counter.add(label);}\
+                if(svm.classify_external(vec) != label) {++nerror;counter.add(label);}\
                 ++nlines;\
             }\
             cout << "Test error rate: " << 100. * nerror / nlines << "%\n";\
@@ -94,8 +95,9 @@ int main(int argc, char *argv[]) {
     FILE *ofp(stdout);
     Policy policy(PEGASOS);
     bool project(false);
+    bool rescale(false);
     for(char **p(argv + 1); *p; ++p) if(strcmp(*p, "--help") == 0) goto usage;
-    while((c = getopt(argc, argv, "E:e:M:s:P:p:b:l:o:FNh?")) >= 0) {
+    while((c = getopt(argc, argv, "E:e:M:s:P:p:b:l:o:rFNh?")) >= 0) {
         switch(c) {
             case 'E': eta        = atof(optarg); break;
             case 'e': eps        = atof(optarg); break;
@@ -107,6 +109,7 @@ int main(int argc, char *argv[]) {
             case 's': nd_sparse  = atoi(optarg); break;
             case 'N': policy     = NORMA;        break; // Guerra, Guerra!
             case 'F': policy     = FIXED;        break;
+            case 'r': rescale    = true;         break;
             case 'o': ofp        = fopen(optarg, "w");
                 if(ofp == nullptr) throw std::runtime_error(
                     std::string("Could not open file at ") + optarg);

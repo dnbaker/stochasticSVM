@@ -38,7 +38,7 @@ class KernelSVM {
     size_t                      nd_; // Number of dimensions
     const size_t          max_iter_; // Maximum iterations.
     size_t                       t_; // Timepoint.
-    const FloatType           eps_; // epsilon termination.
+    const FloatType            eps_; // epsilon termination.
     std::unordered_map<int, std::string> class_name_map_;
     khash_t(I)                  *h_; // Hash set of elements being used.
 
@@ -196,7 +196,9 @@ private:
     template<typename RowType>
     double predict(const RowType &datapoint) const {
         double ret(0.);
-        if(t_ == 0) cerr << "nonZeros: " << a_.nonZeros() << '\n';
+#if !NDEBUG
+        if(t_ == 0) assert(nonZeros(a_) == 0);
+#endif
         for(auto it(a_.cbegin()), e(a_.cend()); it != e; ++it) {
             if(kh_get(I, h_, it->value()) == kh_end(h_)) {
                 ret += v_[it->index()] * it->value() * kernel_(row(m_, it->index()), datapoint);
@@ -238,7 +240,6 @@ public:
                 // Iterating through all alphas and processing each element for it.
                 kh_put(I, h_, fastrangesize(rand64(), ns_), &khr);
             }
-            if(t_ == 0) assert(a_.nonZeros() == 0);
             #pragma omp parallel for
             for(khiter_t ki = 0; ki < kh_end(h_); ++ki) {
                 if(kh_exist(h_, ki)) {

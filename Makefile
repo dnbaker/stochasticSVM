@@ -13,7 +13,7 @@ else
     OPT := $(OPT) -flto
 endif
 XXFLAGS=-fno-rtti
-CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS) -DFLOAT_TYPE=float
+CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++14 $(WARNINGS) -DFLOAT_TYPE=float
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread
 LD=-L.

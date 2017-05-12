@@ -50,10 +50,10 @@ class LinearSVM {
     WMType w_;
     WMType w_avg_;
     DynamicVector<int>        v_;
+    DynamicMatrix<FloatType>  r_;
     // Labels [could be compressed by requiring sorted data and checking
     // an index is before or after a threshold. Likely unnecessary, but could
     // aid cache efficiency.
-    MatrixKind                r_; // Renormalization values. Subtraction, then multiplication
     const FloatType      lambda_; // Lambda Parameter
     const KernelType     kernel_;
     size_t                   nc_; // Number of classes
@@ -67,8 +67,8 @@ class LinearSVM {
     const FloatType         eps_; // epsilon termination.
     const size_t       avg_size_; // Number to average at end.
     const bool          project_; // Whether or not to perform projection step.
+    const bool            scale_; // Whether or not to scale to unit variance and 0 mean.
     std::unordered_map<int, std::string> class_name_map_;
-    std::shared_mutex        sm_;
 
 public:
     // Dense constructor
@@ -77,12 +77,12 @@ public:
               LearningPolicy lp,
               size_t mini_batch_size=256uL,
               size_t max_iter=100000,  const FloatType eps=1e-6,
-              long avg_size=-1, bool project=true)
+              long avg_size=-1, bool project=true, bool scale=false)
         : lambda_(lambda),
           nc_(0), mbs_(mini_batch_size),
-          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps),
+          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps < 0 ? -std::numeric_limits<float>::infinity(): eps),
           avg_size_(avg_size < 0 ? 1000: avg_size),
-          project_(project)
+          project_(project), scale_(scale)
     {
         load_data(path);
     }
@@ -91,11 +91,11 @@ public:
                LearningPolicy lp,
                size_t mini_batch_size=256uL,
                size_t max_iter=100000,  const FloatType eps=1e-6,
-               long avg_size=-1, bool project=false)
+               long avg_size=-1, bool project=false, bool scale=false)
         : lambda_(lambda),
           nc_(0), mbs_(mini_batch_size), nd_(ndims),
-          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps),
-          avg_size_(avg_size < 0 ? 10: avg_size), project_(project)
+          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps < 0 ? -std::numeric_limits<float>::infinity(): eps),
+          avg_size_(avg_size < 0 ? 10: avg_size), project_(project), scale_(scale)
     {
         sparse_load(path);
     }
@@ -229,13 +229,46 @@ private:
         w_.weights_ = 0.;
     }
     void normalize() {
+        if(scale_) {
+            rescale();
+        }
         column(m_, nd_ - 1) = 1.; // Bias term
+    }
+    template<typename RowType>
+    void rescale_point(RowType &r) const {
+        for(size_t i(0); i < nd_ - 1; ++i) {
+            r[i] = (r[i] - r_(i, 0)) * r_(i, 1);
+        }
+    }
+    void rescale() {
+        r_ = MatrixKind(nd_ - 1, 2);
+        // Could/Should rewrite with pthread-type parallelization and get better memory access pattern.
+        #pragma omp parallel for schedule(dynamic)
+        for(size_t i = 0; i < nd_ - 1; ++i) {
+            auto col(column(m_, i));
+            FloatType stdev_inv, mean;
+            assert(ns_ == col.size());
+            FloatType sum(0.);
+            for(auto c: col) sum += c;
+            r_(i, 0) = mean = sum / ns_;
+            r_(i, 1) = stdev_inv = std::sqrt(variance(col, mean));
+            for(auto cit(col.begin()), cend(col.end()); cit != cend; ++cit)
+                *cit = (*cit - mean) * stdev_inv;
+            cerr << "Column " << i + 1 << " has mean " << mean << " and stdev " << 1./stdev_inv << '\n';
+        }
     }
     template<typename RowType>
     double predict(const RowType &datapoint) const {
         return dot(row(w_.weights_, 0), datapoint);
     }
 public:
+    template<typename RowType>
+    int classify_external(RowType &data) const {
+        if(r_.rows()) rescale_point(data);
+        static const int tbl[]{-1, 1};
+        const double pred(predict(data));
+        return tbl[pred > 0.];
+    }
     template<typename RowType>
     int classify(const RowType &data) const {
         static const int tbl[]{-1, 1};
@@ -249,7 +282,7 @@ public:
         return static_cast<double>(mistakes) / ns_;
     }
     void train() {
-        const size_t interval(std::min(max_iter_ / 10, size_t(5000)));
+        const size_t interval(max_iter_ / 10);
         size_t avgs_used(0);
         decltype(w_.weights_) tmpsum(1, nd_);
         decltype(w_.weights_) last_weights(1, nd_);
