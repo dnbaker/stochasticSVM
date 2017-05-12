@@ -176,11 +176,16 @@ std::string vecstr(const VectorKind &vec) {
 }
 
 template<class Container>
-double variance(const Container &c) {
+double mean(const Container &c) {
     double sum(0.);
     for(const auto entry: c) sum += entry;
     sum /= c.size();
-    return variance(c, sum);
+    return sum;
+}
+
+template<class Container>
+double variance(const Container &c) {
+    return variance(c, mean(c));
 }
 
 } // namespace svm

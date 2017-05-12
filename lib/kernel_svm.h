@@ -25,11 +25,8 @@ class KernelSVM {
     // Weights. one-dimensional for 2-class, nc_-dimensional for more.
     CompressedVector<int>        a_;
     DynamicVector<int>           v_; // Labels
-#if RENORMALIZE
     MatrixKind                   r_; // Renormalization values. Subtraction, then multiplication
-                                  // Not required: not used.
-#endif
-    const FloatType        lambda_; // Lambda Parameter
+    const FloatType         lambda_; // Lambda Parameter
     const Kernel            kernel_;
     //DynamicMatrix<FloatType>     w_; // Final weights: only used at completion.
     size_t                      nc_; // Number of classes
@@ -41,6 +38,7 @@ class KernelSVM {
     const FloatType            eps_; // epsilon termination.
     std::unordered_map<int, std::string> class_name_map_;
     khash_t(I)                  *h_; // Hash set of elements being used.
+    const bool               scale_;
 
 public:
     // Dense constructor
@@ -48,10 +46,10 @@ public:
               const FloatType lambda,
               Kernel kernel=LinearKernel<FloatType>(),
               size_t mini_batch_size=256uL,
-              size_t max_iter=100000,  const FloatType eps=1e-6)
+              size_t max_iter=100000,  const FloatType eps=1e-6, bool scale=false)
         : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size),
-          max_iter_(max_iter), t_(0), eps_(eps), h_(kh_init(I))
+          max_iter_(max_iter), t_(0), eps_(eps), h_(kh_init(I)), scale_(scale)
     {
         load_data(path);
     }
@@ -59,10 +57,10 @@ public:
               const FloatType lambda,
               Kernel kernel=LinearKernel<FloatType>(),
               size_t mini_batch_size=256uL,
-              size_t max_iter=100000,  const FloatType eps=1e-6)
+              size_t max_iter=100000,  const FloatType eps=1e-6, bool scale=false)
         : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size), nd_(ndims),
-          max_iter_(max_iter), t_(0), eps_(eps), h_(kh_init(I))
+          max_iter_(max_iter), t_(0), eps_(eps), h_(kh_init(I)), scale_(scale)
     {
         sparse_load(path);
     }
@@ -191,26 +189,62 @@ private:
         a_ = CompressedVector<int>(ns_, ns_ >> 1);
     }
     void normalize() {
+        if(scale_) {
+#if !NDEBUG
+        cerr << "Rescaling!\n";
+#endif
+            rescale();
+        }
         column(m_, nd_ - 1) = 1.; // Bias term
     }
     template<typename RowType>
+    void rescale_point(RowType &r) const {
+        for(size_t i(0); i < nd_ - 1; ++i) {
+            r[i] = (r[i] - r_(i, 0)) * r_(i, 1);
+        }
+    }
+    void rescale() {
+        r_ = MatrixKind(nd_ - 1, 2);
+        // Could/Should rewrite with pthread-type parallelization and get better memory access pattern.
+        #pragma omp parallel for schedule(dynamic)
+        for(size_t i = 0; i < nd_ - 1; ++i) {
+            auto col(column(m_, i));
+            FloatType stdev_inv, colmean;
+            assert(ns_ == col.size());
+            FloatType sum(0.);
+            for(auto c: col) sum += c;
+            cerr << "sum for col " << i << " is " << sum << ".\n";
+            r_(i, 0) = colmean = sum / ns_;
+            r_(i, 1) = stdev_inv = 1 / std::sqrt(variance(col, colmean));
+            for(auto cit(col.begin()), cend(col.end()); cit != cend; ++cit)
+                *cit = (*cit - colmean) * stdev_inv;
+            cerr << "Column " << i + 1 << " has mean " << colmean << " and stdev " << 1./stdev_inv << '\n';
+            cerr << "New variance: " << variance(col) << ". New mean: " << mean(col) <<'\n';
+        }
+    }
+    double predict(size_t index) const {
+        return predict(row(m_, index));
+    }
+public:
+    template<typename RowType>
     double predict(const RowType &datapoint) const {
         double ret(0.);
-#if !NDEBUG
-        if(t_ == 0) assert(nonZeros(a_) == 0);
-#endif
         for(auto it(a_.cbegin()), e(a_.cend()); it != e; ++it) {
             if(kh_get(I, h_, it->value()) == kh_end(h_)) {
+                //std::fprintf(stderr, "Index: %zu. Value: %i. kernel: %lf. Inc value: %lf\n",
+                //             it->index(), it->value(), kernel_(row(m_, it->index()), datapoint),
+                //             v_[it->index()] * it->value() * kernel_(row(m_, it->index()), datapoint));
                 ret += v_[it->index()] * it->value() * kernel_(row(m_, it->index()), datapoint);
             }
         }
         ret /= (lambda_ * (t_ + 1));
         return ret;
     }
-    double predict(size_t index) const {
-        return predict(row(m_, index));
+    template<typename RowType>
+    int classify_external(RowType &data) const {
+        if(r_.rows()) rescale_point(data);
+        return classify(data);
     }
-public:
     template<typename RowType>
     int classify(const RowType &data) const {
         static const int tbl[]{-1, 1};
@@ -235,7 +269,7 @@ public:
             int khr;
             size_t ndiff(0);
             //std::vector<std::mutex> muts(nd_ >> 6);
-            for(size_t i = 0; i < mbs_; ++i) {
+            while(kh_size(h_) < mbs_) {
                 // Could probably speed up by changing loop iteration:
                 // Iterating through all alphas and processing each element for it.
                 kh_put(I, h_, fastrangesize(rand64(), ns_), &khr);
@@ -298,7 +332,6 @@ public:
         fprintf(fp, "#%s\n", kernel_.str().data());
         ks::KString line;
         line.resize(5 * a_.nonZeros());
-        const char *fmt(scientific_notation ? "%e, ": "%f, ");
         for(const auto &it: a_) {
             line.sprintf("i:%i,v:%i,y:%i|", it.index(), it.value(), v_[it.index()]);
         }

@@ -44,7 +44,7 @@ public:
             std::ifstream is(argv[optind + 1]);\
             int label;\
             for(std::string line;std::getline(is, line);) {\
-                cerr << line << '\n';\
+                /*cerr << line << '\n';*/\
                 row(vec, 0) = 0.;\
                 vec(0, vec.columns() - 1)= 1.;\
                 label = atoi(line.data());\
@@ -53,7 +53,7 @@ public:
                 for(;;) {\
                     while(*p == '\t' || *p == ' ') ++p;\
                     if(*p == '\n' || *p == '\0' || p > line.data() + line.size()) break;\
-                    cerr << p << '\n';\
+                    /*cerr << p << '\n';*/\
                     const int ind(atoi(p) - 1);\
                     p = strchr(p, ':');\
                     if(p) ++p;\
@@ -62,7 +62,14 @@ public:
                     while(!std::isspace(*p)) ++p;\
                 }\
                 /*cerr << vec;*/\
-                if(svm.classify(row(vec, 0)) != label) {++nerror;counter.add(label);}\
+                auto wrow(row(vec, 0));\
+                assert(wrow[wrow.size() - 1] == 1.);\
+                const auto classification(svm.classify_external(wrow));\
+                if(classification != label) {\
+                    ++nerror; counter.add(label); cerr << "Misclassifying " << label << " as " << classification << '\n';\
+                    cerr << "Value of predict: " << svm.predict(wrow) << '\n';\
+                    cerr << "Data: " << wrow << '\n';\
+                }\
                 ++nlines;\
             }\
             cout << "Test error rate: " << 100. * nerror / nlines << "%\n";\
@@ -76,8 +83,9 @@ int main(int argc, char *argv[]) {
     unsigned nthreads(1);
     std::ios::sync_with_stdio(false);
     FILE *ofp(stdout);
+    bool rescale(false);
     for(char **p(argv + 1); *p; ++p) if(strcmp(*p, "--help") == 0) goto usage;
-    while((c = getopt(argc, argv, "g:e:M:s:p:b:l:o:h?")) >= 0) {
+    while((c = getopt(argc, argv, "g:e:M:s:p:b:l:o:rh?")) >= 0) {
         switch(c) {
             case 'e': eps        = atof(optarg); break;
             case 'g': gamma      = atof(optarg); break;
@@ -86,7 +94,8 @@ int main(int argc, char *argv[]) {
             case 'b': batch_size = atoi(optarg); break;
             case 'l': lambda     = atof(optarg); break;
             case 's': nd_sparse  = atoi(optarg); break;
-            case 'o': ofp        = fopen(optarg, "w");
+            case 'o': ofp        = fopen(optarg, "w"); break;
+            case 'r': rescale    = true; break;
                 if(ofp == nullptr) throw std::runtime_error(
                     std::string("Could not open file at ") + optarg);
                 break;
@@ -99,8 +108,8 @@ int main(int argc, char *argv[]) {
     omp_set_num_threads(nthreads);
     RBFKernel<FLOAT_TYPE> kernel(gamma);
     KernelSVM<decltype(kernel), FLOAT_TYPE> svm(
-            nd_sparse ? KernelSVM<decltype(kernel), FLOAT_TYPE>(argv[optind], nd_sparse, lambda, kernel, batch_size, max_iter, eps)
-                      : KernelSVM<decltype(kernel), FLOAT_TYPE>(argv[optind], lambda, kernel, batch_size, max_iter, eps));
+            nd_sparse ? KernelSVM<decltype(kernel), FLOAT_TYPE>(argv[optind], nd_sparse, lambda, kernel, batch_size, max_iter, eps, rescale)
+                      : KernelSVM<decltype(kernel), FLOAT_TYPE>(argv[optind], lambda, kernel, batch_size, max_iter, eps, rescale));
     svm.train();
     svm.write(ofp);
     TEST_SVM

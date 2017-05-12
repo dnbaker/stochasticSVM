@@ -246,15 +246,16 @@ private:
         #pragma omp parallel for schedule(dynamic)
         for(size_t i = 0; i < nd_ - 1; ++i) {
             auto col(column(m_, i));
-            FloatType stdev_inv, mean;
+            FloatType stdev_inv, colmean;
             assert(ns_ == col.size());
             FloatType sum(0.);
             for(auto c: col) sum += c;
-            r_(i, 0) = mean = sum / ns_;
-            r_(i, 1) = stdev_inv = std::sqrt(variance(col, mean));
+            r_(i, 0) = colmean = sum / ns_;
+            r_(i, 1) = stdev_inv = 1. / std::sqrt(variance(col, colmean));
             for(auto cit(col.begin()), cend(col.end()); cit != cend; ++cit)
-                *cit = (*cit - mean) * stdev_inv;
-            cerr << "Column " << i + 1 << " has mean " << mean << " and stdev " << 1./stdev_inv << '\n';
+                *cit = (*cit - colmean) * stdev_inv;
+            cerr << "Column " << i + 1 << " has mean " << colmean << " and stdev " << 1./stdev_inv << '\n';
+            cerr << "New variance: " << variance(col) << ". New mean: " << mean(col) <<'\n';
         }
     }
     template<typename RowType>
@@ -265,9 +266,7 @@ public:
     template<typename RowType>
     int classify_external(RowType &data) const {
         if(r_.rows()) rescale_point(data);
-        static const int tbl[]{-1, 1};
-        const double pred(predict(data));
-        return tbl[pred > 0.];
+        return classify(data);
     }
     template<typename RowType>
     int classify(const RowType &data) const {
