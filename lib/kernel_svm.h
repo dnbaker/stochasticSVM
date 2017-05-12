@@ -252,7 +252,8 @@ public:
     }
     FloatType loss() const {
         size_t mistakes(0);
-        for(size_t index(0); index < ns_; ++index) {
+        #pragma omp parallel for reduction(+:mistakes)
+        for(size_t index = 0; index < ns_; ++index) {
             mistakes += (classify(index) != v_[index]);
         }
         return static_cast<double>(mistakes) / ns_;

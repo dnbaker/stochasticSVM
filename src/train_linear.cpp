@@ -117,8 +117,12 @@ int main(int argc, char *argv[]) {
             case 'h': case '?': usage: return usage(*argv);
         }
     }
-    if(policy == NORMA && eta == 0.0) eta = 1./lambda;
-    if(policy == FIXED && eta == 0.0) {
+    if(policy == NORMA && eta == 0.0) {
+            eta = 1./lambda;
+            cerr << "Eta unset for Norma method. Defaulting to 1/lambda: "
+                 << eta << ".\n";
+    }
+    else if(policy == FIXED && eta == 0.0) {
         throw std::runtime_error(
             "eta (-E) must be set for Fixed Learning rate policies.");
     }
@@ -126,8 +130,8 @@ int main(int argc, char *argv[]) {
     if(optind == argc) goto usage;
     blaze::setNumThreads(nthreads);
     PegasosLearningRate<FLOAT_TYPE> plp(lambda);
-    NormaLearningRate<FLOAT_TYPE>  nlp(eta);
-    FixedLearningRate<FLOAT_TYPE>  flp(eta);
+    NormaLearningRate<FLOAT_TYPE>   nlp(eta);
+    FixedLearningRate<FLOAT_TYPE>   flp(eta);
     if(policy == NORMA) {
         TRAIN_SVM(nlp);
         RUN_SVM

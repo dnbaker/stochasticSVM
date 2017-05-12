@@ -11,8 +11,7 @@ BRCA_BATCHSZ = [32, 64, 128, 256, 512, 1024]
 
 HYPERPAR_SETTINGS = [(A8A_FILES, A8A_LAMBDAS, A8A_BATCHSZ, 123),
                      (BRCA_FILES, BRCA_LAMBDAS, BRCA_BATCHSZ, 10)]
-
-if __name__ == "__main__":
+def linear_hyperparameters():
     devnull = open(os.devnull, 'w')
     for settings in HYPERPAR_SETTINGS[::-1]:
         sys.stderr.write("Processing %s, %s\n" % (settings[0][0], settings[0][1]))
@@ -41,3 +40,13 @@ if __name__ == "__main__":
         sys.stdout.write("Best parameters for %s (test %f, train %f): {lambda: %f, bs: %i}\n" %
                          (settings[0][0], results[0][0], results[0][1],
                           results[0][2], results[0][3]))
+
+if __name__ == "__main__":
+    import argparse
+    p = argparse.add_argument("--run-linear", action='store_true')
+    p = argparse.add_argument("--run-rbf",    action='store_true')
+    args = p.parse_args()
+    if args.run_linear:
+        linear_hyperparameters()
+    if args.run_rbf:
+        rbf_hyperparameters()
