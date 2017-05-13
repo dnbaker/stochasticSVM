@@ -68,6 +68,7 @@ class LinearSVM {
     const size_t       avg_size_; // Number to average at end.
     const bool          project_; // Whether or not to perform projection step.
     const bool            scale_; // Whether or not to scale to unit variance and 0 mean.
+    const bool             bias_; // Whether or not to add an additional dimension to account for bias.
     std::unordered_map<int, std::string> class_name_map_;
 
 public:
@@ -77,12 +78,12 @@ public:
               LearningPolicy lp,
               size_t mini_batch_size=256uL,
               size_t max_iter=100000,  const FloatType eps=1e-6,
-              long avg_size=-1, bool project=true, bool scale=false)
+              long avg_size=-1, bool project=true, bool scale=false, bool bias=true)
         : lambda_(lambda),
           nc_(0), mbs_(mini_batch_size),
           max_iter_(max_iter), t_(0), lp_(lp), eps_(eps < 0 ? -std::numeric_limits<float>::infinity(): eps),
           avg_size_(avg_size < 0 ? 1000: avg_size),
-          project_(project), scale_(scale)
+          project_(project), scale_(scale), bias_(bias)
     {
         load_data(path);
     }
@@ -91,11 +92,11 @@ public:
                LearningPolicy lp,
                size_t mini_batch_size=256uL,
                size_t max_iter=100000,  const FloatType eps=1e-6,
-               long avg_size=-1, bool project=false, bool scale=false)
+               long avg_size=-1, bool project=false, bool scale=false, bool bias=true)
         : lambda_(lambda),
           nc_(0), mbs_(mini_batch_size), nd_(ndims),
           max_iter_(max_iter), t_(0), lp_(lp), eps_(eps < 0 ? -std::numeric_limits<float>::infinity(): eps),
-          avg_size_(avg_size < 0 ? 10: avg_size), project_(project), scale_(scale)
+          avg_size_(avg_size < 0 ? 10: avg_size), project_(project), scale_(scale), bias_(bias)
     {
         sparse_load(path);
     }
@@ -137,7 +138,7 @@ private:
         dims_t dims(path);
         ns_ = dims.ns_; nd_ = dims.nd_;
         std::tie(m_, v_, class_name_map_) = parse_problem<FloatType, int>(path, dims);
-        ++nd_; // bias term
+        if(bias_) ++nd_; // bias term
 #if !NDEBUG
         if(m_.rows() < 1000) cout << "Input matrix: \n" << m_ << '\n';
 #endif
@@ -157,7 +158,7 @@ private:
         LOG_DEBUG("Number of datapoints: %zu. Number of dimensions: %zu\n", ns_, nd_);
     }
     void sparse_load(const char *path) {
-        ++nd_; // bias term.
+        if(bias_) ++nd_; // bias term.
         gzFile fp(gzopen(path, "rb"));
         if(fp == nullptr)
             throw std::runtime_error(std::string("Could not open file at ") + path);
@@ -232,19 +233,19 @@ private:
         if(scale_) {
             rescale();
         }
-        column(m_, nd_ - 1) = 1.; // Bias term
+        if(bias_) column(m_, nd_ - 1) = 1.; // Bias term
     }
     template<typename RowType>
     void rescale_point(RowType &r) const {
-        for(size_t i(0); i < nd_ - 1; ++i) {
+        for(size_t i(0); i < nd_ - static_cast<int>(bias_); ++i) {
             r[i] = (r[i] - r_(i, 0)) * r_(i, 1);
         }
     }
     void rescale() {
-        r_ = MatrixKind(nd_ - 1, 2);
+        r_ = MatrixKind(nd_ - static_cast<int>(bias_), 2);
         // Could/Should rewrite with pthread-type parallelization and get better memory access pattern.
         #pragma omp parallel for schedule(dynamic)
-        for(size_t i = 0; i < nd_ - 1; ++i) {
+        for(size_t i = 0; i < nd_ - static_cast<int>(bias_); ++i) {
             auto col(column(m_, i));
             FloatType stdev_inv, colmean;
             assert(ns_ == col.size());
@@ -281,7 +282,9 @@ public:
         return static_cast<double>(mistakes) / ns_;
     }
     void train() {
+#if !NDEBUG
         const size_t interval(max_iter_ / 10);
+#endif
         size_t avgs_used(0);
         decltype(w_.weights_) tmpsum(1, nd_);
         decltype(w_.weights_) last_weights(1, nd_);
@@ -350,7 +353,8 @@ public:
         line[line.size() - 1] = '\n';
         fwrite(line.data(), line.size(), 1, fp);
     }
-    auto ndims() const {return nd_;}
+    size_t ndims()    const {return nd_;}
+    bool get_bias() const {return bias_;}
 }; // LinearSVM
 
 } // namespace svm

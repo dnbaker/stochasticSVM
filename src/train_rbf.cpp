@@ -38,15 +38,15 @@ public:
         if(argc > optind + 1) {\
             IntCounter counter;\
             size_t nlines(0), nerror(0);\
-            DynamicMatrix<FLOAT_TYPE> vec(1, svm.ndims());\
+            DynamicMatrix<FLOAT_TYPE> vec(1, svm.get_ndims());\
             row(vec, 0) = 0.;\
-            vec(0, vec.columns() - 1) = 1.;\
+            if(svm.get_bias()) vec(0, vec.columns() - 1) = 1.;\
             std::ifstream is(argv[optind + 1]);\
             int label;\
             for(std::string line;std::getline(is, line);) {\
                 /*cerr << line << '\n';*/\
                 row(vec, 0) = 0.;\
-                vec(0, vec.columns() - 1)= 1.;\
+                if(svm.get_bias()) vec(0, vec.columns() - 1)= 1.;\
                 label = atoi(line.data());\
                 char *p(&line[0]);\
                 while(!std::isspace(*p)) ++p;\
@@ -63,7 +63,7 @@ public:
                 }\
                 /*cerr << vec;*/\
                 auto wrow(row(vec, 0));\
-                assert(wrow[wrow.size() - 1] == 1.);\
+                if(svm.get_bias()) assert(wrow[wrow.size() - 1] == 1.);\
                 const auto classification(svm.classify_external(wrow));\
                 if(classification != label) {\
                     ++nerror; counter.add(label); cerr << "Misclassifying " << label << " as " << classification << '\n';\
@@ -84,9 +84,11 @@ int main(int argc, char *argv[]) {
     std::ios::sync_with_stdio(false);
     FILE *ofp(stdout);
     bool rescale(false);
+    bool bias(true);
     for(char **p(argv + 1); *p; ++p) if(strcmp(*p, "--help") == 0) goto usage;
-    while((c = getopt(argc, argv, "g:e:M:s:p:b:l:o:rh?")) >= 0) {
+    while((c = getopt(argc, argv, "g:e:M:s:p:b:l:o:Brh?")) >= 0) {
         switch(c) {
+            case 'B': bias       = false;        break;
             case 'e': eps        = atof(optarg); break;
             case 'g': gamma      = atof(optarg); break;
             case 'p': nthreads   = atoi(optarg); break;
@@ -108,8 +110,8 @@ int main(int argc, char *argv[]) {
     omp_set_num_threads(nthreads);
     RBFKernel<FLOAT_TYPE> kernel(gamma);
     KernelSVM<decltype(kernel), FLOAT_TYPE> svm(
-            nd_sparse ? KernelSVM<decltype(kernel), FLOAT_TYPE>(argv[optind], nd_sparse, lambda, kernel, batch_size, max_iter, eps, rescale)
-                      : KernelSVM<decltype(kernel), FLOAT_TYPE>(argv[optind], lambda, kernel, batch_size, max_iter, eps, rescale));
+            nd_sparse ? KernelSVM<decltype(kernel), FLOAT_TYPE>(argv[optind], nd_sparse, lambda, kernel, batch_size, max_iter, eps, rescale, bias)
+                      : KernelSVM<decltype(kernel), FLOAT_TYPE>(argv[optind], lambda, kernel, batch_size, max_iter, eps, rescale, bias));
     svm.train();
     svm.write(ofp);
     TEST_SVM

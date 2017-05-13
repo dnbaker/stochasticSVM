@@ -49,8 +49,8 @@ enum Policy:size_t{
 
 #define TRAIN_SVM(policy) \
         LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)> svm = \
-            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)>(argv[optind], nd_sparse, lambda, policy, batch_size, max_iter, eps, 1000, project, rescale) \
-                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)>(argv[optind], lambda, policy, batch_size, max_iter, eps, 1000, project, rescale)
+            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)>(argv[optind], nd_sparse, lambda, policy, batch_size, max_iter, eps, 1000, project, rescale, bias) \
+                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)>(argv[optind], lambda, policy, batch_size, max_iter, eps, 1000, project, rescale, bias)
 
 #define RUN_SVM \
         svm.train();\
@@ -59,12 +59,13 @@ enum Policy:size_t{
             IntCounter counter;\
             size_t nlines(0), nerror(0);\
             DynamicVector<FLOAT_TYPE> vec(svm.ndims());\
-            vec[vec.size() - 1] = 1.;\
+            if(svm.get_bias()) vec[vec.size() - 1] = 1.;\
             std::ifstream is(argv[optind + 1]);\
             int label;\
             for(std::string line;std::getline(is, line);) {\
                 /*cerr << line << '\n';*/\
-                vec = 0.; vec[vec.size() - 1] = 1.;\
+                vec = 0.;\
+                if(svm.get_bias()) vec[vec.size() - 1] = 1.;\
                 label = atoi(line.data());\
                 const char *p(line.data());\
                 while(!std::isspace(*p)) ++p;\
@@ -96,9 +97,11 @@ int main(int argc, char *argv[]) {
     Policy policy(PEGASOS);
     bool project(false);
     bool rescale(false);
+    bool bias(true);
     for(char **p(argv + 1); *p; ++p) if(strcmp(*p, "--help") == 0) goto usage;
-    while((c = getopt(argc, argv, "E:e:M:s:P:p:b:l:o:rFNh?")) >= 0) {
+    while((c = getopt(argc, argv, "E:e:M:s:P:p:b:l:o:BrFNh?")) >= 0) {
         switch(c) {
+            case 'B': bias       = false;        break;
             case 'E': eta        = atof(optarg); break;
             case 'e': eps        = atof(optarg); break;
             case 'p': nthreads   = atoi(optarg); break;

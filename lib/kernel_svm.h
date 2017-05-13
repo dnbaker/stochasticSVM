@@ -39,6 +39,7 @@ class KernelSVM {
     std::unordered_map<int, std::string> class_name_map_;
     khash_t(I)                  *h_; // Hash set of elements being used.
     const bool               scale_;
+    const bool                bias_;
 
 public:
     // Dense constructor
@@ -46,10 +47,12 @@ public:
               const FloatType lambda,
               Kernel kernel=LinearKernel<FloatType>(),
               size_t mini_batch_size=256uL,
-              size_t max_iter=100000,  const FloatType eps=1e-6, bool scale=false)
+              size_t max_iter=100000,  const FloatType eps=1e-6,
+              bool scale=false, bool bias=true)
         : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size),
-          max_iter_(max_iter), t_(0), eps_(eps), h_(kh_init(I)), scale_(scale)
+          max_iter_(max_iter), t_(0), eps_(eps), h_(kh_init(I)),
+          scale_(scale), bias_(bias)
     {
         load_data(path);
     }
@@ -57,10 +60,12 @@ public:
               const FloatType lambda,
               Kernel kernel=LinearKernel<FloatType>(),
               size_t mini_batch_size=256uL,
-              size_t max_iter=100000,  const FloatType eps=1e-6, bool scale=false)
+              size_t max_iter=100000,  const FloatType eps=1e-6,
+              bool scale=false, bool bias=true)
         : lambda_(lambda), kernel_(std::move(kernel)),
           nc_(0), mbs_(mini_batch_size), nd_(ndims),
-          max_iter_(max_iter), t_(0), eps_(eps), h_(kh_init(I)), scale_(scale)
+          max_iter_(max_iter), t_(0), eps_(eps), h_(kh_init(I)),
+          scale_(scale), bias_(bias)
     {
         sparse_load(path);
     }
@@ -103,7 +108,7 @@ private:
         dims_t dims(path);
         ns_ = dims.ns_; nd_ = dims.nd_;
         std::tie(m_, v_, class_name_map_) = parse_problem<FloatType, int>(path, dims);
-        ++nd_;
+        if(bias_) ++nd_;
         if(m_.rows() < 1000) cout << "Input matrix: \n" << m_ << '\n';
         // Normalize v_
         normalize_labels();
@@ -118,7 +123,7 @@ private:
         LOG_DEBUG("Number of datapoints: %zu. Number of dimensions: %zu\n", ns_, nd_);
     }
     void sparse_load(const char *path) {
-        ++nd_; // bias term, in case used.
+        if(bias_) ++nd_; // bias term, in case used.
         gzFile fp(gzopen(path, "rb"));
         if(fp == nullptr)
             throw std::runtime_error(std::string("Could not open file at ") + path);
@@ -195,19 +200,19 @@ private:
 #endif
             rescale();
         }
-        column(m_, nd_ - 1) = 1.; // Bias term
+        if(bias_) column(m_, nd_ - 1) = 1.; // Bias term
     }
     template<typename RowType>
     void rescale_point(RowType &r) const {
-        for(size_t i(0); i < nd_ - 1; ++i) {
+        for(size_t i(0); i < nd_ - static_cast<int>(bias_); ++i) {
             r[i] = (r[i] - r_(i, 0)) * r_(i, 1);
         }
     }
     void rescale() {
-        r_ = MatrixKind(nd_ - 1, 2);
+        r_ = MatrixKind(nd_ - static_cast<int>(bias_), 2);
         // Could/Should rewrite with pthread-type parallelization and get better memory access pattern.
         #pragma omp parallel for schedule(dynamic)
-        for(size_t i = 0; i < nd_ - 1; ++i) {
+        for(size_t i = 0; i < nd_ - static_cast<int>(bias_); ++i) {
             auto col(column(m_, i));
             FloatType stdev_inv, colmean;
             assert(ns_ == col.size());
@@ -339,7 +344,8 @@ public:
         line[line.size() - 1] = '\n';
         fwrite(line.data(), line.size(), 1, fp);
     }
-    auto ndims() const {return nd_;}
+    auto get_ndims() const {return nd_;}
+    auto get_bias()  const {return bias_;}
 }; // LinearSVM
 
 } // namespace svm
