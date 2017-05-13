@@ -2,13 +2,15 @@ import numpy as np
 import math
 import sys
 
+
 def parse_fn(fn, sparse_dims=-1, use_bias_term=False):
     if sparse_dims >= 0:
         return sparse_parse(fn, sparse_dims, use_bias_term)
     labels = []
     vals = []
     for line in open(fn):
-        if line[0] in "#\n": continue
+        if line[0] in "#\n":
+            continue
         toks = line.strip().split()
         labels.append(int(toks[-1]))
         vals.append(list(map(float, toks[:-1])))
@@ -26,7 +28,8 @@ def sparse_parse(fn, ndims, use_bias_term=False):
     labels = []
     vals = []
     for line in open(fn):
-        if line[0] in "#\n": continue
+        if line[0] in "#\n":
+            continue
         toks = line.strip().split()
         labels.append(int(toks[0]))
         if use_bias_term:
@@ -53,8 +56,9 @@ class SVM(object):
     def __init__(self, path, lb, fixed_eta=-1, rescale=True, project=True,
                  init_from_data=True, sparse_dims=-1, use_bias_term=False):
         self.lb = lb
-        self.t  = 0
-        self.labels, self.data = parse_fn(path, sparse_dims, use_bias_term=use_bias_term)
+        self.t = 0
+        self.labels, self.data = parse_fn(path, sparse_dims,
+                                          use_bias_term=use_bias_term)
         self.w = np.zeros((len(self.data[0]),))
         self.fixed_eta = fixed_eta
         self.rescale = rescale
@@ -75,12 +79,12 @@ class SVM(object):
         tmp = np.zeros((len(self.w),))
         for i in range(bs):
             index = np.random.randint(0, len(self.labels))
-            if np.dot(self.w, self.data[index,:]) * self.labels[index] < 1.:
-                 tmp += self.data[index,:] * self.labels[index]
+            if np.dot(self.w, self.data[index, :]) * self.labels[index] < 1.:
+                tmp += self.data[index, :] * self.labels[index]
         tmp *= eta / bs
         self.w += tmp
         if self.rescale:
-            scale = 1 - eta * self.lb;
+            scale = 1 - eta * self.lb
             self.w *= scale
         if self.project:
             wnorm = np.linalg.norm(self.w)
@@ -91,7 +95,7 @@ class SVM(object):
         self.t += 1
 
     def loss(self):
-        return 1. * sum(np.dot(self.w, self.data[i,:]) * self.labels[i] < 0
+        return 1. * sum(np.dot(self.w, self.data[i, :]) * self.labels[i] < 0
                         for i in range(len(self.labels))) / len(self.labels)
 
 
@@ -117,16 +121,16 @@ if __name__ == "__main__":
               use_bias_term=args.bias)
     for j in range(args.outer):
         for i in range(args.inner):
-           svm.add(args.bs)
+            svm.add(args.bs)
         print("After %i iterations, loss: %f. wnorm squared: %f"
               % ((j + 1) * args.inner, svm.loss(), np.linalg.norm(svm.w)))
     print("weights: ", svm.w)
     sys.stderr.write("Final loss: %f. Total iterations: %i.\n" %
                      (svm.loss(), args.outer * args.inner))
     if args.test:
-        test_labels, test_data = parse_fn(args.test, args.sparse_dims, args.bias)
-        loss = 1. * sum(np.dot(svm.w, test_data[i,:]) * test_labels[i] < 0
+        test_labels, test_data = parse_fn(args.test, args.sparse_dims,
+                                          args.bias)
+        loss = 1. * sum(np.dot(svm.w, test_data[i, :]) * test_labels[i] < 0
                         for i in range(len(test_labels))) / len(test_labels)
         sys.stderr.write("Test loss: %f.\n" % loss)
-        
     sys.exit(0)
