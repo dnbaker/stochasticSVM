@@ -17,19 +17,21 @@ Data may be provided in either sparse SVM form (SVM-light format) or a dense tab
 ## Dependencies
 |Dependency | Reference | Comments |
 |-|-|-|
-|[Blaze](https://bitbucket.org/blaze-lib)|[K. Iglberger, et al.: Expression Templates Revisited: A Performance Analysis of Current Methodologies. SIAM Journal on Scientific Computing, 34(2): C42--C69, 2012](http://epubs.siam.org/sisc/resource/1/sjoce3/v34/i2/pC42_s1)|For optimal performance, this should be linked against BLAS and parallelized, as controlled in blaze/blaze/BLAS.h|
+|[Blaze](https://bitbucket.org/blaze-lib)|[K. Iglberger, et al.: Expression Templates Revisited: A Performance Analysis of Current Methodologies. SIAM Journal on Scientific Computing, 34(2): C42--C69, 2012](http://epubs.siam.org/sisc/resource/1/sjoce3/v34/i2/pC42_s1)|For optimal performance, this should be linked against BLAS and parallelized, as controlled in blaze/blaze/config/BLAS.h|
 |C++14||DenseSVM is currently only tested on gcc under 5.2 and 6.3|
-|OpenMP|OpenMP is currently required for certain operations, but this requirement could be easily removed.|
+|OpenMP||OpenMP is currently required for certain operations, but this requirement could be easily removed.|
+
+Blaze leverages SIMD, BLAS, and expression template metaprogramming for state-of-the-art linear algebra performance.
 
 ## Building
 
-Simply ``make train_linear``.
+Simply ``make``.
 
-If you wish to use floats instead of doubles, which can be twice as fast in arithmetic operations due to SIMD, replace -DFLOAT_TYPE=double with -DFLOAT_TYPE=float.
-
+If you wish to use floats instead of doubles, which can be twice as fast in arithmetic operations due to SIMD, use ``make FLOAT_TYPE=float``.
 
 ## TODO
 
 0. Add simple streaming classifier using already-built SVM.
-1. Add kernel implementation.
+1. Add a "budget", as in a [Randomized Budget Perceptron](http://www.dicom.uninsubria.it/~cgentile/shiftmemML.pdf).
 2. Expand to multiclass.
+3. Expand the build system to build executables for all kernels.
