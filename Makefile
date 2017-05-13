@@ -15,7 +15,7 @@ else
 endif
 FLOAT_TYPE=double
 XXFLAGS=-fno-rtti
-CXXFLAGS=$(OPT) $(XXFLAGS) -std=$(STD) $(WARNINGS) -DFLOAT_TYPE=float
+CXXFLAGS=$(OPT) $(XXFLAGS) -std=$(STD) $(WARNINGS) -DFLOAT_TYPE=$(FLOAT_TYPE)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread
 LD=-L.
@@ -47,9 +47,6 @@ test/%.o: test/%.cpp
 
 %: src/%.o $(OBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
-
-%_float: src/%.o $(OBJS)
-	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=$(FLOAT_TYPE) $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
 %.o: %.c
 	$(CC) $(CCFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
