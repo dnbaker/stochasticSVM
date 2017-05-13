@@ -73,8 +73,7 @@ public:
 
     size_t get_nsamples() const {return ns_;}
     size_t get_ndims()    const {return nd_;}
-    auto get_ndims()      const {return nd_;}
-    auto get_bias()       const {return bias_;}
+    auto   get_bias()     const {return bias_;}
     auto  &get_matrix()         {return m_;}
 
 
