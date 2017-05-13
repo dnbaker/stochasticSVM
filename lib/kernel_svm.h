@@ -2,7 +2,7 @@
 #define _KERNEL_SVM_H_
 #include "lib/linear_svm.h"
 #include "lib/kernel.h"
-#include "lib/khash64.h"
+#include "klib/khash.h"
 #include "fastrange/fastrange.h"
 #include <unordered_set>
 #include <mutex>
