@@ -1,6 +1,7 @@
 .PHONY=all tests clean obj
 CXX=g++
 CC=gcc
+STD=c++14
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
          -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
          -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter
@@ -12,8 +13,9 @@ ifeq ($(OS),Darwin)
 else
     OPT := $(OPT) -flto
 endif
+FLOAT_TYPE=double
 XXFLAGS=-fno-rtti
-CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++14 $(WARNINGS) -DFLOAT_TYPE=float
+CXXFLAGS=$(OPT) $(XXFLAGS) -std=$(STD) $(WARNINGS) -DFLOAT_TYPE=float
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread
 LD=-L.
@@ -47,7 +49,7 @@ test/%.o: test/%.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
 %_float: src/%.o $(OBJS)
-	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=float $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=$(FLOAT_TYPE) $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
 %.o: %.c
 	$(CC) $(CCFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
