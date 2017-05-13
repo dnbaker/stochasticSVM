@@ -70,9 +70,12 @@ public:
         sparse_load(path);
     }
     ~KernelSVM() {kh_destroy(I, h_);}
-    size_t get_nsamples() {return ns_;}
-    size_t get_ndims()    {return nd_;}
-    auto  &get_matrix()   {return m_;}
+
+    size_t get_nsamples() const {return ns_;}
+    size_t get_ndims()    const {return nd_;}
+    auto get_ndims()      const {return nd_;}
+    auto get_bias()       const {return bias_;}
+    auto  &get_matrix()         {return m_;}
 
 
 private:
@@ -344,8 +347,6 @@ public:
         line[line.size() - 1] = '\n';
         fwrite(line.data(), line.size(), 1, fp);
     }
-    auto get_ndims() const {return nd_;}
-    auto get_bias()  const {return bias_;}
 }; // LinearSVM
 
 } // namespace svm
