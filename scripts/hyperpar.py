@@ -27,7 +27,7 @@ def linear_hyperparameters():
         for batch_size in settings[2]:
             for lb in settings[1]:
                 tmpstr = ""
-                cstr = ("./train_linear -r -s%i -b%i -l%f %s %s" %
+                cstr = ("./train_linear -s%i -b%i -l%f %s %s" %
                         (settings[3], batch_size, lb,
                          settings[0][0], settings[0][1]))
                 try:
@@ -48,8 +48,9 @@ def linear_hyperparameters():
 
 if __name__ == "__main__":
     import argparse
-    p = argparse.add_argument("--run-linear", action='store_true')
-    p = argparse.add_argument("--run-rbf",    action='store_true')
+    p = argparse.ArgumentParser()
+    p.add_argument("--run-linear", action='store_true')
+    p.add_argument("--run-rbf",    action='store_true')
     args = p.parse_args()
     if args.run_linear:
         linear_hyperparameters()
