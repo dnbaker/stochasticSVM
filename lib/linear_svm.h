@@ -100,9 +100,11 @@ public:
     {
         sparse_load(path);
     }
-    size_t get_nsamples() {return ns_;}
-    size_t get_ndims()    {return nd_;}
-    auto  &get_matrix()   {return m_;}
+    size_t get_nsamples() const {return ns_;}
+    size_t get_ndims()    const {return nd_;}
+    size_t ndims()        const {return nd_;}
+    bool get_bias()       const {return bias_;}
+    auto  &get_matrix()         {return m_;}
 
 
 private:
@@ -353,8 +355,6 @@ public:
         line[line.size() - 1] = '\n';
         fwrite(line.data(), line.size(), 1, fp);
     }
-    size_t ndims()    const {return nd_;}
-    bool get_bias() const {return bias_;}
 }; // LinearSVM
 
 } // namespace svm
