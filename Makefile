@@ -49,7 +49,7 @@ test/%.o: test/%.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
 %.o: %.c
-	$(CC) $(CCFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
+	$(CC) $(CCFLAGS) -Wno-sign-compare $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 
 tests: clean unit
