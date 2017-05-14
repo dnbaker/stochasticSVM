@@ -28,6 +28,8 @@
 #include "blaze/Math.h"
 #include "logutil.h"
 #include "lib/ks.h"
+#include "fastrange/fastrange.h"
+#include "klib/khash.h"
 
 #ifdef __GNUC__
 #  define likely(x) __builtin_expect((x),1)
@@ -72,6 +74,12 @@
 using boost::math::cyl_bessel_j;
 #endif
 
+#if defined(USE_FASTRANGE) && USE_FASTRANGE
+#define RANGE_SELECT(size) (fastrangesize(rand64(), size))
+#else
+#define RANGE_SELECT(size) (rand64() % size)
+#endif
+
 namespace svm {
 
 using std::cerr;
@@ -86,6 +94,8 @@ using blaze::DynamicVector;
 using blaze::DynamicMatrix;
 using blaze::CompressedMatrix;
 using blaze::CompressedVector;
+
+KHASH_SET_INIT_INT64(I) // 64-bit set for randomly selected batch sizes.
 
 struct dims_t {
     size_t ns_, nd_;

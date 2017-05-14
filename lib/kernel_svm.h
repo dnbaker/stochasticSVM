@@ -2,22 +2,10 @@
 #define _KERNEL_SVM_H_
 #include "lib/linear_svm.h"
 #include "lib/kernel.h"
-#include "klib/khash.h"
-#include "fastrange/fastrange.h"
 #include <unordered_set>
 #include <mutex>
 
-#define USE_FASTRANGE 0
-
-#if USE_FASTRANGE
-#define RANGE_SELECT(size) (fastrangesize(rand64(), size))
-#else
-#define RANGE_SELECT(size) (rand64() % size)
-#endif
-
 namespace svm {
-
-KHASH_SET_INIT_INT64(I) // 64-bit set for randomly selected batch sizes.
 
 template<class Kernel,
          typename FloatType=float,

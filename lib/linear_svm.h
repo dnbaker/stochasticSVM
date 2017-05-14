@@ -7,7 +7,6 @@
 #include "lib/matrixkernel.h"
 #include "lib/mathutil.h"
 #include "lib/learning_rate.h"
-#include "fastrange/fastrange.h"
 
 namespace svm {
 
@@ -291,8 +290,10 @@ public:
         decltype(w_.weights_) last_weights(1, nd_);
         auto wrow(row(w_.weights_, 0));
         auto trow(row(tmpsum, 0));
-        const size_t max_end_index(std::min(ns_ - mbs_, ns_));
+        const size_t max_end_index(std::min(mbs_, ns_));
         std::vector<size_t> indices;
+        khash_t(I) *h(kh_init(I));
+        kh_resize(I, h, mbs_ * 1.5);
         for(t_ = 0; avgs_used < avg_size_; ++t_) {
 #if !NDEBUG
             if((t_ % interval) == 0) {
@@ -304,9 +305,14 @@ public:
             const double eta(lp_(t_));
             tmpsum = 0.; // reset to 0 each time.
             indices.clear();
+            int khr;
+            while(kh_size(h) < mbs_) {
+                kh_put(I, h, RANGE_SELECT(max_end_index), &khr);
+            }
             #pragma omp parallel for
-            for(size_t i = 0; i < mbs_; ++i) {
-                const size_t index(fastrangesize(rand64(), max_end_index));
+            for(size_t i = 0; i < kh_size(h); ++i) {
+                if(!kh_exist(h, i)) continue;
+                const size_t index(kh_key(h, i));
                 if(predict(row(m_, index)) * v_[index] < 1.) {
                     #pragma omp critical
                     row(tmpsum, 0) += row(m_, index) * v_[index];
@@ -329,7 +335,9 @@ public:
                 row(w_avg_.weights_, 0) += wrow;
                 ++avgs_used;
             }
+            kh_clear(I, h);
         }
+        kh_destroy(I, h);
         row(w_avg_.weights_, 0) *= 1. / avg_size_;
         double ls(loss());
         cout << "Train error: " << ls * 100 << "%\nafter "
