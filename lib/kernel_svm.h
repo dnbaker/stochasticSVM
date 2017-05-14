@@ -166,6 +166,9 @@ private:
                 line.clear();
                 continue;
             }
+#if !NDEBUG
+            cerr << "Processing line " << line.data() << '\n';
+#endif
             const int ntoks(ksplit_core(line.data(), 0, &moffsets, &offsets));
             class_name = line.data() + offsets[0];
             auto m(tmpmap.find(class_name));
@@ -272,6 +275,7 @@ public:
         kh_clear(I, h_);
         std::set<size_t> indices;
         for(t_ = 0; t_ < max_iter_; ++t_) {
+            cerr << "At the start of time == " << t_ << ", we have " << a_.nonZeros() << " nonzeros.\n";
             indices.clear();
             last_alphas = a_;
             int khr;
