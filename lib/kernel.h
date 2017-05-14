@@ -58,35 +58,31 @@ struct LaplacianKernel: KernelBase<FloatType> {
 };
 
 template<typename FloatType>
-struct MultiQuadKernel: KernelBase<FloatType> {
-    const FloatType sigma_sq_, factor_, alpha_;
+struct RationalQuadKernel: KernelBase<FloatType> {
+    const FloatType c_;
     template<typename MatrixType1, typename MatrixType2>
     FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
-        return sigma_sq_ * std::pow(1 + std::sqrt(diffnorm(a, b)) * factor_, -alpha_);
+        const FloatType dn(diffnorm(a, b));
+        return 1. - (dn / dn + c_);
     }
-    MultiQuadKernel(FloatType sigma, FloatType alpha, FloatType ell):
-        sigma_sq_(sigma * sigma), factor_(1./(2 * alpha * ell * ell)), alpha_(alpha) {}
+    RationalQuadKernel(FloatType c): c_(c) {}
     std::string str() const {
-        return std::string("MultiQuadKernel:{") +
-            std::to_string(std::sqrt(sigma_sq_)) + ", " +
-            std::to_string(std::sqrt(.5 * alpha_ /(factor_))) +
-            ", " + std::to_string(alpha_) + '}';
+        return std::string("RationalQuadKernel:{") +
+            std::to_string(c_)) + '}';
     }
 };
 
 template<typename FloatType>
-struct SimpleQuadKernel: KernelBase<FloatType> {
-    const FloatType sigma_sq_, factor_;
+struct MultiQuadKernel: KernelBase<FloatType> {
+    const FloatType c2_;
     template<typename MatrixType1, typename MatrixType2>
     FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
-        return sigma_sq_ * (1 + std::sqrt(norm2(diffnorm(a, b))) * factor_);
+        return std::sqrt(diffnorm(a, b) + c2_) 
     }
-    SimpleQuadKernel(FloatType sigma, FloatType ell, FloatType):
-        sigma_sq_(sigma * sigma), factor_(1./(2 * ell * ell)) {}
+    MultiQuadKernel(FloatType c): c2_(c * c) {}
     std::string str() const {
-        return std::string("SimpleQuadKernel:{") +
-            std::to_string(std::sqrt(sigma_sq_)) + ", " +
-            std::to_string(std::sqrt(.5 /(factor_))) + '}';
+        return std::string("MultiQuadKernel:{") +
+            std::to_string(std::sqrt(c2_)) + '}';
     }
 };
 
@@ -95,7 +91,7 @@ struct InvMultiQuadKernel: KernelBase<FloatType> {
     const FloatType c2_;
     template<typename MatrixType1, typename MatrixType2>
     FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
-        
+        return 1. / (std::sqrt(diffnorm(a, b) + c2_));
     }
     InvMultiQuadKernel(FloatType c): c2_(c * c) {}
     std::string str() const {
@@ -128,7 +124,7 @@ struct ExpKernel: KernelBase<FloatType> {
     }
     ExpKernel(FloatType gamma): mgamma_(-gamma) {}
     std::string str() const {
-        return std::string("ExpKernel:{") + std::to_string(mgamma_) + '}';
+        return std::string("ExpKernel:{") + std::to_string(-mgamma_) + '}';
     }
 };
 
