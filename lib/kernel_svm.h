@@ -314,8 +314,8 @@ public:
         cleanup();
     }
     void cleanup() {
-        cout << "% Train error: " << loss() * 100
-             << "\n.Number of iterations: "
+        cout << "Train error: " << loss() * 100
+             << "%\nNumber of iterations: "
              << t_ << "\n";
 #if 0
         /*

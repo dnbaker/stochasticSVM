@@ -332,7 +332,7 @@ public:
         }
         row(w_avg_.weights_, 0) *= 1. / avg_size_;
         double ls(loss());
-        cout << "% Train error: " << ls * 100 << "%\nafter "
+        cout << "Train error: " << ls * 100 << "%\nafter "
              << t_ + 1 << " iterations "<<'\n';
         cleanup();
     }

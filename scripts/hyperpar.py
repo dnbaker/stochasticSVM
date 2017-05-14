@@ -31,7 +31,11 @@ def run_rbf(in_tup):
         if "test" in line.lower():
             testout = float(line.split(":")[1][:-1])
         if "train" in line.lower():
-            trainout = float(line.split(":")[1][:-1])
+            try:
+                trainout = float(line.split(":")[1][:-1])
+            except ValueError:
+                sys.stderr.write("ValueError on float for line: %s\n" % line)
+                raise
     return (testout, trainout, lb, batch_size, gamma)
 
 
@@ -57,7 +61,7 @@ def rbf_hyperparameters(nthreads=-1):
         [[[(lb, batch, gamma) for lb in BRCA_LAMBDAS] for
           batch in BRCA_BATCHSZ] for gamma in BRCA_GAMMAS])), 10]
     Spooool = multiprocessing.Pool(nthreads)
-    for settings in [a8a_combs, brca_combs]:
+    for settings in [brca_combs, a8a_combs]:
         tupsets = ((settings[0], tup, settings[2]) for tup in
                    settings[1])
         results = Spooool.map(run_rbf, tupsets)

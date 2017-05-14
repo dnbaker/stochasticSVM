@@ -39,7 +39,6 @@ int main(int argc, char *argv[]) {
     FLOAT_TYPE lambda(0.5), gamma(1.0), eps(1e-6);
     size_t max_iter(100000);
     unsigned nthreads(1);
-    std::ios::sync_with_stdio(false);
     FILE *ofp(stdout);
     bool rescale(false);
     bool bias(true);
@@ -70,8 +69,6 @@ int main(int argc, char *argv[]) {
     KernelSVM<decltype(kernel), FLOAT_TYPE> svm(
             nd_sparse ? KernelSVM<decltype(kernel), FLOAT_TYPE>(argv[optind], nd_sparse, lambda, kernel, batch_size, max_iter, eps, rescale, bias)
                       : KernelSVM<decltype(kernel), FLOAT_TYPE>(argv[optind], lambda, kernel, batch_size, max_iter, eps, rescale, bias));
-    svm.train();
-    svm.write(ofp);
     RUN_SVM
     if(ofp != stdout) fclose(ofp);
 }
