@@ -53,7 +53,7 @@ struct LaplacianKernel: KernelBase<FloatType> {
     LaplacianKernel(FloatType sigma): msigma_(-sigma) {}
     std::string str() const {
         return std::string("LaplacianKernel:{") +
-            std::to_string(msigma_) + '}';
+            std::to_string(-msigma_) + '}';
     }
 };
 

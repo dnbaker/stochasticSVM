@@ -45,7 +45,7 @@ public:
     }
 
     // Comparison functions
-    int cmp(const char *s) {
+    int cmp(const char *s) const {
         return strcmp(ks_.s, s);
     }
     int cmp(const KString &other) {return cmp(other->s);}
@@ -64,13 +64,14 @@ public:
     }
 
     // Appending:
-    int putc(int c) {return kputc(c, &ks_);}
+    int putc(int c)  {return kputc(c, &ks_);}
     int putc_(int c) {return kputc_(c, &ks_);}
-    int putw(int c) {return kputw(c, &ks_);}
-    int putl(int c) {return kputl(c, &ks_);}
+    int putw(int c)  {return kputw(c, &ks_);}
+    int putl(int c)  {return kputl(c, &ks_);}
     int putuw(int c) {return kputuw(c, &ks_);}
-    int puts(const char *s) {return kputs(s, &ks_);}
-    int putsn(const char *s, int l) {return kputsn(s, l, &ks_);}
+
+    int puts(const char *s)          {return kputs(s, &ks_);}
+    int putsn(const char *s, int l)  {return kputsn(s, l, &ks_);}
     int putsn_(const char *s, int l) {return kputsn_(s, l, &ks_);}
     int sprintf(const char *fmt, ...) {
         va_list ap;
@@ -84,7 +85,7 @@ public:
     char  *release() {auto ret(ks_.s); ks_.l = ks_.m = 0; ks_.s = nullptr; return ret;}
 
     // STL imitation
-    size_t  size() const {return ks_.l;}
+    size_t       size() const {return ks_.l;}
     auto        begin() const {return ks_.s;}
     auto          end() const {return ks_.s + ks_.l;}
     const auto cbegin() const {return const_cast<const char *>(ks_.s);}
