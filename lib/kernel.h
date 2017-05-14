@@ -300,7 +300,7 @@ struct ExponentialBesselKernel: KernelBase<FloatType> {
     FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
         const auto norm(std::sqrt(diffnorm(a, b)));
         return cyl_bessel_j(order_, sigma_ * norm) /
-            std::exp(norm, -norm * order_);
+            std::pow(norm, -norm * order_);
     }
     ExponentialBesselKernel(FloatType sigma, FloatType order):
         sigma_(sigma), order_(order) {}
