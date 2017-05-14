@@ -56,6 +56,7 @@ enum Policy:size_t{
         svm.train();\
         svm.write(ofp);\
         if(argc > optind + 1) {\
+            int moffsets(svm.get_ndims() + 1), *offsets(static_cast<int *>(malloc(moffsets * sizeof(int))));\
             IntCounter counter;\
             size_t nlines(0), nerror(0);\
             DynamicVector<FLOAT_TYPE> vec(svm.ndims());\
@@ -66,23 +67,17 @@ enum Policy:size_t{
                 /*cerr << line << '\n';*/\
                 vec = 0.;\
                 if(svm.get_bias()) vec[vec.size() - 1] = 1.;\
+                const int ntoks(ksplit_core(static_cast<char *>(&line[0]), 0, &moffsets, &offsets));\
                 label = atoi(line.data());\
-                const char *p(line.data());\
-                while(!std::isspace(*p)) ++p;\
-                for(;;) {\
-                    while(*p == '\t' || *p == ' ') ++p;\
-                    if(*p == '\n' || *p == '\0' || p > line.data() + line.size()) break;\
-                    const int ind(atoi(p) - 1);\
-                    p = strchr(p, ':');\
-                    if(p) ++p;\
-                    else throw std::runtime_error("No ':' found!");\
-                    vec[ind] = atof(p);\
-                    while(!std::isspace(*p)) ++p;\
+                for(int i(1); i < ntoks; ++i) {\
+                    const char *p(line.data() + offsets[i]);\
+                    vec[atoi(p) - 1] = atof(strchr(p, ':') + 1);\
                 }\
                 /*cerr << vec;*/\
                 if(svm.classify_external(vec) != label) {++nerror;counter.add(label);}\
                 ++nlines;\
             }\
+            std::free(offsets);\
             cout << "Test error rate: " << 100. * nerror / nlines << "%\n";\
             cout << "Mislabeling: " << counter.str() << '\n';\
         }
