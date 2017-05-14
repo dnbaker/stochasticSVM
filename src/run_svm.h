@@ -1,5 +1,21 @@
 #include <getopt.h>
 #include <iostream>
+using namespace svm;
+
+class IntCounter {
+    std::map<int, int> map_;
+public:
+    void add(int val) {
+        ++map_[val];
+    }
+    std::string str() const {
+        std::string ret("{");
+        for(auto &pair: map_) ret += std::to_string(pair.first) + ": " + std::to_string(pair.second) + ", ";
+        ret.pop_back();
+        ret[ret.size() - 1] = '}';
+        return ret;
+    }
+};
 
 #define RUN_SVM \
         svm.train();\

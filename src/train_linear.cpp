@@ -1,25 +1,6 @@
 #include "lib/linear_svm.h"
 #include "src/run_svm.h"
-using namespace svm;
 
-#if BLAZE_BLAS_MODE == 0
-#  error("Need BLAS")
-#endif
-
-class IntCounter {
-    std::map<int, int> map_;
-public:
-    void add(int val) {
-        ++map_[val];
-    }
-    std::string str() const {
-        std::string ret("{");
-        for(auto &pair: map_) ret += std::to_string(pair.first) + ": " + std::to_string(pair.second) + ", ";
-        ret.pop_back();
-        ret[ret.size() - 1] = '}';
-        return ret;
-    }
-};
 
 int usage(char *ex) {
     char buf[1024];
