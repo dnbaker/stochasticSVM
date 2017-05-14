@@ -68,7 +68,7 @@ struct RationalQuadKernel: KernelBase<FloatType> {
     RationalQuadKernel(FloatType c): c_(c) {}
     std::string str() const {
         return std::string("RationalQuadKernel:{") +
-            std::to_string(c_)) + '}';
+            std::to_string(c_) + '}';
     }
 };
 
@@ -77,7 +77,7 @@ struct MultiQuadKernel: KernelBase<FloatType> {
     const FloatType c2_;
     template<typename MatrixType1, typename MatrixType2>
     FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
-        return std::sqrt(diffnorm(a, b) + c2_) 
+        return std::sqrt(diffnorm(a, b) + c2_);
     }
     MultiQuadKernel(FloatType c): c2_(c * c) {}
     std::string str() const {
