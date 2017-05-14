@@ -314,7 +314,9 @@ public:
         cleanup();
     }
     void cleanup() {
-        cerr << "final loss: " << loss() * 100 << "%. Number of iterations: " << t_ << "\n";
+        cerr << "% Train error: " << loss() * 100
+             << "\n.Number of iterations: "
+             << t_ << "\n";
 #if 0
         /*
         This can only work if we apply a Taylor expansion to our support vectors

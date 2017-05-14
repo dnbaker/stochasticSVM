@@ -1,6 +1,7 @@
 import sys
 import os
 import itertools
+import multiprocessing
 from subprocess import check_output as co, CalledProcessError
 
 def filter_call(cstr, fp):
@@ -8,7 +9,31 @@ def filter_call(cstr, fp):
     return [line for line in instr.split('\n') if "error" in line.lower()]
 
 
-def rbf_hyperparameters():
+def run_rbf(in_tup):
+    devnull = open(os.devnull, "w")
+    fns, settings, ndims = in_tup
+    train, test = fns
+    lb, batch_size, gamma = settings
+    cstr = ("./train_rbf -g%f -s%i -b%i -M10000 -l%f %s %s" %
+            (gamma, ndims, batch_size, lb,
+             train, test))
+    try:
+        output = filter_call(cstr, devnull)
+    except CalledProcessError:
+        sys.stderr.write("Retrying....\n")
+        output = filter_call(cstr, devnull)
+    for line in output:
+        if "test" in line.lower():
+            testout = float(line.split(":")[1][:-1])
+        if "train" in line.lower():
+            trainout = float(line.split(":")[1][:-1])
+    return (testout, trainout, lb, batch_size)
+
+
+def rbf_hyperparameters(nthreads=-1):
+    if(nthreads < 0):
+         nthreads = multiprocessing.cpu_count()
+    cfi = itertools.chain.from_iterable
     A8A_FILES = ("test/a8a.txt", "test/a8a.test")
     A8A_LAMBDAS = [0.0001, 0.001, 0.025, 0.05, 0.1, 1.]
     A8A_BATCHSZ = [32]
@@ -18,31 +43,19 @@ def rbf_hyperparameters():
     BRCA_LAMBDAS = [0.0001, 0.001, 0.025, 0.05, 0.1, 1.]
     BRCA_GAMMAS  = [0.001, 0.01, 0.1, 0.25, 0.5, 1.0, 2.5]
     BRCA_BATCHSZ = [32]
-    a8a_combs = [A8A_FILES, itertools.chain.from_iterable(
-        [[[(lb, batch, gamma) for lb in A8A_LAMBDAS] for
-          batch in A8A_BATCHSZ] for gamma in A8A_GAMMAS]), 123]
-    brca_combs = [BRCA_FILES, itertools.chain.from_iterable(
+    a8a_combs = [A8A_FILES, cfi(
+                 [[[(lb, batch, gamma) for lb in A8A_LAMBDAS] for
+                  batch in A8A_BATCHSZ] for gamma in A8A_GAMMAS]), 123]
+    brca_combs = [BRCA_FILES, cfi(cfi(
         [[[(lb, batch, gamma) for lb in BRCA_LAMBDAS] for
-          batch in BRCA_BATCHSZ] for gamma in BRCA_GAMMAS]), 10]
-    devnull = open(os.devnull, 'w')
+          batch in BRCA_BATCHSZ] for gamma in BRCA_GAMMAS])), 10]
+    Spooool = multiprocessing.Pool(nthreads)
     for settings in [a8a_combs, brca_combs]:
         sys.stderr.write("Processing %s, %s\n" % (settings[0][0],
                                                   settings[0][1]))
-        results = []
-        for lb, batch_size, gamma in settings[1]:
-                cstr = ("./train_rbf -g%f -s%i -b%i -M10000 -l%f %s %s" %
-                        (gamma, settings[2], batch_size, lb,
-                         settings[0][0], settings[0][1]))
-                try:
-                    output = filter_call(cstr, devnull)
-                except CalledProcessError:
-                    output = filter_call(cstr, devnull)
-                for line in output:
-                    if "test" in line.lower():
-                        testout = float(line.split(":")[1][:-1])
-                    if "train" in line.lower():
-                        trainout = float(line.split(":")[1][:-1])
-                results.append((testout, trainout, lb, batch_size))
+        results = Spooool.map(run_rbf, ((settings[0], tup,
+                                         settings[2]) for
+                                        tup in cfi(settings[1])))
         results.sort(key=lambda x: x[0] * 10 + x[1])
         sys.stdout.write("Best parameters for %s (test %f, "
                          "train %f): {lambda: %f, bs: %i}\n" %
@@ -89,10 +102,14 @@ def linear_hyperparameters():
 if __name__ == "__main__":
     import argparse
     p = argparse.ArgumentParser()
-    p.add_argument("--run-linear", action='store_true')
-    p.add_argument("--run-rbf",    action='store_true')
+    p.add_argument("--run-linear",
+                   action='store_true')
+    p.add_argument("--run-rbf",
+                   action='store_true')
+    p.add_argument("--threads", "-p",
+                   default=-1, type=int)
     args = p.parse_args()
     if args.run_linear:
         linear_hyperparameters()
     if args.run_rbf:
-        rbf_hyperparameters()
+        rbf_hyperparameters(args.threads)

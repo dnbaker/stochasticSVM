@@ -102,7 +102,6 @@ public:
     }
     size_t get_nsamples() const {return ns_;}
     size_t get_ndims()    const {return nd_;}
-    size_t ndims()        const {return nd_;}
     bool get_bias()       const {return bias_;}
     auto  &get_matrix()         {return m_;}
 
@@ -333,7 +332,7 @@ public:
         }
         row(w_avg_.weights_, 0) *= 1. / avg_size_;
         double ls(loss());
-        cout << "Train error: " << ls * 100 << "%\nafter "
+        cout << "% Train error: " << ls * 100 << "%\nafter "
              << t_ + 1 << " iterations "<<'\n';
         cleanup();
     }

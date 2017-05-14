@@ -1,6 +1,5 @@
 #include "lib/kernel_svm.h"
-#include <getopt.h>
-#include <iostream>
+#include "src/run_svm.h"
 using namespace svm;
 
 int usage(char *ex) {
@@ -34,47 +33,6 @@ public:
     }
 };
 
-#define TEST_SVM \
-        if(argc > optind + 1) {\
-            IntCounter counter;\
-            size_t nlines(0), nerror(0);\
-            DynamicMatrix<FLOAT_TYPE> vec(1, svm.get_ndims());\
-            row(vec, 0) = 0.;\
-            if(svm.get_bias()) vec(0, vec.columns() - 1) = 1.;\
-            std::ifstream is(argv[optind + 1]);\
-            int label;\
-            for(std::string line;std::getline(is, line);) {\
-                /*cerr << line << '\n';*/\
-                row(vec, 0) = 0.;\
-                if(svm.get_bias()) vec(0, vec.columns() - 1)= 1.;\
-                label = atoi(line.data());\
-                char *p(&line[0]);\
-                while(!std::isspace(*p)) ++p;\
-                for(;;) {\
-                    while(*p == '\t' || *p == ' ') ++p;\
-                    if(*p == '\n' || *p == '\0' || p > line.data() + line.size()) break;\
-                    /*cerr << p << '\n';*/\
-                    const int ind(atoi(p) - 1);\
-                    p = strchr(p, ':');\
-                    if(p) ++p;\
-                    else throw std::runtime_error("No ':' found!");\
-                    vec(0, ind) = atof(p);\
-                    while(!std::isspace(*p)) ++p;\
-                }\
-                /*cerr << vec;*/\
-                auto wrow(row(vec, 0));\
-                if(svm.get_bias()) assert(wrow[wrow.size() - 1] == 1.);\
-                const auto classification(svm.classify_external(wrow));\
-                if(classification != label) {\
-                    ++nerror; counter.add(label); cerr << "Misclassifying " << label << " as " << classification << '\n';\
-                    cerr << "Value of predict: " << svm.predict(wrow) << '\n';\
-                    cerr << "Data: " << wrow << '\n';\
-                }\
-                ++nlines;\
-            }\
-            cout << "Test error rate: " << 100. * nerror / nlines << "%\n";\
-            cout << "Mislabeling: " << counter.str() << '\n';\
-        }
 
 int main(int argc, char *argv[]) {
     int c, batch_size(256), nd_sparse(0);
@@ -114,6 +72,6 @@ int main(int argc, char *argv[]) {
                       : KernelSVM<decltype(kernel), FLOAT_TYPE>(argv[optind], lambda, kernel, batch_size, max_iter, eps, rescale, bias));
     svm.train();
     svm.write(ofp);
-    TEST_SVM
+    RUN_SVM
     if(ofp != stdout) fclose(ofp);
 }

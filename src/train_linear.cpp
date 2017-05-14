@@ -1,6 +1,5 @@
 #include "lib/linear_svm.h"
-#include <getopt.h>
-#include <iostream>
+#include "src/run_svm.h"
 using namespace svm;
 
 #if BLAZE_BLAS_MODE == 0
@@ -51,36 +50,6 @@ enum Policy:size_t{
         LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)> svm = \
             nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)>(argv[optind], nd_sparse, lambda, policy, batch_size, max_iter, eps, 1000, project, rescale, bias) \
                       : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)>(argv[optind], lambda, policy, batch_size, max_iter, eps, 1000, project, rescale, bias)
-
-#define RUN_SVM \
-        svm.train();\
-        svm.write(ofp);\
-        if(argc > optind + 1) {\
-            int moffsets(svm.get_ndims() + 1), *offsets(static_cast<int *>(malloc(moffsets * sizeof(int))));\
-            IntCounter counter;\
-            size_t nlines(0), nerror(0);\
-            DynamicVector<FLOAT_TYPE> vec(svm.ndims());\
-            if(svm.get_bias()) vec[vec.size() - 1] = 1.;\
-            std::ifstream is(argv[optind + 1]);\
-            int label;\
-            for(std::string line;std::getline(is, line);) {\
-                /*cerr << line << '\n';*/\
-                vec = 0.;\
-                if(svm.get_bias()) vec[vec.size() - 1] = 1.;\
-                const int ntoks(ksplit_core(static_cast<char *>(&line[0]), 0, &moffsets, &offsets));\
-                label = atoi(line.data());\
-                for(int i(1); i < ntoks; ++i) {\
-                    const char *p(line.data() + offsets[i]);\
-                    vec[atoi(p) - 1] = atof(strchr(p, ':') + 1);\
-                }\
-                /*cerr << vec;*/\
-                if(svm.classify_external(vec) != label) {++nerror;counter.add(label);}\
-                ++nlines;\
-            }\
-            std::free(offsets);\
-            cout << "Test error rate: " << 100. * nerror / nlines << "%\n";\
-            cout << "Mislabeling: " << counter.str() << '\n';\
-        }
 
 int main(int argc, char *argv[]) {
     int c, batch_size(256), nd_sparse(0);
