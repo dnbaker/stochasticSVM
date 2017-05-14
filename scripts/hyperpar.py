@@ -13,10 +13,12 @@ def run_rbf(in_tup):
     devnull = open(os.devnull, "w")
     fns, settings, ndims = in_tup
     train, test = fns
+    print(settings)
     lb, batch_size, gamma = settings
     cstr = ("./train_rbf -g%f -s%i -b%i -M10000 -l%f %s %s" %
             (gamma, ndims, batch_size, lb,
              train, test))
+    sys.stderr.write("Executing '%s'\n" % cstr)
     try:
         output = filter_call(cstr, devnull)
     except CalledProcessError:
@@ -33,29 +35,29 @@ def run_rbf(in_tup):
 def rbf_hyperparameters(nthreads=-1):
     if(nthreads < 0):
          nthreads = multiprocessing.cpu_count()
+    sys.stderr.write(
+        "Running RBF hyperparameter searching with %i threads\n" % nthreads)
     cfi = itertools.chain.from_iterable
     A8A_FILES = ("test/a8a.txt", "test/a8a.test")
     A8A_LAMBDAS = [0.0001, 0.001, 0.025, 0.05, 0.1, 1.]
-    A8A_BATCHSZ = [32]
-    A8A_GAMMAS  = [0.001, 0.01, 0.1, 0.25, 0.5, 1.0, 2.5]
+    A8A_BATCHSZ = [32, 64, 128]
+    A8A_GAMMAS  = [0.001, 0.005, 0.01, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0]
 
     BRCA_FILES = ("test/brcafix.train", "test/brcafix.test")
     BRCA_LAMBDAS = [0.0001, 0.001, 0.025, 0.05, 0.1, 1.]
     BRCA_GAMMAS  = [0.001, 0.01, 0.1, 0.25, 0.5, 1.0, 2.5]
     BRCA_BATCHSZ = [32]
-    a8a_combs = [A8A_FILES, cfi(
+    a8a_combs = [A8A_FILES, cfi(cfi(
                  [[[(lb, batch, gamma) for lb in A8A_LAMBDAS] for
-                  batch in A8A_BATCHSZ] for gamma in A8A_GAMMAS]), 123]
+                  batch in A8A_BATCHSZ] for gamma in A8A_GAMMAS])), 123]
     brca_combs = [BRCA_FILES, cfi(cfi(
         [[[(lb, batch, gamma) for lb in BRCA_LAMBDAS] for
           batch in BRCA_BATCHSZ] for gamma in BRCA_GAMMAS])), 10]
     Spooool = multiprocessing.Pool(nthreads)
     for settings in [a8a_combs, brca_combs]:
-        sys.stderr.write("Processing %s, %s\n" % (settings[0][0],
-                                                  settings[0][1]))
-        results = Spooool.map(run_rbf, ((settings[0], tup,
-                                         settings[2]) for
-                                        tup in cfi(settings[1])))
+        tupsets = ((settings[0], tup, settings[2]) for tup in
+                   settings[1])
+        results = Spooool.map(run_rbf, tupsets)
         results.sort(key=lambda x: x[0] * 10 + x[1])
         sys.stdout.write("Best parameters for %s (test %f, "
                          "train %f): {lambda: %f, bs: %i}\n" %
