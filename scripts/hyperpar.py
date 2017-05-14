@@ -9,14 +9,16 @@ def filter_call(cstr, fp):
     return [line for line in instr.split('\n') if "error" in line.lower()]
 
 
+MAX_KERNEL_ITER = 4000
+
+
 def run_rbf(in_tup):
     devnull = open(os.devnull, "w")
     fns, settings, ndims = in_tup
     train, test = fns
-    print(settings)
     lb, batch_size, gamma = settings
-    cstr = ("./train_rbf -g%f -s%i -b%i -M10000 -l%f %s %s" %
-            (gamma, ndims, batch_size, lb,
+    cstr = ("./train_rbf -g%f -s%i -b%i -M%i -l%f %s %s" %
+            (gamma, ndims, batch_size, MAX_KERNEL_ITER, lb,
              train, test))
     sys.stderr.write("Executing '%s'\n" % cstr)
     try:
@@ -25,11 +27,12 @@ def run_rbf(in_tup):
         sys.stderr.write("Retrying....\n")
         output = filter_call(cstr, devnull)
     for line in output:
+        sys.stderr.write("line: %s" % line)
         if "test" in line.lower():
             testout = float(line.split(":")[1][:-1])
         if "train" in line.lower():
             trainout = float(line.split(":")[1][:-1])
-    return (testout, trainout, lb, batch_size)
+    return (testout, trainout, lb, batch_size, gamma)
 
 
 def rbf_hyperparameters(nthreads=-1):
@@ -59,10 +62,11 @@ def rbf_hyperparameters(nthreads=-1):
                    settings[1])
         results = Spooool.map(run_rbf, tupsets)
         results.sort(key=lambda x: x[0] * 10 + x[1])
+        best = results[0]
         sys.stdout.write("Best parameters for %s (test %f, "
-                         "train %f): {lambda: %f, bs: %i}\n" %
-                         (settings[0][0], results[0][0], results[0][1],
-                          results[0][2], results[0][3]))
+                         "train %f): {lambda: %f, bs: %i, gamma: %f}\n" %
+                         (settings[0][0], best[0], best[1],
+                          best[2], best[3], best[4]))
 
 
 def linear_hyperparameters():
