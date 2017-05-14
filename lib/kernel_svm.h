@@ -7,6 +7,14 @@
 #include <unordered_set>
 #include <mutex>
 
+#define USE_FASTRANGE 0
+
+#if USE_FASTRANGE
+#define RANGE_SELECT(size) (fastrangesize(rand64(), size))
+#else
+#define RANGE_SELECT(size) (rand64() % size)
+#endif
+
 namespace svm {
 
 KHASH_SET_INIT_INT64(I) // 64-bit set for randomly selected batch sizes.
@@ -274,18 +282,23 @@ public:
         kh_resize(I, h_, mbs_ * 1.5);
         kh_clear(I, h_);
         std::set<size_t> indices;
+        const size_t per_batch(std::min(mbs_, ns_));
         for(t_ = 0; t_ < max_iter_; ++t_) {
-            cerr << "At the start of time == " << t_ << ", we have " << a_.nonZeros() << " nonzeros.\n";
+            //cerr << "At the start of time == " << t_ << ", we have " << a_.nonZeros() << " nonzeros.\n";
             indices.clear();
             last_alphas = a_;
             int khr;
             size_t ndiff(0);
             //std::vector<std::mutex> muts(nd_ >> 6);
-            while(kh_size(h_) < mbs_) {
+            //cerr << "Filling random entries. Number in batch: " << mbs_ << '\n';
+            while(kh_size(h_) < per_batch) {
                 // Could probably speed up by changing loop iteration:
                 // Iterating through all alphas and processing each element for it.
-                kh_put(I, h_, fastrangesize(rand64(), ns_), &khr);
+                kh_put(I, h_, RANGE_SELECT(ns_), &khr);
+                //cerr << "Size of hash: " << kh_size(h_) << '\n';
+                //cerr << "Number of elements in training data: " << ns_ << '\n';
             }
+            //cerr << "About to get elements to update\n";
             #pragma omp parallel for
             for(khiter_t ki = 0; ki < kh_end(h_); ++ki) {
                 if(kh_exist(h_, ki)) {
@@ -298,6 +311,7 @@ public:
                     }
                 }
             }
+            //cerr << "Got elements to update\n";
             if(t_ == 0) assert(a_.nonZeros() == 0);
             for(const auto index: indices) ++a_[index];
             kh_clear(I, h_);

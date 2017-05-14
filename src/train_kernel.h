@@ -56,7 +56,8 @@ int main(int argc, char *argv[]) {\
     blaze::setNumThreads(nthreads);\
     omp_set_num_threads(nthreads);\
     KERNEL_INIT;\
-    cerr << "Training data at " << argv[optind] << ". Test data at " << optind == argc - 1 ? "unused" : argv[optind + 1] << ".\n";\
+    cerr << "Training data at " << argv[optind] << ".\n";\
+    if(optind < argc - 1) cerr << "Test data at " << argv[optind + 1] << ".\n";\
     KernelSVM<decltype(kernel), FLOAT_TYPE> svm(\
             nd_sparse ? KernelSVM<decltype(kernel), FLOAT_TYPE>(argv[optind], nd_sparse, lambda, kernel, batch_size, max_iter, eps, rescale, bias)\
                       : KernelSVM<decltype(kernel), FLOAT_TYPE>(argv[optind], lambda, kernel, batch_size, max_iter, eps, rescale, bias));\
