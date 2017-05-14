@@ -27,7 +27,6 @@ def run_rbf(in_tup):
         sys.stderr.write("Retrying....\n")
         output = filter_call(cstr, devnull)
     for line in output:
-        sys.stderr.write("line: %s" % line)
         if "test" in line.lower():
             testout = float(line.split(":")[1][:-1])
         if "train" in line.lower():
