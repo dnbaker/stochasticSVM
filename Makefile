@@ -5,7 +5,7 @@ STD=c++14
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
          -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
          -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter
-DBG:= -DNDEBUG # -DNDEBUG
+DBG:= -DNDEBUG
 OPT:= -O3 -funroll-loops -pipe -fno-strict-aliasing -march=native -fopenmp
 OS:=$(shell uname)
 ifeq ($(OS),Darwin)
@@ -32,7 +32,7 @@ EX=$(patsubst src/%.o,%,$(EXEC_OBJS))
 INCLUDE=-I. -Ilib -Iblaze
 
 ifdef BOOST_INCLUDE_PATH
-INCLUDE+= -I$(BOOST_INCLUDE_PATH)
+INCLUDE += -I$(BOOST_INCLUDE_PATH)
 endif
 
 all: $(OBJS) $(EX) unit
