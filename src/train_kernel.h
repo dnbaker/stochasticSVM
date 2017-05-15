@@ -12,13 +12,14 @@ int usage(char *ex) {\
     char buf[1024];\
     std::sprintf(buf, "Usage: %s <opts> data\n"\
                        "Flags:\n\n-p:\tNumber of processes [1]\n"\
-                       "-[h?]:\tHelp menu.\n"\
-                       "-l:\tSet lambda parameter.\n"\
+                       "-l:\tSet lambda parameter. [0.5]\n"\
                        KERNEL_USAGE \
-                       "-M:\tMax iter (100000)\n"\
-                       "-b:\tBatch size\n"\
-                       "-e:\tSet epsilon for termination.\n"\
+                       "-M:\tMax iter [100000]\n"\
+                       "-b:\tBatch size [256]\n"\
+                       "-e:\tSet epsilon for termination. [1e-6]\n"\
+                       "-p:\tSet number of threads. [1]\n"\
                        "-s:\tNumber of dimensions for sparse parsing. Also determines the use of sparse rather than dense parsing.\n"\
+                       "-[h?]:\tHelp menu.\n"\
                  , ex);\
     cerr << buf;\
     return EXIT_FAILURE;\

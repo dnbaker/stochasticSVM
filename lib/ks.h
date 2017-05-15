@@ -33,6 +33,7 @@ public:
 
     operator const kstring_t *() const {return &ks_;}
     operator       kstring_t *()       {return &ks_;}
+
     // Copy
     KString(const KString &other): ks_{other->l, other->m, (char *)std::malloc(other->m)} {
         memcpy(ks_.s, other->s, other->m);
@@ -48,15 +49,16 @@ public:
     int cmp(const char *s) const {
         return strcmp(ks_.s, s);
     }
-    int cmp(const KString &other) {return cmp(other->s);}
 
-    bool operator==(const KString &other) {
+    int cmp(const KString &other) const {return cmp(other->s);}
+
+    bool operator==(const KString &other) const {
         if(other->l != ks_.l) return 0;
         for(size_t i(0); i < ks_.l; ++i) if(ks_.s[i] != other->s[i]) return 0;
         return 1;
     }
 
-    bool palindrome() {
+    bool palindrome() const {
         for(size_t i(0), e(ks_.l >> 1); i < e; ++i)
             if(ks_.s[i] != ks_.s[ks_.l - i - 1])
                 return 0;
@@ -90,7 +92,7 @@ public:
     auto          end() const {return ks_.s + ks_.l;}
     const auto cbegin() const {return const_cast<const char *>(ks_.s);}
     const auto   cend() const {return const_cast<const char *>(ks_.s + ks_.l);}
-    void pop() {ks_.s[--ks_.l] = 0;}
+    char pop() {const char ret(ks_.s[--ks_.l]); ks_.s[ks_.l] = 0; return ret;}
     void pop(size_t n) {
         ks_.l = ks_.l > n ? ks_.l - n: 0;
         ks_.s[ks_.l] = 0;

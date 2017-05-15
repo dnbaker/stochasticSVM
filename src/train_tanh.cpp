@@ -9,4 +9,4 @@
 DECLARE_KERNEL_SVM(KERNEL_INIT,\
                    TANH_SWITCH,\
                    KERNEL_PARAMS,\
-                   "-k\tKappa for tanh kernel\n-c\tC for tanh kernel\n", "k:c:")
+                   "-k\tKappa for tanh kernel [1.0]\n-c\tC for tanh kernel [0.]\n", "k:c:")

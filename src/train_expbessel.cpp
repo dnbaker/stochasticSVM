@@ -7,4 +7,4 @@
 DECLARE_KERNEL_SVM(KERNEL_INIT,\
                    EXP_BESSEL_SWITCH,\
                    KERNEL_PARAMS,\
-                   "-S\tSigma for Exponential Bessel Kernel [1.0]\n-O\tOrder for Exponential Bessel Kernel", "S:O:")
+                   "-S\tSigma for Exponential Bessel Kernel [1.0]\n-O\tOrder for Exponential Bessel Kernel [1]", "S:O:")
