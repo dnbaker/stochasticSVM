@@ -4,6 +4,7 @@ import itertools
 import multiprocessing
 from subprocess import check_output as co, CalledProcessError
 
+
 def filter_call(cstr, fp):
     instr = co(cstr, shell=True, stderr=fp, executable="/bin/bash").decode()
     return [line for line in instr.split('\n') if "error" in line.lower()]
@@ -40,18 +41,18 @@ def run_rbf(in_tup):
 
 def rbf_hyperparameters(nthreads=-1):
     if(nthreads < 0):
-         nthreads = multiprocessing.cpu_count()
+        nthreads = multiprocessing.cpu_count()
     sys.stderr.write(
         "Running RBF hyperparameter searching with %i threads\n" % nthreads)
     cfi = itertools.chain.from_iterable
     A8A_FILES = ("test/a8a.txt", "test/a8a.test")
     A8A_LAMBDAS = [0.0001, 0.001, 0.025, 0.05, 0.1, 1.]
     A8A_BATCHSZ = [32, 64, 128]
-    A8A_GAMMAS  = [0.001, 0.005, 0.01, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0]
+    A8A_GAMMAS = [0.001, 0.005, 0.01, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0]
 
     BRCA_FILES = ("test/brcafix.train", "test/brcafix.test")
     BRCA_LAMBDAS = [0.0001, 0.001, 0.025, 0.05, 0.1, 1.]
-    BRCA_GAMMAS  = [0.001, 0.01, 0.1, 0.25, 0.5, 1.0, 2.5]
+    BRCA_GAMMAS = [0.001, 0.01, 0.1, 0.25, 0.5, 1.0, 2.5]
     BRCA_BATCHSZ = [32]
     a8a_combs = [A8A_FILES, cfi(cfi(
                  [[[(lb, batch, gamma) for lb in A8A_LAMBDAS] for
