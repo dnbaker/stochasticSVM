@@ -29,15 +29,17 @@ struct LinearKernel: KernelBase<FloatType> {
 template<typename FloatType>
 struct PolyKernel: KernelBase<FloatType> {
     const FloatType a_;
+    const FloatType c_;
     const FloatType d_;
     template<typename MatrixType1, typename MatrixType2>
     FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
-        const FloatType prod(a * dot(a, b) + d_);
+        const FloatType prod(a_ * dot(a, b) + c_);
         return std::pow(prod, d_);
     }
-    PolyKernel(FloatType a, FloatType d): a_(a), d_(d) {}
+    PolyKernel(FloatType a, FloatType c, FloatType d): a_(a), c_(c), d_(d) {}
     std::string str() const {
         return std::string("PolyKernel:{") + std::to_string(a_) + ", " +
+                           std::to_string(c_) + ", " +
                            std::to_string(d_) + "}";
     }
 };
