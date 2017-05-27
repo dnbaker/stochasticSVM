@@ -5,12 +5,63 @@ import multiprocessing
 from subprocess import check_output as co, CalledProcessError
 
 
+MAX_KERNEL_ITER = 4000
+DEFAULT_BATCH_SIZES = [16, 32, 64, 128, 256, 1024]
+DEFAULT_LAMBDAS = [0.0001, 0.001, 0.025, 0.05, 0.1, 1.]
+
+
 def filter_call(cstr, fp):
     instr = co(cstr, shell=True, stderr=fp, executable="/bin/bash").decode()
     return [line for line in instr.split('\n') if "error" in line.lower()]
 
 
-MAX_KERNEL_ITER = 4000
+'''
+class HyperparameterSearch:
+
+    def __init__(self, ndims, batch_sizes=DEFAULT_BATCH_SIZES,
+                 lbs=DEFAULT_LAMBDAS,
+                 max_iter=MAX_KERNEL_ITER):
+        self.batch_sizes = batch_sizes
+        self.lbs = lbs
+        self.max_iter = max_iter
+        self.ndims = ndims
+        self.result = None
+        raise NotImplementedError("This class is incomplete.")
+
+    def make_stdopts(self, train, test, bs, lb):
+        return "-e-1 -s%i -b%i -M%i -l%f %s %s" % (self.ndims, bs,
+                                                   self.max_iter, lb,
+                                                   train, test)
+
+    def gen_cmd(self):
+        pass
+'''
+
+
+def run_laplace(in_tup):
+    devnull = open(os.devnull, "w")
+    fns, settings, ndims = in_tup
+    train, test = fns
+    lb, batch_size, sigma = settings
+    cstr = ("./train_laplace -e-1 -S%f -s%i -b%i -M%i -l%f %s %s" %
+            (sigma, ndims, batch_size, MAX_KERNEL_ITER, lb,
+             train, test))
+    sys.stderr.write("Executing '%s'\n" % cstr)
+    try:
+        output = filter_call(cstr, devnull)
+    except CalledProcessError:
+        sys.stderr.write("Retrying....\n")
+        output = filter_call(cstr, devnull)
+    for line in output:
+        if "test" in line.lower():
+            testout = float(line.split(":")[1][:-1])
+        if "train" in line.lower():
+            try:
+                trainout = float(line.split(":")[1][:-1])
+            except ValueError:
+                sys.stderr.write("ValueError on float for line: %s\n" % line)
+                raise
+    return (testout, trainout, lb, batch_size, sigma)
 
 
 def run_rbf(in_tup):
@@ -37,6 +88,48 @@ def run_rbf(in_tup):
                 sys.stderr.write("ValueError on float for line: %s\n" % line)
                 raise
     return (testout, trainout, lb, batch_size, gamma)
+
+
+def laplace_hyperparameters(nthreads=-1):
+    if(nthreads < 0):
+        nthreads = multiprocessing.cpu_count()
+    sys.stderr.write(
+        "Running Laplacian hyperparameter searching with "
+        "%i threads\n" % nthreads)
+    cfi = itertools.chain.from_iterable
+    A8A_FILES = ("test/a8a.txt", "test/a8a.test")
+    A8A_LAMBDAS = [0.0001, 0.001, 0.025, 0.05, 0.1, 1.]
+    A8A_BATCHSZ = [32, 64, 128]
+    A8A_GAMMAS = [0.001, 0.005, 0.01, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0]
+    MADELON_FILES = ("test/madelon.train", "test/madelon.test")
+    MADELON_LAMBDAS = [0.0001, 0.001, 0.025, 0.05, 0.1, 1.]
+    MADELON_BATCHSZ = [32, 64, 128]
+    MADELON_SIGMAS = [0.001, 0.005, 0.01, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0]
+    BRCA_FILES = ("test/brcafix.train", "test/brcafix.test")
+    BRCA_LAMBDAS = [0.0001, 0.001, 0.025, 0.05, 0.1, 1.]
+    BRCA_GAMMAS = [0.001, 0.01, 0.1, 0.25, 0.5, 1.0, 2.5]
+    BRCA_BATCHSZ = [32]
+    a8a_combs = [A8A_FILES, cfi(cfi(
+                 [[[(lb, batch, gamma) for lb in A8A_LAMBDAS] for
+                  batch in A8A_BATCHSZ] for gamma in A8A_GAMMAS])), 123]
+    mad_combs = [MADELON_FILES, cfi(cfi(
+                 [[[(lb, batch, sigma) for lb in MADELON_LAMBDAS] for
+                  batch in MADELON_BATCHSZ] for sigma in MADELON_SIGMAS])),
+                 500]
+    brca_combs = [BRCA_FILES, cfi(cfi(
+        [[[(lb, batch, gamma) for lb in BRCA_LAMBDAS] for
+          batch in BRCA_BATCHSZ] for gamma in BRCA_GAMMAS])), 10]
+    Spooool = multiprocessing.Pool(nthreads)
+    for settings in [mad_combs, brca_combs, a8a_combs]:
+        tupsets = ((settings[0], tup, settings[2]) for tup in
+                   settings[1])
+        results = Spooool.map(run_laplace, tupsets)
+        results.sort(key=lambda x: x[0] * 10 + x[1])
+        best = results[0]
+        sys.stdout.write("Best parameters for %s (test %f, "
+                         "train %f): {lambda: %f, bs: %i, gamma: %f}\n" %
+                         (settings[0][0], best[0], best[1],
+                          best[2], best[3], best[4]))
 
 
 def rbf_hyperparameters(nthreads=-1):
@@ -116,6 +209,8 @@ if __name__ == "__main__":
                    action='store_true')
     p.add_argument("--run-rbf",
                    action='store_true')
+    p.add_argument("--run-laplace",
+                   action='store_true')
     p.add_argument("--threads", "-p",
                    default=-1, type=int)
     args = p.parse_args()
@@ -123,3 +218,5 @@ if __name__ == "__main__":
         linear_hyperparameters()
     if args.run_rbf:
         rbf_hyperparameters(args.threads)
+    if args.run_laplace:
+        laplace_hyperparameters(args.threads)

@@ -1,5 +1,46 @@
 #include "lib/kernel_svm.h"
-#include "src/run_svm.h"
+#include <getopt.h>
+#include <iostream>
+using namespace svm;
+
+#ifndef NOTIFICATION_INTERVAL
+#define NOTIFICATION_INTERVAL 256
+#endif
+
+// Macro for running SVM and testing it.
+
+#define RUN_SVM \
+        svm.train();\
+        svm.write(ofp);\
+        if(argc > optind + 1) {\
+            int moffsets(svm.get_ndims() + 1), *offsets(static_cast<int *>(malloc(moffsets * sizeof(int))));\
+            IntCounter counter;\
+            size_t nlines(0), nerror(0);\
+            DynamicMatrix<FLOAT_TYPE> vecmat(1, svm.get_ndims());\
+            auto vec(row(vecmat, 0));\
+            if(svm.get_bias()) vec[vec.size() - 1] = 1.;\
+            std::ifstream is(argv[optind + 1]);\
+            int label;\
+            for(std::string line;std::getline(is, line);) {\
+                /*cerr << line << '\n';*/\
+                vec = 0.;\
+                if(svm.get_bias()) vec[vec.size() - 1] = 1.;\
+                const int ntoks(ksplit_core(static_cast<char *>(&line[0]), 0, &moffsets, &offsets));\
+                label = atoi(line.data());\
+                for(int i(1); i < ntoks; ++i) {\
+                    const char *p(line.data() + offsets[i]);\
+                    vec[atoi(p) - 1] = atof(strchr(p, ':') + 1);\
+                }\
+                /*cerr << vec;*/\
+                if(svm.classify_external(vec) != label) {\
+                    ++nerror, counter.add(label);\
+                }\
+                if(++nlines % NOTIFICATION_INTERVAL == 0) cerr << "Processed " << nlines << " lines.\n";\
+            }\
+            std::free(offsets);\
+            cout << "Test error rate: " << 100. * nerror / nlines << "%\n";\
+            cout << "Mislabeling: " << counter.str() << '\n';\
+        }
 
 /* 
  * Giant macro creating an executable for a given kernel.
