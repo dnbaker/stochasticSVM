@@ -1,4 +1,4 @@
-#include "src/train_kernel.h"
+#include "src/train_svm.h"
 
 #define SPHERICAL_SWITCH case 'S': sigma = atof(optarg); break;
 #define KERNEL_PARAMS FLOAT_TYPE sigma(1.0);

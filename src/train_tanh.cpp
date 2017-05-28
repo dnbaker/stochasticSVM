@@ -1,4 +1,4 @@
-#include "src/train_kernel.h"
+#include "src/train_svm.h"
 
 #define TANH_INIT(kernel, kappa, tanhc) TanhKernel<FLOAT_TYPE> kernel(kappa, tanhc)
 #define TANH_PARAMS(kappa, tanhc) FLOAT_TYPE kappa(1.0); FLOAT_TYPE tanhc(0.)

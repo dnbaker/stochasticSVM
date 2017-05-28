@@ -1,5 +1,5 @@
 #include "lib/linear_svm.h"
-#include "src/run_svm.h"
+#include "src/train_svm.h"
 
 
 int usage(char *ex) {

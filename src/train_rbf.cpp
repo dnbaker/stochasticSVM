@@ -1,4 +1,4 @@
-#include "src/train_kernel.h"
+#include "src/train_svm.h"
 
 
 

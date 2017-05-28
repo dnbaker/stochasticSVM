@@ -1,4 +1,4 @@
-#include "src/train_kernel.h"
+#include "src/train_svm.h"
 
 #define EXP_BESSEL_SWITCH case 'S': sigma = atof(optarg); break; case 'O': order = atoi(optarg); break;
 #define KERNEL_PARAMS FLOAT_TYPE order(1), sigma(1.0);
