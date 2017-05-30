@@ -7,6 +7,26 @@ using namespace svm;
 #define NOTIFICATION_INTERVAL 256
 #endif
 
+static int get_max_ind(const char *fn) {
+    gzFile fp(gzopen(fn, "rb"));
+    char buf[1 << 16];
+    char *p;
+    int tmp, cmax(0);
+    while((p = gzgets(fp, buf, sizeof buf))) {
+        char *q(strchr(p, '\0'));
+        while(*q != ':' && q != p) --q;
+        if(q == p) continue;
+        while(!std::isspace(*q)) --q;
+        if((tmp = atoi(++q)) > cmax) cmax = tmp;
+    }
+    gzclose(fp);
+    return cmax;
+}
+
+static int get_max_ind(const char *fn1, const char *fn2) {
+    return fn2 ? std::max(get_max_ind(fn1), get_max_ind(fn2)): get_max_ind(fn1);
+}
+
 // Macro for running SVM and testing it.
 
 #define RUN_SVM \
@@ -59,7 +79,7 @@ int usage(char *ex) {\
                        "-b:\tBatch size [256]\n"\
                        "-e:\tSet epsilon for termination. [1e-6]\n"\
                        "-p:\tSet number of threads. [1]\n"\
-                       "-s:\tNumber of dimensions for sparse parsing. Also determines the use of sparse rather than dense parsing.\n"\
+                       "-s:\tNumber of dimensions for sparse parsing. Also determines the use of sparse rather than dense parsing. [Set to -1 to infer from file(s)]\n"\
                        "-[h?]:\tHelp menu.\n"\
                  , ex);\
     cerr << buf;\
@@ -93,6 +113,7 @@ int main(int argc, char *argv[]) {\
             case 'h': case '?': usage: return usage(*argv);\
         }\
     }\
+    if(nd_sparse < 0) get_max_ind(argv[optind], argv[optind + 1]);\
 \
     if(optind == argc) goto usage;\
     blaze::setNumThreads(nthreads);\

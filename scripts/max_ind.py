@@ -1,5 +1,6 @@
 import sys
 
+
 def main():
     if not sys.argv[1:]:
         print("Usage: python %s <input.txt>")
