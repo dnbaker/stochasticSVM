@@ -1,7 +1,5 @@
 #include "src/train_svm.h"
 
-
-
 #define RBF_SWITCH case 'g': gamma = atof(optarg); break;
 #define KERNEL_PARAMS FLOAT_TYPE gamma(1.0);
 
