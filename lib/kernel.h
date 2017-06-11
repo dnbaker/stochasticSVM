@@ -231,6 +231,21 @@ struct ANOVAKernel: KernelBase<FloatType> {
     }
 };
 
+template<typename FloatType, size_t degree=0>
+struct ArccosKernel: KernelBase<FloatType> {
+    // https://papers.nips.cc/paper/3628-kernel-methods-for-deep-learning.pdf
+    template<typename MatrixType1, typename MatrixType2>
+    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+        const FloatType anorm(svm::norm(a)), bnorm(svm::norm(b)), theta(std::acos(dot(a, b) / (anorm * bnorm)));
+        return std::pow(anorm * bnorm, degree) / M_PIl * ArccosKernelJDetail(theta);
+    }
+
+    FloatType ArccosKernelJDetail(FloatType theta) const {
+        throw std::runtime_error("NotImplementedError");
+        return 0.;
+    }
+};
+
 template<typename FloatType>
 struct DefaultWaveletFunction {
     FloatType operator()(FloatType input) const {

@@ -125,8 +125,17 @@ INLINE FloatType diffnorm(const MatrixType1 &a, const MatrixType2 &b) {
     return dot(a - b, a - b);
 }
 
+template<typename MatrixType, typename FloatType=double>
+INLINE FloatType norm(const MatrixType &a) {
+    return std::sqrt(dot(a, a));
+}
+
+static INLINE u32 rand32() {
+    return (std::rand() & 0x0000FFFF) | ((std::rand() << 16) & 0xFFFF0000);
+}
+
 static inline u64 rand64() {
-    return ((u64)std::rand() << 32) | std::rand();
+    return ((u64)rand32() << 32) | rand32();
 }
 
 using blaze::Matrix;
