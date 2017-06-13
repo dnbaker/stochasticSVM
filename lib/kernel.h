@@ -231,18 +231,34 @@ struct ANOVAKernel: KernelBase<FloatType> {
     }
 };
 
+template<size_t degree=0>
+struct ArccosKernelJDetail {
+    double operator()(double theta) const {
+        throw std::runtime_error("NotImplementedError");
+        return 0.;
+    }
+};
+
+template<> struct ArccosKernelJDetail<0> {double operator()(double theta) const {return M_PI - theta;}};
+
+template<>
+struct ArccosKernelJDetail<1> {
+    double operator()(double theta) const {return std::sin(theta) + (M_PI - theta) * std::cos(theta);}
+};
+
+template<>
+struct ArccosKernelJDetail<2> {
+    double operator()(double theta) const {return std::sin(theta) + (M_PI - theta) * std::cos(theta);}
+};
+
 template<typename FloatType, size_t degree=0>
 struct ArccosKernel: KernelBase<FloatType> {
     // https://papers.nips.cc/paper/3628-kernel-methods-for-deep-learning.pdf
+    ArccosKernelJDetail<degree> fn_;
     template<typename MatrixType1, typename MatrixType2>
     FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
         const FloatType anorm(svm::norm(a)), bnorm(svm::norm(b)), theta(std::acos(dot(a, b) / (anorm * bnorm)));
-        return std::pow(anorm * bnorm, degree) / M_PIl * ArccosKernelJDetail(theta);
-    }
-
-    FloatType ArccosKernelJDetail(FloatType theta) const {
-        throw std::runtime_error("NotImplementedError");
-        return 0.;
+        return std::pow(anorm * bnorm, degree) / M_PI * fn_(theta);
     }
 };
 
