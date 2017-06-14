@@ -11,7 +11,7 @@ struct KernelBase {
     template<typename MatrixType1, typename MatrixType2>
     FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const;
     std::string str() const {
-        throw std::runtime_error("NotImplementedError");
+        throw std::runtime_error("NotImplementedError [no .str() method provided.]");
         return "KernelBase";
     }
 };
@@ -231,7 +231,7 @@ struct ANOVAKernel: KernelBase<FloatType> {
     }
 };
 
-template<size_t degree=0>
+template<size_t degree>
 struct ArccosKernelJDetail {
     double operator()(double theta) const {
         throw std::runtime_error("NotImplementedError");
@@ -259,6 +259,9 @@ struct ArccosKernel: KernelBase<FloatType> {
     FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
         const FloatType anorm(svm::norm(a)), bnorm(svm::norm(b)), theta(std::acos(dot(a, b) / (anorm * bnorm)));
         return std::pow(anorm * bnorm, degree) / M_PI * fn_(theta);
+    }
+    std::string str() const {
+        return std::string("ArccosKernel<") + std::to_string(degree) + ">";
     }
 };
 
