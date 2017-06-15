@@ -37,7 +37,7 @@ std::tuple<DynamicMatrix<MatrixType>, DynamicVector<VectorType>, std::unordered_
             line.clear();
             continue;
         }
-        p = line;
+        p = line.data();
 #if !NDEBUG
         line_end = &line[line.size() - 1];
 #endif

@@ -7,37 +7,60 @@
 #include <unistd.h>
 #include "klib/kstring.h"
 
+
+#ifndef kroundup64
+#define kroundup64(x) (--(x), (x)|=(x)>>1, (x)|=(x)>>2, (x)|=(x)>>4, (x)|=(x)>>8, (x)|=(x)>>16, (x)|=(x)>>32, ++(x))
+#endif
+
+
 namespace ks {
 
 class KString {
     kstring_t ks_;
 
+
 public:
 
     explicit KString(size_t size): ks_({0, size, size ? (char *)std::malloc(size): nullptr}) {}
     explicit KString(size_t used, size_t max, char *str): ks_({used, max, str}) {}
-    explicit KString(char *str): ks_({0, 0, str}) {}
+    explicit KString(const char *str) {
+        if(str == nullptr) {
+            memset(this, 0, sizeof *this);
+        } else {
+            ks_.l = strlen(str);
+            ks_.m = kroundup64(ks_.l);
+            ks_.s = (char *)malloc(ks_.m);
+            memcpy(ks_.s, str, ks_.l + 1);
+        }
+    }
 
     KString(): KString(nullptr) {}
     ~KString() {free(ks_.s);}
 
     // kstring_t access:
-    const auto operator->() const {
+    auto operator->() const {
         return const_cast<const kstring_t *>(&ks_);
     }
     kstring_t *operator->() {return &ks_;}
-
-    // Conversions
-    operator const char *() const {return ks_.s;}
-    operator       char *()       {return ks_.s;}
-
-    operator const kstring_t *() const {return &ks_;}
-    operator       kstring_t *()       {return &ks_;}
+    // Access kstring
+    kstring_t *ks()             {return &ks_;}
+    const kstring_t *ks() const {return &ks_;}
 
     // Copy
     KString(const KString &other): ks_{other->l, other->m, (char *)std::malloc(other->m)} {
-        memcpy(ks_.s, other->s, other->m);
+        memcpy(ks_.s, other->s, other->l + 1);
     }
+
+    KString(const std::string &str) {
+        ks_.l = str.size();
+        ks_.m = kroundup64(ks_.l);
+        ks_.s = (char *)malloc(ks_.m);
+        memcpy(ks_.s, str.data(), ks_.l + 1);
+    }
+
+    KString operator=(const KString &other)   {return KString(other);}
+    KString operator=(const char *str)        {return KString(str);}
+    KString operator=(const std::string &str) {return KString(str);}
 
     // Move
     KString(KString &&other) {
@@ -54,8 +77,17 @@ public:
 
     bool operator==(const KString &other) const {
         if(other->l != ks_.l) return 0;
+        if(ks_.l == 0) return 1;
         for(size_t i(0); i < ks_.l; ++i) if(ks_.s[i] != other->s[i]) return 0;
         return 1;
+    }
+
+    bool operator==(const char *str) const {
+        return ks_.s ? str ? strcmp(str, ks_.s) == 0: 0: 1;
+    }
+
+    bool operator==(const std::string &str) const {
+        return str.size() == ks_.l ? ks_.l ? strcmp(str.data(), ks_.s) == 0: 1: 0;
     }
 
     bool palindrome() const {
@@ -87,18 +119,18 @@ public:
     char  *release() {auto ret(ks_.s); ks_.l = ks_.m = 0; ks_.s = nullptr; return ret;}
 
     // STL imitation
-    size_t       size() const {return ks_.l;}
-    auto        begin() const {return ks_.s;}
-    auto          end() const {return ks_.s + ks_.l;}
-    const auto cbegin() const {return const_cast<const char *>(ks_.s);}
-    const auto   cend() const {return const_cast<const char *>(ks_.s + ks_.l);}
+    size_t size() const {return ks_.l;}
+    auto  begin() const {return ks_.s;}
+    auto    end() const {return ks_.s + ks_.l;}
+    auto cbegin() const {return const_cast<const char *>(ks_.s);}
+    auto   cend() const {return const_cast<const char *>(ks_.s + ks_.l);}
     char pop() {const char ret(ks_.s[--ks_.l]); ks_.s[ks_.l] = 0; return ret;}
     void pop(size_t n) {
         ks_.l = ks_.l > n ? ks_.l - n: 0;
         ks_.s[ks_.l] = 0;
     }
 
-    void clear() {ks_.l = 0;}
+    void clear() {ks_.l = 0;ks_.s[0] = '\0';}
 
     const char     *data() const {return ks_.s;}
     char           *data() {return ks_.s;}

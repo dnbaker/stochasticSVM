@@ -252,7 +252,7 @@ template<>
 struct ArccosKernelJDetail<2> {
     double operator()(double theta) const {
         const double c(std::cos(theta));
-        return 3. * std::sin(theta) * c + (M_PI - theta) * (1 + 2 * c * c)
+        return 3. * std::sin(theta) * c + (M_PI - theta) * (1 + 2 * c * c);
     }
 };
 
