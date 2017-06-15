@@ -239,7 +239,9 @@ struct ArccosKernelJDetail {
     }
 };
 
-template<> struct ArccosKernelJDetail<0> {double operator()(double theta) const {return M_PI - theta;}};
+template<> struct ArccosKernelJDetail<0> {
+    double operator()(double theta) const {return M_PI - theta;}
+};
 
 template<>
 struct ArccosKernelJDetail<1> {
@@ -248,7 +250,10 @@ struct ArccosKernelJDetail<1> {
 
 template<>
 struct ArccosKernelJDetail<2> {
-    double operator()(double theta) const {return std::sin(theta) + (M_PI - theta) * std::cos(theta);}
+    double operator()(double theta) const {
+        const double c(std::cos(theta));
+        return 3. * std::sin(theta) * c + (M_PI - theta) * (1 + 2 * c * c)
+    }
 };
 
 template<typename FloatType, size_t degree=0>
