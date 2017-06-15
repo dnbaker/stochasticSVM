@@ -19,6 +19,7 @@ ifneq (,$(findstring g++,$(CXX)))
 		endif
 	endif
 endif
+OPT:=$(OPT) $(FLAGS)
 FLOAT_TYPE=double
 XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=$(STD) $(WARNINGS) -DFLOAT_TYPE=$(FLOAT_TYPE)
