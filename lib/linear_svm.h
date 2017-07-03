@@ -41,15 +41,15 @@ class LinearSVM {
     // (See http://ttic.uchicago.edu/~nati/Publications/PegasosMPB.pdf,
     //  section 6.)
 
-    using WMType     = WeightMatrix<FloatType>;
+    using WMType     = WeightMatrix<FloatType, DynamicMatrix<FloatType>>;
     using KernelType = LinearKernel<FloatType>;
 
     MatrixKind                m_; // Training Data
     // Weights. one-dimensional for 2-class, nc_-dimensional for more.
     WMType w_;
     WMType w_avg_;
-    DynamicVector<int>        v_;
-    DynamicMatrix<FloatType>  r_;
+    DynamicVector<int> v_;
+    MatrixKind         r_;
     // Labels [could be compressed by requiring sorted data and checking
     // an index is before or after a threshold. Likely unnecessary, but could
     // aid cache efficiency.
@@ -182,9 +182,9 @@ private:
         cerr << "nd: " << nd_ << '\n';
 #endif
 
-        m_ = DynamicMatrix<FloatType>(ns_, nd_);
-        v_ = DynamicVector<int>(ns_);
-        m_ = 0.; // bc sparse, unused entries are zero.
+        m_ = MatrixKind(ns_, nd_);
+        v_ = decltype(v_)(ns_);
+        m_ *= 0.; // bc sparse, unused entries are zero.
         std::string class_name;
         int  class_id(0);
         int c, moffsets(16), *offsets((int *)malloc(moffsets * sizeof(int)));
@@ -233,7 +233,7 @@ private:
         if(scale_) {
             rescale();
         }
-        if(bias_) column(m_, nd_ - 1) = 1.; // Bias term
+        if(bias_) for(size_t i(0), e(m_.rows()); i < e; ++i) m_(i, nd_ - 1) = 1.;
     }
     template<typename RowType>
     void rescale_point(RowType &r) const {
@@ -250,13 +250,11 @@ private:
             FloatType stdev_inv, colmean;
             assert(ns_ == col.size());
             FloatType sum(0.);
-            for(auto c: col) sum += c;
+            for(const auto c: col) sum += c;
             r_(i, 0) = colmean = sum / ns_;
             r_(i, 1) = stdev_inv = 1. / std::sqrt(variance(col, colmean));
             for(auto cit(col.begin()), cend(col.end()); cit != cend; ++cit)
                 *cit = (*cit - colmean) * stdev_inv;
-            cerr << "Column " << i + 1 << " has mean " << colmean << " and stdev " << 1./stdev_inv << '\n';
-            cerr << "New variance: " << variance(col) << ". New mean: " << mean(col) <<'\n';
         }
     }
     template<typename RowType>
@@ -331,7 +329,7 @@ public:
             }
             if(t_ >= max_iter_ || diffnorm(row(last_weights, 0), row(w_.weights_, 0)) < eps_) {
                 if(w_avg_.weights_.rows() == 0) w_avg_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
-                w_avg_.weights_ = 0.;
+                w_avg_.weights_          = 0.;
                 row(w_avg_.weights_, 0) += wrow;
                 ++avgs_used;
             }
