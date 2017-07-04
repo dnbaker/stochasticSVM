@@ -176,8 +176,23 @@ template<class Container>
 double variance(const Container &c, const double mean) {
         // Note: Could accelerate with SIMD.
     double sum(0.), tmp;
-    for(const auto entry: c) tmp = entry - mean, sum += tmp * tmp;
+    if constexpr(blaze::IsSparseVector<Container>::value) {
+        for(const auto &entry: c) tmp = entry.value() - mean, sum += tmp * tmp;
+    } else {
+        for(const auto  entry: c) tmp = entry - mean, sum += tmp * tmp;
+    }
     return sum / c.size();
+}
+
+template<typename T>
+double sum(const T &r) {
+    double ret(0.);
+    if constexpr(blaze::IsSparseVector<T>::value) {
+        for(const auto &c: r) ret += c.value();
+    } else {
+        for(const auto c: r) ret += c;
+    }
+    return ret;
 }
 
 template<class MatrixKind>

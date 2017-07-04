@@ -46,10 +46,10 @@ class LinearSVM {
 
     MatrixKind                m_; // Training Data
     // Weights. one-dimensional for 2-class, nc_-dimensional for more.
-    WMType w_;
-    WMType w_avg_;
-    DynamicVector<int> v_;
-    MatrixKind         r_;
+    WMType                    w_;
+    WMType                w_avg_;
+    DynamicVector<int>        v_;
+    MatrixKind                r_;
     // Labels [could be compressed by requiring sorted data and checking
     // an index is before or after a threshold. Likely unnecessary, but could
     // aid cache efficiency.
@@ -249,12 +249,16 @@ private:
             auto col(column(m_, i));
             FloatType stdev_inv, colmean;
             assert(ns_ == col.size());
-            FloatType sum(0.);
-            for(const auto c: col) sum += c;
+            const FloatType sum(::svm::sum(col));
             r_(i, 0) = colmean = sum / ns_;
             r_(i, 1) = stdev_inv = 1. / std::sqrt(variance(col, colmean));
-            for(auto cit(col.begin()), cend(col.end()); cit != cend; ++cit)
-                *cit = (*cit - colmean) * stdev_inv;
+            if constexpr(blaze::IsSparseVector<decltype(col)>::value) {
+                for(auto cit(col.begin()), cend(col.end()); cit != cend; ++cit)
+                    cit->value() = (cit->value() - colmean) * stdev_inv;
+            } else {
+                for(auto cit(col.begin()), cend(col.end()); cit != cend; ++cit)
+                    *cit = (*cit - colmean) * stdev_inv;
+            }
         }
     }
     template<typename RowType>
