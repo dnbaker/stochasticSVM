@@ -228,7 +228,11 @@ std::string vecstr(const VectorKind &vec) {
 template<class Container>
 double mean(const Container &c) {
     double sum(0.);
-    for(const auto entry: c) sum += entry;
+    if constexpr(blaze::IsSparseVector<Container>::value || blaze::IsSparseVector<Container>::value) {
+        for(const auto entry: c) sum += entry.value();
+    } else {
+        for(const auto entry: c) sum += entry;
+    }
     sum /= c.size();
     return sum;
 }

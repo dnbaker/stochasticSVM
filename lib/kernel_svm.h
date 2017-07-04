@@ -38,6 +38,8 @@ class KernelSVM {
     const bool                bias_;
 
 public:
+    KernelSVM(const KernelSVM &other) = default;
+    KernelSVM(KernelSVM      &&other) = default;
     // Dense constructor
     KernelSVM(const char *path,
               const FloatType lambda,
@@ -147,7 +149,6 @@ private:
 
         m_ = DynamicMatrix<FloatType>(ns_, nd_);
         v_ = DynamicVector<int>(ns_);
-        m_ = 0.; // bc sparse, unused entries are zero.
         std::string class_name;
         int  class_id(0);
         int c, moffsets(16), *offsets((int *)malloc(moffsets * sizeof(int)));
@@ -201,7 +202,12 @@ private:
 #endif
             rescale();
         }
-        if(bias_) column(m_, nd_ - 1) = 1.; // Bias term
+        if(bias_) {
+            if constexpr(blaze::IsSparseVector<MatrixKind>::value || blaze::IsSparseMatrix<MatrixKind>::value)
+                for(size_t i(0), e(m_.rows()); i < e; ++i) m_(i, nd_ - 1) = 1.;
+            else
+                column(m_, nd_ - 1) = 1.; // Bias term
+        }
     }
     template<typename RowType>
     void rescale_point(RowType &r) const {
@@ -218,12 +224,21 @@ private:
             FloatType stdev_inv, colmean;
             assert(ns_ == col.size());
             FloatType sum(0.);
-            for(auto c: col) sum += c;
+
+            if constexpr(blaze::IsSparseVector<MatrixKind>::value || blaze::IsSparseMatrix<MatrixKind>::value) {
+                for(const auto c: col) sum += c.value();
+            } else {
+                for(const auto c: col) sum += c;
+            }
             cerr << "sum for col " << i << " is " << sum << ".\n";
             r_(i, 0) = colmean = sum / ns_;
             r_(i, 1) = stdev_inv = 1 / std::sqrt(variance(col, colmean));
-            for(auto cit(col.begin()), cend(col.end()); cit != cend; ++cit)
-                *cit = (*cit - colmean) * stdev_inv;
+            for(auto cit(col.begin()), cend(col.end()); cit != cend; ++cit) {
+                if constexpr(blaze::IsSparseMatrix<MatrixKind>::value)
+                    cit->value() = (cit->value() - colmean) * stdev_inv;
+                else
+                    *cit = (*cit - colmean) * stdev_inv;
+            }
             cerr << "Column " << i + 1 << " has mean " << colmean << " and stdev " << 1./stdev_inv << '\n';
             cerr << "New variance: " << variance(col) << ". New mean: " << mean(col) <<'\n';
         }
