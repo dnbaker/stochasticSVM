@@ -9,7 +9,8 @@ namespace svm {
 
 template<class Kernel,
          typename FloatType=float,
-         class MatrixKind=DynamicMatrix<FloatType>>
+         class MatrixKind=DynamicMatrix<FloatType>,
+         typename SizeType=unsigned>
 class KernelSVM {
 
     // Increase nd by 1 and set all the last entries to "1" to add
@@ -25,17 +26,17 @@ class KernelSVM {
     const FloatType         lambda_; // Lambda Parameter
     const Kernel            kernel_;
     //DynamicMatrix<FloatType>     w_; // Final weights: only used at completion.
-    size_t                      nc_; // Number of classes
-    const size_t               mbs_; // Mini-batch size
-    size_t                      ns_; // Number samples
-    size_t                      nd_; // Number of dimensions
-    const size_t          max_iter_; // Maximum iterations.
-    size_t                       t_; // Timepoint.
+    SizeType                    nc_; // Number of classes
+    const SizeType             mbs_; // Mini-batch size
+    SizeType                    ns_; // Number samples
+    SizeType                    nd_; // Number of dimensions
+    const SizeType        max_iter_; // Maximum iterations.
+    SizeType                     t_; // Timepoint.
     const FloatType            eps_; // epsilon termination.
     std::unordered_map<int, std::string> class_name_map_;
     khash_t(I)                  *h_; // Hash set of elements being used.
-    const bool               scale_;
-    const bool                bias_;
+    const uint32_t         scale_:1;
+    const uint32_t          bias_:1;
 
 public:
     KernelSVM(const KernelSVM &other) = default;
@@ -43,7 +44,7 @@ public:
     // Dense constructor
     KernelSVM(const char *path,
               const FloatType lambda,
-              Kernel kernel=LinearKernel<FloatType>(),
+              Kernel kernel=LinearKernel<FloatType>{},
               size_t mini_batch_size=256uL,
               size_t max_iter=100000,  const FloatType eps=1e-6,
               bool scale=false, bool bias=true)
@@ -56,7 +57,7 @@ public:
     }
     KernelSVM(const char *path, size_t ndims,
               const FloatType lambda,
-              Kernel kernel=LinearKernel<FloatType>(),
+              Kernel kernel=LinearKernel<FloatType>{},
               size_t mini_batch_size=256uL,
               size_t max_iter=100000,  const FloatType eps=1e-6,
               bool scale=false, bool bias=true)
@@ -86,7 +87,7 @@ private:
                 std::string("raise NotImplementedError(\"Only binary "
                             "classification currently supported. "
                             "Number of classes found: ") +
-                            std::to_string(nc_) + + "\")");
+                            std::to_string(nc_) + ".\")");
         std::unordered_map<int, int> map;
         //std::fprintf(stderr, "Map: {%i: %i, %i: %i}", vec[0], -1, vec[1], 1);
         map[vec[0]] = -1, map[vec[1]] = 1;
