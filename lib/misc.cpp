@@ -1,6 +1,4 @@
 #include "misc.h"
-#include <zlib.h>
-#include <string>
 
 namespace svm {
 

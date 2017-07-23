@@ -2,35 +2,36 @@
 #define _SVM_MISC_H_
 
 #define __STDCPP_WANT_MATH_SPEC_FUNCS__ 1
-#include <cstdio>
-#include <cstdlib>
+#include <algorithm>
+#include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
-#include <algorithm>
-#include <numeric>
-#include <cassert>
-#include <thread>
-#include <map>
-#include <unordered_map>
-#include <set>
-#include <limits>
-#include <zlib.h>
-#include <iostream>
 #include <fstream>
-#include <stdexcept>
 #include <functional>
+#include <iostream>
+#include <limits>
+#include <map>
+#include <numeric>
+#include <set>
 #include <shared_mutex>
-#ifndef _USE_MATH_DEFINES
-#  define _USE_MATH_DEFINES
-#endif
-#include <cmath>
-#include "blaze/Math.h"
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <unordered_map>
+#include <zlib.h>
 #include "logutil.h"
 #include "lib/ks.h"
+#include "blaze/Math.h"
 #include "fastrange/fastrange.h"
 #include "klib/khash.h"
 
+#ifndef _USE_MATH_DEFINES
+#  define _USE_MATH_DEFINES
+#endif
 #ifdef __GNUC__
 #  define likely(x) __builtin_expect((x),1)
 #  define unlikely(x) __builtin_expect((x),0)
