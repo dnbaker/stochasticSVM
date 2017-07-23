@@ -265,6 +265,19 @@ private:
     double predict(const RowType &datapoint) const {
         return dot(row(w_.weights_, 0), datapoint);
     }
+    double predict(const FloatType *datapoint) const {
+        const double ret(blas_dot(nd_, datapoint, 1, &w_.weights_(0, 0), 1));
+#if !NDEBUG
+        double tmp(0.);
+        auto wr(row(w_.weights_, 0));
+        for(size_t i(0); i < nd_; ++i) tmp += datapoint[i] * w_[i];
+        assert(tmp == ret);
+#endif
+#if 0
+float  cblas_sdot(OPENBLAS_CONST blasint n, OPENBLAS_CONST float  *x, OPENBLAS_CONST blasint incx, OPENBLAS_CONST float  *y, OPENBLAS_CONST blasint incy);
+double cblas_ddot(OPENBLAS_CONST blasint n, OPENBLAS_CONST double *x, OPENBLAS_CONST blasint incx, OPENBLAS_CONST double *y, OPENBLAS_CONST blasint incy);
+#endif
+        return dot(row(w_.weights_, 0), datapoint);
 public:
     template<typename RowType>
     int classify_external(RowType &data) const {
