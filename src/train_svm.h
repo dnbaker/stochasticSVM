@@ -7,6 +7,8 @@ using namespace svm;
 #define NOTIFICATION_INTERVAL 256
 #endif
 
+template<typename T> class TD;
+
 static int get_max_ind(const char *fn) {
     gzFile fp(gzopen(fn, "rb"));
     char buf[1 << 16];
@@ -29,38 +31,42 @@ static int get_max_ind(const char *fn1, const char *fn2) {
 
 // Macro for running SVM and testing it.
 
-#define RUN_SVM \
+#define RUN_SVM_MATRIX(MatrixKind) \
         svm.train();\
         svm.write(ofp);\
         if(argc > optind + 1) {\
             int moffsets(svm.get_ndims() + 1), *offsets(static_cast<int *>(malloc(moffsets * sizeof(int))));\
             IntCounter counter;\
             size_t nlines(0), nerror(0);\
-            DynamicMatrix<FLOAT_TYPE> vecmat(1, svm.get_ndims());\
+            MatrixKind<FLOAT_TYPE> vecmat(1, svm.get_ndims());\
             auto vec(row(vecmat, 0));\
             if(svm.get_bias()) vec[vec.size() - 1] = 1.;\
             std::ifstream is(argv[optind + 1]);\
             int label;\
             for(std::string line;std::getline(is, line);) {\
-                /*cerr << line << '\n';*/\
-                vec = 0.;\
+                /*std::cerr << line << '\n';*/\
+                vec.reset();\
                 if(svm.get_bias()) vec[vec.size() - 1] = 1.;\
                 const int ntoks(ksplit_core(static_cast<char *>(&line[0]), 0, &moffsets, &offsets));\
                 label = atoi(line.data());\
                 for(int i(1); i < ntoks; ++i) {\
                     const char *p(line.data() + offsets[i]);\
-                    vec[atoi(p) - 1] = atof(strchr(p, ':') + 1);\
+                    vec[atoi(p) - 1] = std::atof(strchr(p, ':') + 1);\
                 }\
-                /*cerr << vec;*/\
+                /*std::cerr << vec;*/\
                 if(svm.classify_external(vec) != label) {\
                     ++nerror, counter.add(label);\
                 }\
-                if(++nlines % NOTIFICATION_INTERVAL == 0) cerr << "Processed " << nlines << " lines.\n";\
+                if(++nlines % NOTIFICATION_INTERVAL == 0) std::cerr << "Processed " << nlines << " lines.\n";\
             }\
             std::free(offsets);\
             cout << "Test error rate: " << 100. * nerror / nlines << "%\n";\
             cout << "Mislabeling: " << counter.str() << '\n';\
         }
+
+#define RUN_DENSE_SVM  RUN_SVM_MATRIX(DynamicMatrix)
+#define RUN_SVM        RUN_DENSE_SVM
+#define RUN_SPARSE_SVM RUN_SVM_MATRIX(CompressedMatrix)
 
 /* 
  * Giant macro creating an executable for a given kernel.
@@ -82,7 +88,7 @@ int usage(char *ex) {\
                        "-s:\tNumber of dimensions for sparse parsing. Also determines the use of sparse rather than dense parsing. [Set to -1 to infer from file(s)]\n"\
                        "-[h?]:\tHelp menu.\n"\
                  , ex);\
-    cerr << buf;\
+    std::cerr << buf;\
     return EXIT_FAILURE;\
 }\
 \
@@ -92,18 +98,18 @@ int main(int argc, char *argv[]) {\
     KERNEL_PARAMS\
     size_t max_iter(100000);\
     unsigned nthreads(1);\
-    FILE *ofp(stdout);\
-    bool rescale(false);\
-    bool bias(true);\
-    while((c = getopt(argc, argv, KERNEL_GETOPT "e:M:s:p:b:l:o:Brh?")) >= 0) {\
+    std::FILE *ofp(stdout);\
+    bool rescale(false), use_sparse(false), bias(true);\
+    while((c = getopt(argc, argv, KERNEL_GETOPT "5:e:M:s:p:b:l:o:Brh?")) >= 0) {\
         switch(c) {\
+            case '5': use_sparse = true;         break;\
             case 'B': bias       = false;        break;\
-            case 'e': eps        = atof(optarg); break;\
-            case 'p': nthreads   = atoi(optarg); break;\
-            case 'M': max_iter   = strtoull(optarg, 0, 10); break;\
-            case 'b': batch_size = atoi(optarg); break;\
-            case 'l': lambda     = atof(optarg); break;\
-            case 's': nd_sparse  = atoi(optarg); break;\
+            case 'e': eps        = std::atof(optarg); break;\
+            case 'p': nthreads   = std::atoi(optarg); break;\
+            case 'M': max_iter   = std::strtoull(optarg, 0, 10); break;\
+            case 'b': batch_size = std::atoi(optarg); break;\
+            case 'l': lambda     = std::atof(optarg); break;\
+            case 's': nd_sparse  = std::atoi(optarg); break;\
             case 'r': rescale    = true; break;\
             KERNEL_ARGS\
             case 'o': ofp        = fopen(optarg, "w"); break;\
@@ -113,17 +119,29 @@ int main(int argc, char *argv[]) {\
             case 'h': case '?': usage: return usage(*argv);\
         }\
     }\
+    KERNEL_INIT;\
+    static_assert(sizeof(kernel) == sizeof(kernel));\
     if(nd_sparse < 0) get_max_ind(argv[optind], argv[optind + 1]);\
 \
     if(optind == argc) goto usage;\
     blaze::setNumThreads(nthreads);\
     omp_set_num_threads(nthreads);\
-    KERNEL_INIT;\
-    cerr << "Training data at " << argv[optind] << ".\n";\
-    if(optind < argc - 1) cerr << "Test data at " << argv[optind + 1] << ".\n";\
-    KernelSVM<decltype(kernel), FLOAT_TYPE> svm(\
-            nd_sparse ? KernelSVM<decltype(kernel), FLOAT_TYPE>(argv[optind], nd_sparse, lambda, kernel, batch_size, max_iter, eps, rescale, bias)\
-                      : KernelSVM<decltype(kernel), FLOAT_TYPE>(argv[optind], lambda, kernel, batch_size, max_iter, eps, rescale, bias));\
-    RUN_SVM\
+    std::cerr << "Training data at " << argv[optind] << ".\n";\
+    if(optind < argc - 1) std::cerr << "Test data at " << argv[optind + 1] << ".\n";\
+    if(use_sparse) {\
+        using OtherType = ::svm::KernelSVM<decltype(kernel), FLOAT_TYPE, ::blaze::CompressedMatrix<FLOAT_TYPE>>;\
+        /*TD<decltype(OtherType)> zomg; */\
+        OtherType svm(\
+                nd_sparse ? OtherType(argv[optind], nd_sparse, lambda, kernel, batch_size, max_iter, eps, rescale, bias)\
+                          : OtherType(argv[optind], lambda, kernel, batch_size, max_iter, eps, rescale, bias));\
+        RUN_SPARSE_SVM;\
+    } else { \
+        using OtherType = ::svm::KernelSVM<decltype(kernel), FLOAT_TYPE>;\
+        /*TD<decltype(OtherType)> zomg; */\
+        OtherType svm(\
+                nd_sparse ? OtherType(argv[optind], nd_sparse, lambda, kernel, batch_size, max_iter, eps, rescale, bias)\
+                          : OtherType(argv[optind], lambda, kernel, batch_size, max_iter, eps, rescale, bias));\
+        RUN_DENSE_SVM;\
+    }\
     if(ofp != stdout) fclose(ofp);\
 }
