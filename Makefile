@@ -32,7 +32,7 @@ OBJS=$(patsubst %.cpp,%.o,$(wildcard lib/*.cpp))
 TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
 EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard src/*.cpp)) $(patsubst %.cpp,%.fo,$(wildcard src/*.cpp))
 
-EX=$(patsubst src/%.fo,%f,$(EXEC_OBJS)) $(patsubst src/%.o,%,$(EXEC_OBJS))
+EX=$(patsubst src/%.fo,%_f,$(EXEC_OBJS)) $(patsubst src/%.o,%,$(EXEC_OBJS))
 
 
 # If compiling with c++ < 17 and your compiler does not provide
@@ -44,7 +44,7 @@ ifdef BOOST_INCLUDE_PATH
 INCLUDE += -I$(BOOST_INCLUDE_PATH)
 endif
 
-OBJS:=$(OBJS) klib/kstring.o $(EXEC_OBJS)
+OBJS:=$(OBJS) klib/kstring.o
 
 all: $(OBJS) $(EX) unit
 print-%  : ; @echo $* = $($*)
@@ -66,7 +66,7 @@ klib/kstring.o:
 %: src/%.o $(OBJS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
-%f: src/%.fo $(OBJS) $(EXEC_OBJS)
+%_f: src/%.fo $(OBJS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=float $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
 %.o: %.c
