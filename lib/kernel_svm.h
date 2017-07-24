@@ -184,7 +184,7 @@ private:
             ++linenum;
             line.clear();
         }
-        free(offsets);
+        std::free(offsets);
         gzclose(fp);
         for(const auto &pair: tmpmap)
             class_name_map_.emplace(pair.second, pair.first);

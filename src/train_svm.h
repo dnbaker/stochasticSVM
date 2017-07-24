@@ -7,8 +7,6 @@ using namespace svm;
 #define NOTIFICATION_INTERVAL 256
 #endif
 
-template<typename T> class TD;
-
 static int get_max_ind(const char *fn) {
     gzFile fp(gzopen(fn, "rb"));
     char buf[1 << 16];

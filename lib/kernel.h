@@ -312,6 +312,34 @@ template<typename FloatType>
 struct HistogramKernel: KernelBase<FloatType> {
     template<typename MatrixType1, typename MatrixType2>
     FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+        FloatType ret(0.);
+        if constexpr(!blaze::IsSparseVector<MatrixType1>::value && !blaze::IsSparseVector<MatrixType2>::value) {
+            for(auto ait(a.cbegin()), bit(b.cbegin()), eait(a.cend()); ait != eait; ++ait, ++bit) {
+                ret += std::min(*ait, *bit);
+            }
+        } else if constexpr(blaze::IsSparseVector<MatrixType1>::value && !blaze::IsSparseVector<MatrixType2>::value) {
+            for(auto ait(a.cbegin()), eait(a.cend()); ait != eait; ++ait) {
+                ret += std::min(a->value(), b[a->index()]);
+            }
+        } else if constexpr(!blaze::IsSparseVector<MatrixType1>::value && blaze::IsSparseVector<MatrixType2>::value) {
+            for(auto ait(b.cbegin()), eait(b.cend()); ait != eait; ++ait) {
+                ret += std::min(b->value(), a[b->index()]);
+            }
+        } else { // blaze::IsSparseVector<MatrixType1>::value && blaze::IsSparseVector<MatrixType2>::value)
+            auto ait(a.cbegin()), eait(a.cend()), bit(b.cbegin()), ebit(b.cend());
+            while(ait != eait && bit != ebit) {
+                if(ait->index() < bit->index()) {
+                    ++ait;
+                    continue;
+                } else if(ait->index() > bit->index()) {
+                    ++bit;
+                    continue;
+                }
+                ret += std::min(ait->value(), bit->value());
+            }
+        }
+        return ret;
+#if 0
         if(a.size() != b.size())
             throw std::out_of_range(std::string(
                 "Could not calculate min for arrays of different sizes (") +
@@ -321,6 +349,7 @@ struct HistogramKernel: KernelBase<FloatType> {
         FloatType ret(std::min(*ait, *bit));
         while(++ait != a.cend()) ret += std::min(*ait, *++bit);
         return ret;
+#endif
     }
     std::string str() const {
         return "HistogramKernel";
