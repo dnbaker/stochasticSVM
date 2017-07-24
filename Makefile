@@ -1,8 +1,12 @@
 .PHONY=all tests clean obj
+ifndef CXX
 CXX=g++
+endif
+ifndef CC
 CC=gcc
+endif
 ifndef STD
-STD=c++1z
+STD=c++17
 endif
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
@@ -50,7 +54,7 @@ all: $(OBJS) $(EX) unit
 
 obj: $(OBJS) $(EXEC_OBJS)
 
-test/%.o: test/%.cpp
+test/%.o: test/%.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(LD) $(OBJS) -c $< -o $@ $(LIB)
 
 klib/kstring.o:

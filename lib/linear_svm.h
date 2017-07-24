@@ -278,6 +278,7 @@ float  cblas_sdot(OPENBLAS_CONST blasint n, OPENBLAS_CONST float  *x, OPENBLAS_C
 double cblas_ddot(OPENBLAS_CONST blasint n, OPENBLAS_CONST double *x, OPENBLAS_CONST blasint incx, OPENBLAS_CONST double *y, OPENBLAS_CONST blasint incy);
 #endif
         return dot(row(w_.weights_, 0), datapoint);
+    }
 public:
     template<typename RowType>
     int classify_external(RowType &data) const {
