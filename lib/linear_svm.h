@@ -146,7 +146,7 @@ private:
         normalize_labels();
         //init_weights();
         w_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
-        w_.weights_ = 0.;
+        w_.weights_.reset();
 #if !NDEBUG
         if(v_.size() < 1000) cout << "Input labels: \n" << v_ << '\n';
 #endif
@@ -182,9 +182,8 @@ private:
         cerr << "nd: " << nd_ << '\n';
 #endif
 
-        m_ = MatrixKind(ns_, nd_);
-        v_ = decltype(v_)(ns_);
-        m_ *= 0.; // bc sparse, unused entries are zero.
+        m_ = MatrixKind(ns_, nd_), m_.reset();
+        v_ = decltype(v_)(ns_),    v_.reset();
         std::string class_name;
         int  class_id(0);
         int c, moffsets(16), *offsets((int *)malloc(moffsets * sizeof(int)));
@@ -227,7 +226,7 @@ private:
                 std::string("Number of classes must be 2. Found: ") +
                             std::to_string(nc_));
         w_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
-        w_.weights_ = 0.;
+        w_.weights_.reset();
     }
     void normalize() {
         if(scale_) {
@@ -279,6 +278,8 @@ double cblas_ddot(OPENBLAS_CONST blasint n, OPENBLAS_CONST double *x, OPENBLAS_C
 #endif
         return dot(row(w_.weights_, 0), datapoint);
     }
+}
+
 public:
     template<typename RowType>
     int classify_external(RowType &data) const {
@@ -346,8 +347,8 @@ public:
                     w_.scale(std::sqrt(1.0 / (lambda_ * norm)));
             }
             if(t_ >= max_iter_ || diffnorm(row(last_weights, 0), row(w_.weights_, 0)) < eps_) {
-                if(w_avg_.weights_.rows() == 0) w_avg_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_);
-                w_avg_.weights_          = 0.;
+                if(w_avg_.weights_.rows() == 0)
+                    w_avg_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_), w_avg_.weights_.reset();
                 row(w_avg_.weights_, 0) += wrow;
                 ++avgs_used;
             }

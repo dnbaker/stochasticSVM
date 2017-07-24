@@ -184,7 +184,7 @@ private:
             ++linenum;
             line.clear();
         }
-        free(offsets);
+        std::free(offsets);
         gzclose(fp);
         for(const auto &pair: tmpmap)
             class_name_map_.emplace(pair.second, pair.first);
@@ -346,7 +346,7 @@ public:
         we'd like to.
         w_ = DynamicMatrix<FloatType>(1, nd_);
         auto wrow = row(w_, 0);
-        wrow = 0.;
+        wrow.reset();
         cerr << "Size of vector: " << a_.size() << '\n';
         cerr << "Rows in matrix: " << m_.rows()  << '\n';
         assert(a_.size() == m_.rows());

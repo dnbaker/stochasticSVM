@@ -83,6 +83,8 @@ using boost::math::cyl_bessel_j;
 
 namespace svm {
 
+template<typename T> class TD;
+
 using std::cerr;
 using std::cout;
 
@@ -190,6 +192,12 @@ double sum(const T &r) {
     double ret(0.);
     if constexpr(blaze::IsSparseVector<T>::value) {
         for(const auto &c: r) ret += c.value();
+    } else if constexpr(blaze::IsSparseMatrix<T>::value) {
+        for(size_t i(0), e(r.rows()); i < e; ++i) {
+            for(auto it(r.begin(i)), eit(r.end(i)); it != eit; ++it) {
+                ret += it->value();
+            }
+        }
     } else {
         for(const auto c: r) ret += c;
     }

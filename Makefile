@@ -26,18 +26,18 @@ ifneq (,$(findstring g++,$(CXX)))
 	endif
 endif
 OPT:=$(OPT) $(FLAGS)
-FLOAT_TYPE=double
 XXFLAGS=-fno-rtti
-CXXFLAGS=$(OPT) $(XXFLAGS) -std=$(STD) $(WARNINGS) -DFLOAT_TYPE=$(FLOAT_TYPE)
+CXXFLAGS=$(OPT) $(XXFLAGS) -std=$(STD) $(WARNINGS)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread
 LD=-L.
 
 OBJS=$(patsubst %.cpp,%.o,$(wildcard lib/*.cpp))
 TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
-EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard src/*.cpp))
+EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard src/*.cpp)) $(patsubst %.cpp,%.fo,$(wildcard src/*.cpp))
 
-EX=$(patsubst src/%.o,%,$(EXEC_OBJS))
+EX=$(patsubst src/%.fo,%_f,$(EXEC_OBJS)) $(patsubst src/%.o,%,$(EXEC_OBJS))
+
 
 # If compiling with c++ < 17 and your compiler does not provide
 # bessel functions with c++14, you must compile against boost.
@@ -51,6 +51,7 @@ endif
 OBJS:=$(OBJS) klib/kstring.o
 
 all: $(OBJS) $(EX) unit
+print-%  : ; @echo $* = $($*)
 
 obj: $(OBJS) $(EXEC_OBJS)
 
@@ -60,11 +61,17 @@ test/%.o: test/%.cpp $(OBJS)
 klib/kstring.o:
 	cd klib && make kstring.o && cd ..
 
+%.fo: %.cpp
+	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=float $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
+
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 %: src/%.o $(OBJS)
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
+
+%_f: src/%.fo $(OBJS)
+	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=float $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
 %.o: %.c
 	$(CC) $(CCFLAGS) -Wno-sign-compare $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
