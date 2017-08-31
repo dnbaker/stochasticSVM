@@ -1,11 +1,11 @@
-# denseSVM
+# stochasticSVM
 
 ## Description
 An implementation of PEGASOS, powered by [Blaze](https://bitbucket.org/blaze-lib).
 
-Complete: linear [[reference]](http://ttic.uchicago.edu/~shai/papers/SSSICML08.pdf).
+Complete: linear [[reference]](http://ttic.uchicago.edu/~shai/papers/SSSICML08.pdf). kernel. [[reference]](http://ttic.uchicago.edu/~nati/Publications/PegasosMPB.pdf).
 
-Incomplete: kernel. [[reference]](http://ttic.uchicago.edu/~nati/Publications/PegasosMPB.pdf).
+Incomplete: Randomized Fourier Feature and Forgetron/Budgeted kernel algorithms.
 
 The linear method is notable for training-time with inverse dependence on dataset size.
 The kernel method runtime does increase with the number of datapoints, but unlike static solvers, the gradient descent method only has linear memory requirements.
@@ -34,4 +34,3 @@ If you wish to use floats instead of doubles, which can be twice as fast in arit
 0. Add simple streaming classifier using already-built SVM.
 1. Add a "budget", as in a [Randomized Budget Perceptron](http://www.dicom.uninsubria.it/~cgentile/shiftmemML.pdf).
 2. Expand to multiclass.
-3. Expand the build system to build executables for all kernels.
