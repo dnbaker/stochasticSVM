@@ -7,6 +7,7 @@
 #include "lib/matrixkernel.h"
 #include "lib/mathutil.h"
 #include "lib/learning_rate.h"
+#include "lib/loss.h"
 
 namespace svm {
 
@@ -33,7 +34,8 @@ public:
 
 template<typename FloatType=float,
          class MatrixKind=DynamicMatrix<FloatType>,
-         class LearningPolicy=PegasosLearningRate<FloatType>>
+         class LearningPolicy=PegasosLearningRate<FloatType>,
+         class LossFn=LossGradient<FloatType, HingeGradientCore<FloatType>>>
 class LinearSVM {
 
     // Increase nd by 1 and set all the last entries to "1" to add
@@ -41,8 +43,8 @@ class LinearSVM {
     // (See http://ttic.uchicago.edu/~nati/Publications/PegasosMPB.pdf,
     //  section 6.)
 
-    using WMType     = WeightMatrix<FloatType, DynamicMatrix<FloatType>>;
-    using KernelType = LinearKernel<FloatType>;
+    using WMType       = WeightMatrix<FloatType, DynamicMatrix<FloatType>>;
+    using KernelType   = LinearKernel<FloatType>;
 
     MatrixKind                m_; // Training Data
     // Weights. one-dimensional for 2-class, nc_-dimensional for more.
@@ -55,6 +57,7 @@ class LinearSVM {
     // aid cache efficiency.
     const FloatType      lambda_; // Lambda Parameter
     const KernelType     kernel_;
+    const LossFn        loss_fn_;
     size_t                   nc_; // Number of classes
     const size_t            mbs_; // Mini-batch size
     size_t                   ns_; // Number samples
@@ -262,17 +265,17 @@ private:
     }
     template<typename RowType>
     double predict(const RowType &datapoint) const {
-        return dot(row(w_.weights_, 0), datapoint);
+        return kernel_(row(w_.weights_, 0), datapoint);
     }
     double predict(const FloatType *datapoint) const {
+#if 0
         const double ret(blas_dot(nd_, datapoint, 1, &w_.weights_(0, 0), 1));
-#if !NDEBUG
         double tmp(0.);
         auto wr(row(w_.weights_, 0));
         for(size_t i(0); i < nd_; ++i) tmp += datapoint[i] * w_[i];
         assert(tmp == ret);
 #endif
-        return dot(row(w_.weights_, 0), datapoint);
+        return kernel_(row(w_.weights_, 0), datapoint);
     }
 
 public:
@@ -312,7 +315,9 @@ public:
         kh_resize(I, h, mbs_ * 1.5);
 
         //size_t avgs_used(0);
+#if USE_OLD_WAY
         double eta;
+#endif
         for(size_t avgs_used = t_ = 0; avgs_used < avg_size_; ++t_) {
 #if !NDEBUG
             if((t_ % interval) == 0) {
@@ -321,7 +326,6 @@ public:
                         " with norm of w = " << current_norm << ".\n";
             }
 #endif
-            eta = lp_(t_);
             {
                 int khr;
                 kh_clear(I, h);
@@ -331,8 +335,8 @@ public:
 
             // This is the part of the code that I would replace with the
             // generic projection
-#ifndef USE_NEW_LOSS_METHOD
-            tmpsum = 0.;
+#if USE_OLD_WAY
+            trow = 0.;
             for(size_t i = 0; i < kh_size(h); ++i) {
                 if(!kh_exist(h, i)) continue;
                 const size_t index(kh_key(h, i));
@@ -346,7 +350,7 @@ public:
             w_.scale(1.0 - eta * lambda_);
             wrow += trow * eta * batchsz_inv;
 #else
-            loss_fn_(m_, v_, trow, h, eta, lambda, eps_, max_iter_);
+            loss_fn_(*this, trow, last_weights, h);
 #endif
             if(project_) {
                 const double norm(w_.get_norm_sq());
@@ -387,6 +391,17 @@ public:
         line[line.size() - 1] = '\n';
         fwrite(line.data(), line.size(), 1, fp);
     }
+    // Value getters
+    auto eps()       const {return eps_;}
+    auto lambda()    const {return lambda_;}
+    auto max_iter()  const {return max_iter_;}
+    auto t()         const {return t_;}
+
+    // Reference getters
+    auto &w()              {return w_;}
+    const auto &v()  const {return v_;}
+    const auto &m()  const {return m_;}
+    const auto &lp() const {return lp_;}
 }; // LinearSVM
 
 } // namespace svm
