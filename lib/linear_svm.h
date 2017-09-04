@@ -297,16 +297,23 @@ public:
 #if !NDEBUG
         const size_t interval(max_iter_ / 10);
 #endif
-        size_t avgs_used(0);
+        // Set constants
+        const size_t max_end_index(std::min(mbs_, ns_));
+        const FloatType batchsz_inv(1./max_end_index);
+
+        // Allocate weight vectors and initialize row views.
         decltype(w_.weights_) tmpsum(1, nd_);
         decltype(w_.weights_) last_weights(1, nd_);
         auto wrow(row(w_.weights_, 0));
         auto trow(row(tmpsum, 0));
-        const size_t max_end_index(std::min(mbs_, ns_));
-        std::vector<size_t> indices;
+
+        // Allocate hash set
         khash_t(I) *h(kh_init(I));
         kh_resize(I, h, mbs_ * 1.5);
-        for(t_ = 0; avgs_used < avg_size_; ++t_) {
+
+        //size_t avgs_used(0);
+        double eta;
+        for(size_t avgs_used = t_ = 0; avgs_used < avg_size_; ++t_) {
 #if !NDEBUG
             if((t_ % interval) == 0) {
                 const double ls(loss()), current_norm(w_.get_norm_sq());
@@ -314,40 +321,46 @@ public:
                         " with norm of w = " << current_norm << ".\n";
             }
 #endif
-            const double eta(lp_(t_));
-            tmpsum = 0.; // reset to 0 each time.
-            indices.clear();
-            int khr;
-            while(kh_size(h) < mbs_) {
-                kh_put(I, h, RANGE_SELECT(max_end_index), &khr);
+            eta = lp_(t_);
+            {
+                int khr;
+                kh_clear(I, h);
+                while(kh_size(h) < max_end_index)
+                    kh_put(I, h, RANGE_SELECT(max_end_index), &khr);
             }
-            #pragma omp parallel for
+
+            // This is the part of the code that I would replace with the
+            // generic projection
+#ifndef USE_NEW_LOSS_METHOD
+            tmpsum = 0.;
             for(size_t i = 0; i < kh_size(h); ++i) {
                 if(!kh_exist(h, i)) continue;
                 const size_t index(kh_key(h, i));
                 if(predict(row(m_, index)) * v_[index] < 1.) {
-                    #pragma omp critical
-                    row(tmpsum, 0) += row(m_, index) * v_[index];
+                    trow += row(m_, index) * v_[index];
                 }
                 // Could be made more cache-friendly by randomly selecting and
                 // processing chunks of the data, but for now this is fine.
             }
-            const size_t nels_added(mbs_);
-            if(t_ < max_iter_) last_weights = w_.weights_;
+            if(eps_ > 0 && t_ < max_iter_) last_weights = w_.weights_;
             w_.scale(1.0 - eta * lambda_);
-            wrow += trow * (eta / nels_added);
+            wrow += trow * eta * batchsz_inv;
+#else
+            loss_fn_(m_, v_, trow, h, eta, lambda, eps_, max_iter_);
+#endif
             if(project_) {
                 const double norm(w_.get_norm_sq());
                 if(norm > 1. / lambda_)
                     w_.scale(std::sqrt(1.0 / (lambda_ * norm)));
             }
-            if(t_ >= max_iter_ || diffnorm(row(last_weights, 0), row(w_.weights_, 0)) < eps_) {
+            if(t_ >= max_iter_ || (eps_ != -std::numeric_limits<float>::infinity() &&
+                                   diffnorm(row(last_weights, 0), row(w_.weights_, 0)) < eps_)
+               ) {
                 if(w_avg_.weights_.rows() == 0)
                     w_avg_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_), w_avg_.weights_.reset();
                 row(w_avg_.weights_, 0) += wrow;
                 ++avgs_used;
             }
-            kh_clear(I, h);
         }
         kh_destroy(I, h);
         row(w_avg_.weights_, 0) *= 1. / avg_size_;

@@ -51,39 +51,45 @@
 #endif
 
 #ifndef M_PI
-#define M_PI (3.14159265358979323846)
+#  define M_PI (3.14159265358979323846)
 #endif
 
 #ifndef M_PIl
-#define M_PIl (3.14159265358979323846264338327950288)
+#  define M_PIl (3.14159265358979323846264338327950288L)
 #endif
 
 #if defined(__STDCPP_MATH_SPEC_FUNCS__) || _GLIBCXX_TR1_CMATH
-  #if __STDCPP_MATH_SPEC_FUNCS__ >= 201003L
+#  if __STDCPP_MATH_SPEC_FUNCS__ >= 201003L
     using std::cyl_bessel_j;
-  #else
-  #define STRINGIFY(s) XSTRINGIFY(s)
-  #define XSTRINGIFY(s) #s
-  #pragma message "Getting bessel function from trl with __STDCPP_WANT_MATH_SPEC_FUNCS__ as " STRINGIFY(__STDCPP_WANT_MATH_SPEC_FUNCS__)
-  #undef STRINGIFY
-  #undef XSTRINGIFY
-    using std::tr1::cyl_bessel_j;
-  #endif
+#  else
+     using std::tr1::cyl_bessel_j;
+#    if !NDEBUG
+#      define STRINGIFY(s) XSTRINGIFY(s)
+#      define XSTRINGIFY(s) #s
+#      pragma message "Getting bessel function from trl with " \
+                      "__STDCPP_WANT_MATH_SPEC_FUNCS__ as "    \
+                      STRINGIFY(__STDCPP_WANT_MATH_SPEC_FUNCS__)
+#      undef STRINGIFY
+#      undef XSTRINGIFY
+#    endif
+#  endif
 #else
-#pragma message "Getting bessel function from boost"
-#include "boost/math/special_functions/bessel.hpp"
-using boost::math::cyl_bessel_j;
+#  if !NDEBUG
+#    pragma message "Getting bessel function from boost"
+#  endif
+#  include "boost/math/special_functions/bessel.hpp"
+   using boost::math::cyl_bessel_j;
 #endif
 
 #if defined(USE_FASTRANGE) && USE_FASTRANGE
-#define RANGE_SELECT(size) (fastrangesize(rand64(), size))
+#  define RANGE_SELECT(size) (fastrangesize(rand64(), size))
 #else
-#define RANGE_SELECT(size) (rand64() % size)
+#  define RANGE_SELECT(size) (rand64() % size)
 #endif
 
 namespace svm {
 
-template<typename T> class TD;
+template<typename T> class TD; // For identifying decltype inferences.
 
 using std::cerr;
 using std::cout;
