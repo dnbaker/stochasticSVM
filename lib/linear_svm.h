@@ -32,10 +32,10 @@ public:
     double norm() const {return norm_;}
 };
 
-template<typename FloatType=float,
+template<typename FloatType=FLOAT_TYPE,
          class MatrixKind=DynamicMatrix<FloatType>,
          class LearningPolicy=PegasosLearningRate<FloatType>,
-         class LossFn=LossGradient<FloatType, HingeGradientCore<FloatType>>>
+         class LossFn=LossSubgradient<FloatType, HingeSubgradientCore<FloatType>>>
 class LinearSVM {
 
     // Increase nd by 1 and set all the last entries to "1" to add
@@ -57,7 +57,7 @@ class LinearSVM {
     // aid cache efficiency.
     const FloatType      lambda_; // Lambda Parameter
     const KernelType     kernel_;
-    const LossFn        loss_fn_;
+    const LossFn       &loss_fn_;
     size_t                   nc_; // Number of classes
     const size_t            mbs_; // Mini-batch size
     size_t                   ns_; // Number samples
@@ -80,12 +80,12 @@ public:
               LearningPolicy lp,
               size_t mini_batch_size=256uL,
               size_t max_iter=100000,  const FloatType eps=1e-6,
-              long avg_size=-1, bool project=true, bool scale=false, bool bias=true)
+              long avg_size=-1, bool project=true, bool scale=false, bool bias=true, const LossFn &fn={})
         : lambda_(lambda),
           nc_(0), mbs_(mini_batch_size),
-          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps < 0 ? -std::numeric_limits<float>::infinity(): eps),
+          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps < 0 ? -std::numeric_limits<FloatType>::infinity(): eps),
           avg_size_(avg_size < 0 ? 1000: avg_size),
-          project_(project), scale_(scale), bias_(bias)
+          project_(project), scale_(scale), bias_(bias), loss_fn_{fn}
     {
         load_data(path);
     }
@@ -94,11 +94,11 @@ public:
                LearningPolicy lp,
                size_t mini_batch_size=256uL,
                size_t max_iter=100000,  const FloatType eps=1e-6,
-               long avg_size=-1, bool project=false, bool scale=false, bool bias=true)
+               long avg_size=-1, bool project=false, bool scale=false, bool bias=true, const LossFn &fn={})
         : lambda_(lambda),
           nc_(0), mbs_(mini_batch_size), nd_(ndims),
-          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps < 0 ? -std::numeric_limits<float>::infinity(): eps),
-          avg_size_(avg_size < 0 ? 10: avg_size), project_(project), scale_(scale), bias_(bias)
+          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps < 0 ? -std::numeric_limits<FloatType>::infinity(): eps),
+          avg_size_(avg_size < 0 ? 10: avg_size), project_(project), scale_(scale), bias_(bias), loss_fn_{fn}
     {
         sparse_load(path);
     }
@@ -360,7 +360,7 @@ public:
                 if(norm > 1. / lambda_)
                     w_.scale(std::sqrt(1.0 / (lambda_ * norm)));
             }
-            if(t_ >= max_iter_ || (eps_ != -std::numeric_limits<float>::infinity() &&
+            if(t_ >= max_iter_ || (eps_ != -std::numeric_limits<FloatType>::infinity() &&
                                    diffnorm(row(last_weights, 0), row(w_.weights_, 0)) < eps_)
                ) {
                 if(w_avg_.weights_.rows() == 0)
