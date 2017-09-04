@@ -263,10 +263,15 @@ private:
             }
         }
     }
+public:
+    // Only use the "predict" functions if you know what you're doing!
+    // These unctions do not rescale data and are only appropriate if
+    // it has not been normalized.
     template<typename RowType>
     double predict(const RowType &datapoint) const {
         return kernel_(row(w_.weights_, 0), datapoint);
     }
+
     double predict(const FloatType *datapoint) const {
 #if 0
         const double ret(blas_dot(nd_, datapoint, 1, &w_.weights_(0, 0), 1));
@@ -278,7 +283,6 @@ private:
         return kernel_(row(w_.weights_, 0), datapoint);
     }
 
-public:
     template<typename RowType>
     int classify_external(RowType &data) const {
         if(r_.rows()) rescale_point(data);
@@ -287,8 +291,7 @@ public:
     template<typename RowType>
     int classify(const RowType &data) const {
         static const int tbl[]{-1, 1};
-        const double pred(predict(data));
-        return tbl[pred > 0.];
+        return tbl[predict(data) > 0.];
     }
     FloatType loss() const {
         size_t mistakes(0);
