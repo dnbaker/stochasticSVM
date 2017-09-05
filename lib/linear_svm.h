@@ -338,31 +338,14 @@ public:
 
             // This is the part of the code that I would replace with the
             // generic projection
-#if USE_OLD_WAY
-            trow = 0.;
-            for(size_t i = 0; i < kh_size(h); ++i) {
-                if(!kh_exist(h, i)) continue;
-                const size_t index(kh_key(h, i));
-                if(predict(row(m_, index)) * v_[index] < 1.) {
-                    trow += row(m_, index) * v_[index];
-                }
-                // Could be made more cache-friendly by randomly selecting and
-                // processing chunks of the data, but for now this is fine.
-            }
-            if(eps_ > 0 && t_ < max_iter_) last_weights = w_.weights_;
-            w_.scale(1.0 - eta * lambda_);
-            wrow += trow * eta * batchsz_inv;
-#else
             loss_fn_(*this, trow, last_weights, h);
-#endif
             if(project_) {
                 const double norm(w_.get_norm_sq());
                 if(norm > 1. / lambda_)
                     w_.scale(std::sqrt(1.0 / (lambda_ * norm)));
             }
-            if(t_ >= max_iter_ || (eps_ != -std::numeric_limits<FloatType>::infinity() &&
-                                   diffnorm(row(last_weights, 0), row(w_.weights_, 0)) < eps_)
-               ) {
+            if(t_ >= max_iter_ || (eps_ >= 0 &&
+                                   diffnorm(row(last_weights, 0), row(w_.weights_, 0)) < eps_)) {
                 if(w_avg_.weights_.rows() == 0)
                     w_avg_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_), w_avg_.weights_.reset();
                 row(w_avg_.weights_, 0) += wrow;
@@ -399,6 +382,9 @@ public:
     auto lambda()    const {return lambda_;}
     auto max_iter()  const {return max_iter_;}
     auto t()         const {return t_;}
+
+    template<typename... Args>
+    decltype(auto) kernel(Args &&... args)    const {return kernel_(std::forward(args)...);}
 
     // Reference getters
     auto &w()              {return w_;}
