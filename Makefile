@@ -10,7 +10,7 @@ STD=c++17
 endif
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
-		 -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter
+		 -Wformat -Wcast-align -Wno-unused-function
 DBG:= # -DNDEBUG
 OPT:= -O3 -funroll-loops -pipe -fno-strict-aliasing -march=native -fopenmp -DUSE_FASTRANGE
 OS:=$(shell uname)

@@ -285,7 +285,7 @@ public:
         decltype(a_) last_alphas;
         kh_resize(I, h_, mbs_ * 1.5);
         kh_clear(I, h_);
-        std::set<size_t> indices;
+        std::set<size_t> indices; // Consider hash set or linear search depending on number of indices per batch....
         const size_t per_batch(std::min(mbs_, ns_));
         for(t_ = 0; t_ < max_iter_; ++t_) {
             //cerr << "At the start of time == " << t_ << ", we have " << a_.nonZeros() << " nonzeros.\n";
@@ -326,7 +326,9 @@ public:
                      << " iteration: " << t_ << '\n';
             }
             const double dnf(diffnorm(a_, last_alphas) / dot(a_, a_));
-            //cerr << "Diff norm: " << dn << '\n';
+#if !NDEBUG
+            cerr << "Diff norm: " << dn << '\n';
+#endif
             if(dnf < eps_) break;
             // TODO: Add new termination conditions based on the change of loss.
             // If the results are the same (or close enough).

@@ -7,6 +7,7 @@
 #include "lib/matrixkernel.h"
 #include "lib/mathutil.h"
 #include "lib/learning_rate.h"
+#include "lib/loss.h"
 
 namespace svm {
 
@@ -31,9 +32,10 @@ public:
     double norm() const {return norm_;}
 };
 
-template<typename FloatType=float,
+template<typename FloatType=FLOAT_TYPE,
          class MatrixKind=DynamicMatrix<FloatType>,
-         class LearningPolicy=PegasosLearningRate<FloatType>>
+         class LearningPolicy=PegasosLearningRate<FloatType>,
+         class LossFn=LossSubgradient<FloatType, HingeSubgradientCore<FloatType>>>
 class LinearSVM {
 
     // Increase nd by 1 and set all the last entries to "1" to add
@@ -41,8 +43,8 @@ class LinearSVM {
     // (See http://ttic.uchicago.edu/~nati/Publications/PegasosMPB.pdf,
     //  section 6.)
 
-    using WMType     = WeightMatrix<FloatType, DynamicMatrix<FloatType>>;
-    using KernelType = LinearKernel<FloatType>;
+    using WMType       = WeightMatrix<FloatType, DynamicMatrix<FloatType>>;
+    using KernelType   = LinearKernel<FloatType>;
 
     MatrixKind                m_; // Training Data
     // Weights. one-dimensional for 2-class, nc_-dimensional for more.
@@ -55,6 +57,7 @@ class LinearSVM {
     // aid cache efficiency.
     const FloatType      lambda_; // Lambda Parameter
     const KernelType     kernel_;
+    const LossFn       &loss_fn_;
     size_t                   nc_; // Number of classes
     const size_t            mbs_; // Mini-batch size
     size_t                   ns_; // Number samples
@@ -77,12 +80,12 @@ public:
               LearningPolicy lp,
               size_t mini_batch_size=256uL,
               size_t max_iter=100000,  const FloatType eps=1e-6,
-              long avg_size=-1, bool project=true, bool scale=false, bool bias=true)
+              long avg_size=-1, bool project=true, bool scale=false, bool bias=true, const LossFn &fn={})
         : lambda_(lambda),
           nc_(0), mbs_(mini_batch_size),
-          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps < 0 ? -std::numeric_limits<float>::infinity(): eps),
+          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps < 0 ? -std::numeric_limits<FloatType>::infinity(): eps),
           avg_size_(avg_size < 0 ? 1000: avg_size),
-          project_(project), scale_(scale), bias_(bias)
+          project_(project), scale_(scale), bias_(bias), loss_fn_{fn}
     {
         load_data(path);
     }
@@ -91,11 +94,11 @@ public:
                LearningPolicy lp,
                size_t mini_batch_size=256uL,
                size_t max_iter=100000,  const FloatType eps=1e-6,
-               long avg_size=-1, bool project=false, bool scale=false, bool bias=true)
+               long avg_size=-1, bool project=false, bool scale=false, bool bias=true, const LossFn &fn={})
         : lambda_(lambda),
           nc_(0), mbs_(mini_batch_size), nd_(ndims),
-          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps < 0 ? -std::numeric_limits<float>::infinity(): eps),
-          avg_size_(avg_size < 0 ? 10: avg_size), project_(project), scale_(scale), bias_(bias)
+          max_iter_(max_iter), t_(0), lp_(lp), eps_(eps < 0 ? -std::numeric_limits<FloatType>::infinity(): eps),
+          avg_size_(avg_size < 0 ? 10: avg_size), project_(project), scale_(scale), bias_(bias), loss_fn_{fn}
     {
         sparse_load(path);
     }
@@ -260,22 +263,26 @@ private:
             }
         }
     }
+public:
+    // Only use the "predict" functions if you know what you're doing!
+    // These unctions do not rescale data and are only appropriate if
+    // it has not been normalized.
     template<typename RowType>
     double predict(const RowType &datapoint) const {
-        return dot(row(w_.weights_, 0), datapoint);
+        return kernel_(row(w_.weights_, 0), datapoint);
     }
+
     double predict(const FloatType *datapoint) const {
+#if 0
         const double ret(blas_dot(nd_, datapoint, 1, &w_.weights_(0, 0), 1));
-#if !NDEBUG
         double tmp(0.);
         auto wr(row(w_.weights_, 0));
         for(size_t i(0); i < nd_; ++i) tmp += datapoint[i] * w_[i];
         assert(tmp == ret);
 #endif
-        return dot(row(w_.weights_, 0), datapoint);
+        return kernel_(row(w_.weights_, 0), datapoint);
     }
 
-public:
     template<typename RowType>
     int classify_external(RowType &data) const {
         if(r_.rows()) rescale_point(data);
@@ -284,8 +291,7 @@ public:
     template<typename RowType>
     int classify(const RowType &data) const {
         static const int tbl[]{-1, 1};
-        const double pred(predict(data));
-        return tbl[pred > 0.];
+        return tbl[predict(data) > 0.];
     }
     FloatType loss() const {
         size_t mistakes(0);
@@ -297,16 +303,25 @@ public:
 #if !NDEBUG
         const size_t interval(max_iter_ / 10);
 #endif
-        size_t avgs_used(0);
+        // Set constants
+        const size_t max_end_index(std::min(mbs_, ns_));
+        const FloatType batchsz_inv(1./max_end_index);
+
+        // Allocate weight vectors and initialize row views.
         decltype(w_.weights_) tmpsum(1, nd_);
         decltype(w_.weights_) last_weights(1, nd_);
         auto wrow(row(w_.weights_, 0));
         auto trow(row(tmpsum, 0));
-        const size_t max_end_index(std::min(mbs_, ns_));
-        std::vector<size_t> indices;
+
+        // Allocate hash set
         khash_t(I) *h(kh_init(I));
         kh_resize(I, h, mbs_ * 1.5);
-        for(t_ = 0; avgs_used < avg_size_; ++t_) {
+
+        //size_t avgs_used(0);
+#if USE_OLD_WAY
+        double eta;
+#endif
+        for(size_t avgs_used = t_ = 0; avgs_used < avg_size_; ++t_) {
 #if !NDEBUG
             if((t_ % interval) == 0) {
                 const double ls(loss()), current_norm(w_.get_norm_sq());
@@ -314,40 +329,28 @@ public:
                         " with norm of w = " << current_norm << ".\n";
             }
 #endif
-            const double eta(lp_(t_));
-            tmpsum = 0.; // reset to 0 each time.
-            indices.clear();
-            int khr;
-            while(kh_size(h) < mbs_) {
-                kh_put(I, h, RANGE_SELECT(max_end_index), &khr);
+            {
+                int khr;
+                kh_clear(I, h);
+                while(kh_size(h) < max_end_index)
+                    kh_put(I, h, RANGE_SELECT(max_end_index), &khr);
             }
-            #pragma omp parallel for
-            for(size_t i = 0; i < kh_size(h); ++i) {
-                if(!kh_exist(h, i)) continue;
-                const size_t index(kh_key(h, i));
-                if(predict(row(m_, index)) * v_[index] < 1.) {
-                    #pragma omp critical
-                    row(tmpsum, 0) += row(m_, index) * v_[index];
-                }
-                // Could be made more cache-friendly by randomly selecting and
-                // processing chunks of the data, but for now this is fine.
-            }
-            const size_t nels_added(mbs_);
-            if(t_ < max_iter_) last_weights = w_.weights_;
-            w_.scale(1.0 - eta * lambda_);
-            wrow += trow * (eta / nels_added);
+
+            // This is the part of the code that I would replace with the
+            // generic projection
+            loss_fn_(*this, trow, last_weights, h);
             if(project_) {
                 const double norm(w_.get_norm_sq());
                 if(norm > 1. / lambda_)
                     w_.scale(std::sqrt(1.0 / (lambda_ * norm)));
             }
-            if(t_ >= max_iter_ || diffnorm(row(last_weights, 0), row(w_.weights_, 0)) < eps_) {
+            if(t_ >= max_iter_ || (eps_ >= 0 &&
+                                   diffnorm(row(last_weights, 0), row(w_.weights_, 0)) < eps_)) {
                 if(w_avg_.weights_.rows() == 0)
                     w_avg_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_), w_avg_.weights_.reset();
                 row(w_avg_.weights_, 0) += wrow;
                 ++avgs_used;
             }
-            kh_clear(I, h);
         }
         kh_destroy(I, h);
         row(w_avg_.weights_, 0) *= 1. / avg_size_;
@@ -374,6 +377,20 @@ public:
         line[line.size() - 1] = '\n';
         fwrite(line.data(), line.size(), 1, fp);
     }
+    // Value getters
+    auto eps()       const {return eps_;}
+    auto lambda()    const {return lambda_;}
+    auto max_iter()  const {return max_iter_;}
+    auto t()         const {return t_;}
+
+    template<typename... Args>
+    decltype(auto) kernel(Args &&... args)    const {return kernel_(std::forward(args)...);}
+
+    // Reference getters
+    auto &w()              {return w_;}
+    const auto &v()  const {return v_;}
+    const auto &m()  const {return m_;}
+    const auto &lp() const {return lp_;}
 }; // LinearSVM
 
 } // namespace svm
