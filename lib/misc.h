@@ -27,6 +27,7 @@
 #include "lib/ks.h"
 #include "blaze/Math.h"
 #include "fastrange/fastrange.h"
+#include "lib/rand.h"
 #include "klib/khash.h"
 
 #ifndef _USE_MATH_DEFINES
@@ -82,9 +83,9 @@
 #endif
 
 #if defined(USE_FASTRANGE) && USE_FASTRANGE
-#  define RANGE_SELECT(size) (fastrangesize(rand64(), size))
+#  define RANGE_SELECT(size) (fastrangesize(random_twist(), size))
 #else
-#  define RANGE_SELECT(size) (rand64() % size)
+#  define RANGE_SELECT(size) (random_twist() % size)
 #endif
 
 namespace svm {
@@ -137,14 +138,6 @@ INLINE FloatType diffnorm(const MatrixType1 &a, const MatrixType2 &b) {
 template<typename MatrixType, typename FloatType=double>
 INLINE FloatType norm(const MatrixType &a) {
     return std::sqrt(dot(a, a));
-}
-
-static INLINE u32 rand32() {
-    return (std::rand() & 0x0000FFFF) | ((std::rand() << 16) & 0xFFFF0000);
-}
-
-static inline u64 rand64() {
-    return ((u64)rand32() << 32) | rand32();
 }
 
 using blaze::Matrix;
