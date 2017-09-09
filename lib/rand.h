@@ -1,8 +1,11 @@
 #ifndef _GMM_RAND_H__
 #define _GMM_RAND_H__
 #include <random>
+#include "fastrange/fastrange.h"
+#include "fast_mutex.h"
 
-namespace mm {
+namespace rng {
+
 struct RandTwister {
     std::mt19937_64 twister_;
 
@@ -55,6 +58,6 @@ static RandTwister random_twist(std::rand());
 template<typename T>
 T randf() {return random_twist() * RandTwister::MAX_INV;}
 
-}
+} // namespace rng
 
 #endif // #ifndef _GMM_RAND_H__

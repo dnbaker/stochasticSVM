@@ -327,7 +327,7 @@ public:
             }
             const double dnf(diffnorm(a_, last_alphas) / dot(a_, a_));
 #if !NDEBUG
-            cerr << "Diff norm: " << dn << '\n';
+            cerr << "Diff norm: " << dnf << '\n';
 #endif
             if(dnf < eps_) break;
             // TODO: Add new termination conditions based on the change of loss.

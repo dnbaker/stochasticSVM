@@ -26,7 +26,6 @@
 #include "logutil.h"
 #include "lib/ks.h"
 #include "blaze/Math.h"
-#include "fastrange/fastrange.h"
 #include "lib/rand.h"
 #include "klib/khash.h"
 
@@ -83,9 +82,9 @@
 #endif
 
 #if defined(USE_FASTRANGE) && USE_FASTRANGE
-#  define RANGE_SELECT(size) (fastrangesize(random_twist(), size))
+#  define RANGE_SELECT(size) (fastrangesize(rng::random_twist(), size))
 #else
-#  define RANGE_SELECT(size) (random_twist() % size)
+#  define RANGE_SELECT(size) (rng::random_twist() % size)
 #endif
 
 namespace svm {
