@@ -302,7 +302,7 @@ public:
                 //cerr << "Size of hash: " << kh_size(h_) << '\n';
                 //cerr << "Number of elements in training data: " << ns_ << '\n';
             }
-            //cerr << "About to get elements to update\n";
+            // TODO: This is the portion which needs to be templatized for various loss functions.
             #pragma omp parallel for
             for(khiter_t ki = 0; ki < kh_end(h_); ++ki) {
                 if(kh_exist(h_, ki)) {

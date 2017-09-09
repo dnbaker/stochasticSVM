@@ -34,9 +34,9 @@ LD=-L.
 
 OBJS=$(patsubst %.cpp,%.o,$(wildcard lib/*.cpp))
 TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
-EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard src/*.cpp)) $(patsubst %.cpp,%.fo,$(wildcard src/*.cpp))
+EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard src/t*.cpp)) $(patsubst %.cpp,%.fo,$(wildcard src/t*.cpp))
 
-EX=$(patsubst src/%.fo,%_f,$(EXEC_OBJS)) $(patsubst src/%.o,%,$(EXEC_OBJS))
+EX=$(patsubst src/%.fo,f%,$(EXEC_OBJS)) $(patsubst src/%.o,d%,$(EXEC_OBJS))
 
 
 # If compiling with c++ < 17 and your compiler does not provide
@@ -67,10 +67,10 @@ klib/kstring.o:
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
-%: src/%.o $(OBJS)
+d%: src/%.o $(OBJS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
-%_f: src/%.fo $(OBJS)
+f%: src/%.fo $(OBJS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=float $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
 %.o: %.c
