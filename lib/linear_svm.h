@@ -13,7 +13,7 @@ namespace svm {
 
 template<typename FloatType, typename WeightMatrixKind=DynamicMatrix<FloatType>>
 class WeightMatrix {
-    double norm_;
+    FloatType norm_;
 public:
     WeightMatrixKind weights_;
     operator WeightMatrixKind&() {return weights_;}
@@ -29,7 +29,7 @@ public:
     FloatType get_norm_sq() {
         return norm_ = dot(row(weights_, 0), row(weights_, 0));
     }
-    double norm() const {return norm_;}
+    FloatType norm() const {return norm_;}
 };
 
 template<typename FloatType=FLOAT_TYPE,
@@ -268,14 +268,14 @@ public:
     // These unctions do not rescale data and are only appropriate if
     // it has not been normalized.
     template<typename RowType>
-    double predict(const RowType &datapoint) const {
+    FloatType predict(const RowType &datapoint) const {
         return kernel_(row(w_.weights_, 0), datapoint);
     }
 
-    double predict(const FloatType *datapoint) const {
+    FloatType predict(const FloatType *datapoint) const {
 #if 0
-        const double ret(blas_dot(nd_, datapoint, 1, &w_.weights_(0, 0), 1));
-        double tmp(0.);
+        const FloatType ret(blas_dot(nd_, datapoint, 1, &w_.weights_(0, 0), 1));
+        FloatType tmp(0.);
         auto wr(row(w_.weights_, 0));
         for(size_t i(0); i < nd_; ++i) tmp += datapoint[i] * w_[i];
         assert(tmp == ret);
@@ -297,7 +297,7 @@ public:
         size_t mistakes(0);
         for(size_t index(0); index < ns_; ++index)
             mistakes += (classify(row(m_, index)) != v_[index]);
-        return static_cast<double>(mistakes) / ns_;
+        return static_cast<FloatType>(mistakes) / ns_;
     }
     void train() {
 #if !NDEBUG
@@ -319,12 +319,12 @@ public:
 
         //size_t avgs_used(0);
 #if USE_OLD_WAY
-        double eta;
+        FloatType eta;
 #endif
         for(size_t avgs_used = t_ = 0; avgs_used < avg_size_; ++t_) {
 #if !NDEBUG
             if((t_ % interval) == 0) {
-                const double ls(loss()), current_norm(w_.get_norm_sq());
+                const FloatType ls(loss()), current_norm(w_.get_norm_sq());
                 cerr << "Loss: " << ls * 100 << "%" << " at time = " << t_ << 
                         " with norm of w = " << current_norm << ".\n";
             }
@@ -340,7 +340,7 @@ public:
             // generic projection
             loss_fn_(*this, trow, last_weights, h);
             if(project_) {
-                const double norm(w_.get_norm_sq());
+                const FloatType norm(w_.get_norm_sq());
                 if(norm > 1. / lambda_)
                     w_.scale(std::sqrt(1.0 / (lambda_ * norm)));
             }
@@ -354,7 +354,7 @@ public:
         }
         kh_destroy(I, h);
         row(w_avg_.weights_, 0) *= 1. / avg_size_;
-        double ls(loss());
+        FloatType ls(loss());
         cout << "Train error: " << ls * 100 << "%\nafter "
              << t_ + 1 << " iterations "<<'\n';
         cleanup();

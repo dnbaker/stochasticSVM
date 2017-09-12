@@ -23,6 +23,47 @@ struct HingeSubgradientCore {
 };
 
 template<typename FloatType>
+struct PerceptronSubgradientCore {
+    template<typename SVMType, typename TmpRowType>
+    INLINE void operator()(SVMType &svm, TmpRowType &trow,
+                           khash_t(I) *h) const {
+        const auto &mat = svm.m();
+        const auto &v(svm.v());
+        for(size_t i(0); i < kh_size(h); ++i) {
+            if(!kh_exist(h, i)) continue;
+            const size_t index(kh_key(h, i));
+            if(svm.predict(row(mat, index)) * v[index] < 0.) {
+                trow += row(mat, index) * v[index];
+            }
+        }
+    }
+    PerceptronSubgradientCore() {}
+};
+
+template<typename FloatType>
+struct EpsilonSubgradientCore {
+    const FloatType eps_;
+
+    template<typename SVMType, typename TmpRowType>
+    INLINE void operator()(SVMType &svm, TmpRowType &trow,
+                           khash_t(I) *h, FloatType eps=-1.) const {
+        if(eps < 0) eps = svm.lambda();
+        const auto &mat = svm.m();
+        const auto &v(svm.v());
+        FloatType diff;
+        for(size_t i(0); i < kh_size(h); ++i) {
+            if(!kh_exist(h, i)) continue;
+            const size_t index(kh_key(h, i));
+            if((diff = svm.predict(row(mat, index)) - v[index]) > eps)
+                trow -= row(mat, index);
+            else if(diff < -eps_)
+                trow += row(mat, index);
+        }
+    }
+    EpsilonSubgradientCore(FloatType eps=0.5): eps_{eps} {}
+};
+
+template<typename FloatType>
 struct LogisticSubgradientCore {
     template<typename SVMType, typename TmpRowType>
     INLINE void operator()(SVMType &svm, TmpRowType &trow,
