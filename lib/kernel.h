@@ -1,5 +1,6 @@
 #ifndef _KERNEL_H_
 #define _KERNEL_H_
+#include "lib/rand.h"
 #include "lib/misc.h"
 #include "blaze/Math.h"
 
@@ -10,12 +11,37 @@ struct KernelBase {
     using float_type = FloatType;
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const;
-    template<typename RowType1, typename RowType2>
-    INLINE void rff_sample(const RowType1 &in, RowType2 &out, size_t d) {
-        // in:  blaze::RowType of some kind.
-        // out: blaze::RowType of some kind.
+    template<typename RowType>
+    INLINE void sample(RowType &row) const {
+        throw NotImplementedError("Sampling must be overridden.");
+    }
+    template<typename RowType1, typename RowType2, typename TmpRowType, typename PRNGen=rng::RandTwister>
+    INLINE void rff_sample(const RowType1 &in, RowType2 &out, size_t d, TmpRowType &tmp, const PRNGen &rng=PRNGen{}) const {
+        // samples from Gaussian distribution randomly for RFF generation.
+        // in:  blaze::RowType of some kind, unmodifid.
+        // out: blaze::RowType of some kind, set.
         // d:   size of output data.
-        throw NotImplementedError("No rff_sample method provided. Abort!\n");
+        if(unlikely(out.size() != d)) {
+            throw std::runtime_error(("Output array of length "s +
+                                      std::to_string(out.size()) +
+                                      " does not match expected/required " +
+                                      std::to_string(d)).data());
+        }
+        assert((d & 1) == 0); // Must be even
+        throw NotImplementedError("No rff_sample method provided, but only because I haven't figured it out yet!\n");
+        if(tmp.size() != in.size()) {
+            std::cerr << "Resizing temporary array from " << tmp.size() << " to  " << in.size();
+            tmp.resize(in.size());
+        }
+        // Consider caching an array of 0,PI/2,0,PI/2 and adding performing ::blaze::sin(pi_arr + <filled_random>)
+        // It might be faster (SIMD), it might be slower (two passes, more to compete for cache).
+        for(size_t i(0); i < d;) {
+            // TODO: manually SIMD the sin calls using SIMD and template longer loop unrolling.
+            this->sample(tmp);
+            out[i++] = std::sin(dot(tmp, in));
+            this->sample(tmp);
+            out[i++] = std::cos(dot(tmp, in));
+        }
     }
     std::string str() const {
         throw NotImplementedError("No .std() method provided.");
@@ -30,11 +56,8 @@ struct LinearKernel: KernelBase<FloatType> {
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return dot(a, b);
     }
-    template<typename RowType1, typename RowType2>
-    INLINE void rff_sample(const RowType1 &in, RowType2 &out, size_t d) {
-        // in:  blaze::RowType of some kind.
-        // out: blaze::RowType of some kind.
-        // d:   size of output data.
+    template<typename RowType>
+    INLINE void sample(RowType &row) const {
         throw NotImplementedError("No rff_sample method provided for linear kereel as it is redundant. [Won't Fix]\n");
     }
     LinearKernel() {}
@@ -117,16 +140,22 @@ struct InvMultiQuadKernel: KernelBase<FloatType> {
 };
 
 template<typename FloatType>
-struct RBFKernel: KernelBase<FloatType> {
+struct GaussianKernel: KernelBase<FloatType> {
     const FloatType mgamma_;
+    GaussianKernel(FloatType gamma): mgamma_(-gamma * 0.5) {}
+
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return std::exp(mgamma_ *
                         diffnorm<RowType1, RowType2, FloatType>(a, b));
     }
-    RBFKernel(FloatType gamma): mgamma_(-gamma) {}
+    template<typename RowType>
+    INLINE void sample(RowType &row) {
+        // TODO: *this*
+        std::cerr << "Doing nothing in this sampling.";
+    }
     std::string str() const {
-        return std::string("RBFKernel:{") + std::to_string(-mgamma_) + '}';
+        return std::string("GaussianKernel:{") + std::to_string(-mgamma_) + '}';
     }
 };
 
