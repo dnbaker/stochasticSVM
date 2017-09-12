@@ -4,7 +4,7 @@
 using namespace svm;
 
 #ifndef NOTIFICATION_INTERVAL
-#define NOTIFICATION_INTERVAL 256
+#define NOTIFICATION_INTERVAL 256uL
 #endif
 
 static int get_max_ind(const char *fn) {
@@ -31,7 +31,7 @@ static int get_max_ind(const char *fn1, const char *fn2) {
 
 // Macro for running SVM and testing it.
 
-#define RUN_SVM_MATRIX_NAME(MatrixKind, MainName) \
+#define RUN_SVM_MATRIX(MatrixKind) \
         svm.train();\
         svm.write(ofp);\
         if(argc > optind + 1) {\
@@ -73,6 +73,7 @@ static int get_max_ind(const char *fn1, const char *fn2) {
  * This should help maintainability for multiple kernels.
  */
 
+
 #define DECLARE_KERNEL_SVM(KERNEL_INIT, KERNEL_ARGS, KERNEL_PARAMS, KERNEL_USAGE, KERNEL_GETOPT)\
 \
 int usage(char *ex) {\
@@ -92,7 +93,7 @@ int usage(char *ex) {\
     return EXIT_FAILURE;\
 }\
 \
-int MainName(int argc, char *argv[]) {\
+int main(int argc, char *argv[]) {\
     int c, batch_size(256), nd_sparse(0);\
     FLOAT_TYPE lambda(0.5), eps(1e-6);\
     KERNEL_PARAMS\
@@ -146,4 +147,5 @@ int MainName(int argc, char *argv[]) {\
     if(ofp != stdout) fclose(ofp);\
 }
 
-#define RUN_SVM_MATRIX(MatrixKind) RUN_SVM_MATRIX_NAME(MatrixKind, main)
+//#define DECLARE_KERNEL_SVM(KERNEL_INIT, KERNEL_ARGS, KERNEL_PARAMS, KERNEL_USAGE, KERNEL_GETOPT) \
+//    DECLARE_KERNEL_SVM_NAME(main, KERNEL_INIT, KERNEL_ARGS, KERNEL_PARAMS, KERNEL_USAGE, KERNEL_GETOPT)
