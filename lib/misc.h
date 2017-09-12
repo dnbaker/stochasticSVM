@@ -103,6 +103,17 @@ using blaze::DynamicVector;
 using blaze::DynamicMatrix;
 using blaze::CompressedMatrix;
 using blaze::CompressedVector;
+using namespace std::literals;
+
+
+class NotImplementedError: public std::runtime_error {
+    template<typename... Args>
+    NotImplementedError(Args &&... args): std::runtime_error(std::forward(args)...) {}
+    virtual const char *what() const noexcept {
+        return (std::string("[NotImplementedError] ") +
+                std::runtime_error::what()).data();
+    }
+};
 
 KHASH_SET_INIT_INT64(I) // 64-bit set for randomly selected batch sizes.
 

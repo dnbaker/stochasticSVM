@@ -9,11 +9,13 @@ using namespace svm;
 
 static int get_max_ind(const char *fn) {
     gzFile fp(gzopen(fn, "rb"));
+    if(fp == nullptr) throw std::runtime_error(("Could not open file at "s + fn).data());
     char buf[1 << 16];
     char *p;
     int tmp, cmax(0);
     while((p = gzgets(fp, buf, sizeof buf))) {
         char *q(strchr(p, '\0'));
+        if(q == nullptr) throw std::runtime_error(("Ill-formatted file at "s + fn).data());
         while(*q != ':' && q != p) --q;
         if(q == p) continue;
         while(!std::isspace(*q)) --q;
@@ -29,7 +31,7 @@ static int get_max_ind(const char *fn1, const char *fn2) {
 
 // Macro for running SVM and testing it.
 
-#define RUN_SVM_MATRIX(MatrixKind) \
+#define RUN_SVM_MATRIX_NAME(MatrixKind, MainName) \
         svm.train();\
         svm.write(ofp);\
         if(argc > optind + 1) {\
@@ -90,7 +92,7 @@ int usage(char *ex) {\
     return EXIT_FAILURE;\
 }\
 \
-int main(int argc, char *argv[]) {\
+int MainName(int argc, char *argv[]) {\
     int c, batch_size(256), nd_sparse(0);\
     FLOAT_TYPE lambda(0.5), eps(1e-6);\
     KERNEL_PARAMS\
@@ -143,3 +145,5 @@ int main(int argc, char *argv[]) {\
     }\
     if(ofp != stdout) fclose(ofp);\
 }
+
+#define RUN_SVM_MATRIX(MatrixKind) RUN_SVM_MATRIX_NAME(MatrixKind, main)

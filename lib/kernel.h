@@ -8,19 +8,34 @@ namespace svm {
 template<typename FloatType>
 struct KernelBase {
     using float_type = FloatType;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const;
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const;
+    template<typename RowType1, typename RowType2>
+    INLINE void rff_sample(const RowType1 &in, RowType2 &out, size_t d) {
+        // in:  blaze::RowType of some kind.
+        // out: blaze::RowType of some kind.
+        // d:   size of output data.
+        throw NotImplementedError("No rff_sample method provided. Abort!\n");
+    }
     std::string str() const {
-        throw std::runtime_error("NotImplementedError [no .str() method provided.]");
+        throw NotImplementedError("No .std() method provided.");
         return "KernelBase";
     }
+    // TODO: Add SimdEnabled methods to these kernels for SIMD parallelism.
 };
 
 template<typename FloatType>
 struct LinearKernel: KernelBase<FloatType> {
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return dot(a, b);
+    }
+    template<typename RowType1, typename RowType2>
+    INLINE void rff_sample(const RowType1 &in, RowType2 &out, size_t d) {
+        // in:  blaze::RowType of some kind.
+        // out: blaze::RowType of some kind.
+        // d:   size of output data.
+        throw NotImplementedError("No rff_sample method provided for linear kereel as it is redundant. [Won't Fix]\n");
     }
     LinearKernel() {}
     std::string str() const {return "LinearKernel";}
@@ -31,10 +46,9 @@ struct PolyKernel: KernelBase<FloatType> {
     const FloatType a_;
     const FloatType c_;
     const FloatType d_;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
-        const FloatType prod(a_ * dot(a, b) + c_);
-        return std::pow(prod, d_);
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
+        return std::pow(a_ * dot(a, b) + c_, d_);
     }
     PolyKernel(FloatType a, FloatType c, FloatType d): a_(a), c_(c), d_(d) {}
     std::string str() const {
@@ -47,10 +61,10 @@ struct PolyKernel: KernelBase<FloatType> {
 template<typename FloatType>
 struct LaplacianKernel: KernelBase<FloatType> {
     const FloatType msigma_;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return std::exp(msigma_ * std::sqrt(
-            diffnorm<MatrixType1, MatrixType2, FloatType>(a, b)));
+            diffnorm<RowType1, RowType2, FloatType>(a, b)));
     }
     LaplacianKernel(FloatType sigma): msigma_(-sigma) {}
     std::string str() const {
@@ -62,8 +76,8 @@ struct LaplacianKernel: KernelBase<FloatType> {
 template<typename FloatType>
 struct RationalQuadKernel: KernelBase<FloatType> {
     const FloatType c_;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         const FloatType dn(diffnorm(a, b));
         return 1. - (dn / dn + c_);
     }
@@ -77,8 +91,8 @@ struct RationalQuadKernel: KernelBase<FloatType> {
 template<typename FloatType>
 struct MultiQuadKernel: KernelBase<FloatType> {
     const FloatType c2_;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return std::sqrt(diffnorm(a, b) + c2_);
     }
     MultiQuadKernel(FloatType c): c2_(c * c) {}
@@ -91,8 +105,8 @@ struct MultiQuadKernel: KernelBase<FloatType> {
 template<typename FloatType>
 struct InvMultiQuadKernel: KernelBase<FloatType> {
     const FloatType c2_;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return 1. / (std::sqrt(diffnorm(a, b) + c2_));
     }
     InvMultiQuadKernel(FloatType c): c2_(c * c) {}
@@ -105,10 +119,10 @@ struct InvMultiQuadKernel: KernelBase<FloatType> {
 template<typename FloatType>
 struct RBFKernel: KernelBase<FloatType> {
     const FloatType mgamma_;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return std::exp(mgamma_ *
-                        diffnorm<MatrixType1, MatrixType2, FloatType>(a, b));
+                        diffnorm<RowType1, RowType2, FloatType>(a, b));
     }
     RBFKernel(FloatType gamma): mgamma_(-gamma) {}
     std::string str() const {
@@ -119,10 +133,10 @@ struct RBFKernel: KernelBase<FloatType> {
 template<typename FloatType>
 struct ExpKernel: KernelBase<FloatType> {
     const FloatType mgamma_;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return std::exp(mgamma_ * std::sqrt(
-            diffnorm<MatrixType1, MatrixType2, FloatType>(a, b)));
+            diffnorm<RowType1, RowType2, FloatType>(a, b)));
     }
     ExpKernel(FloatType gamma): mgamma_(-gamma) {}
     std::string str() const {
@@ -134,8 +148,8 @@ template<typename FloatType>
 struct SphericalKernel: KernelBase<FloatType> {
     const FloatType sigma_inv_;
     const FloatType sigma_;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         const FloatType norm2(std::sqrt(diffnorm(a, b)) * sigma_inv_);
         return norm2 >= 1. ? 0.
                            : 1. - 1.5 * norm2 + (norm2 * norm2 * norm2) * .5;
@@ -150,8 +164,8 @@ template<typename FloatType>
 struct GeneralHistogramKernel: KernelBase<FloatType> {
     const FloatType a_;
     const FloatType b_;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         if(a.size() != b.size())
             throw std::out_of_range(std::string("Could not calculate min between arrays of different sizes (") + std::to_string(a.size()) + ", " + std::to_string(b.size()) + ")");
         auto ait(a.cbegin()), bit(b.cbegin());
@@ -169,8 +183,8 @@ struct GeneralHistogramKernel: KernelBase<FloatType> {
 template<typename FloatType>
 struct CauchyKernel: KernelBase<FloatType> {
     const FloatType sigma_sq_inv_;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return 1. / (1. + diffnorm(a, b) * sigma_sq_inv_);
     }
     CauchyKernel(FloatType sigma): sigma_sq_inv_(1. / (sigma * sigma)) {}
@@ -182,8 +196,8 @@ struct CauchyKernel: KernelBase<FloatType> {
 
 template<typename FloatType>
 struct ChiSqPDVariantKernel: KernelBase<FloatType> {
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return 2. * dot(a, b / (a + b));
     }
     std::string str() const {
@@ -194,8 +208,8 @@ struct ChiSqPDVariantKernel: KernelBase<FloatType> {
 
 template<typename FloatType>
 struct ChiSqKernel: KernelBase<FloatType> {
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return 1. - 2. * dot(a - b, ((a - b) / (a + b)));
     }
     std::string str() const {
@@ -206,8 +220,8 @@ struct ChiSqKernel: KernelBase<FloatType> {
 template<typename FloatType>
 struct StudentKernel: KernelBase<FloatType> {
     const FloatType d_;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return 1. / (1 + std::pow(diffnorm(a, b), d_));
     }
     StudentKernel(FloatType d): d_(d / 2.) {} // Divide by 2 to get the n-nom.
@@ -219,8 +233,8 @@ struct StudentKernel: KernelBase<FloatType> {
 template<typename FloatType>
 struct ANOVAKernel: KernelBase<FloatType> {
     const FloatType d_, k_, sigma_;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return std::pow(
             -sigma_ * diffnorm(blaze::pow(a, k_), blaze::pow(b, k_)), d_);
     }
@@ -260,8 +274,8 @@ template<typename FloatType, size_t degree=0>
 struct ArccosKernel: KernelBase<FloatType> {
     // https://papers.nips.cc/paper/3628-kernel-methods-for-deep-learning.pdf
     ArccosKernelJDetail<degree> fn_;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         const FloatType anorm(svm::norm(a)), bnorm(svm::norm(b)), theta(std::acos(dot(a, b) / (anorm * bnorm)));
         return std::pow(anorm * bnorm, degree) / M_PI * fn_(theta);
     }
@@ -272,7 +286,7 @@ struct ArccosKernel: KernelBase<FloatType> {
 
 template<typename FloatType>
 struct DefaultWaveletFunction {
-    FloatType operator()(FloatType input) const {
+    INLINE FloatType operator()(FloatType input) const {
         return std::cos(1.75 * input) * std::exp(input * input * -0.5);
     }
 };
@@ -281,8 +295,8 @@ template<typename FloatType, class WaveletFunction=DefaultWaveletFunction<FloatT
 struct WaveletKernel: KernelBase<FloatType> {
     const FloatType a_inv_, c_;
     WaveletFunction fn_;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         auto ait(a.cbegin()), bit(b.cbegin());
         FloatType ret(fn_((*ait - c_) * a_inv_) * fn_((*bit - c_) * a_inv_));
         while(++ait != a.cend() && ++bit != b.cend()) ret *= fn_((*ait - c_) * a_inv_) * fn_((*bit - c_) * a_inv_);
@@ -298,8 +312,8 @@ struct WaveletKernel: KernelBase<FloatType> {
 template<typename FloatType>
 struct LogarithmicKernel: KernelBase<FloatType> {
     const FloatType d_;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return -std::log(std::pow(diffnorm(a, b), d_) + 1);
     }
     LogarithmicKernel(FloatType d): d_(d / 2.) {} // Divide by 2 to get the n-norm.
@@ -310,22 +324,22 @@ struct LogarithmicKernel: KernelBase<FloatType> {
 
 template<typename FloatType>
 struct HistogramKernel: KernelBase<FloatType> {
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         FloatType ret(0.);
-        if constexpr(!blaze::IsSparseVector<MatrixType1>::value && !blaze::IsSparseVector<MatrixType2>::value) {
+        if constexpr(!blaze::IsSparseVector<RowType1>::value && !blaze::IsSparseVector<RowType2>::value) {
             for(auto ait(a.cbegin()), bit(b.cbegin()), eait(a.cend()); ait != eait; ++ait, ++bit) {
                 ret += std::min(*ait, *bit);
             }
-        } else if constexpr(blaze::IsSparseVector<MatrixType1>::value && !blaze::IsSparseVector<MatrixType2>::value) {
+        } else if constexpr(blaze::IsSparseVector<RowType1>::value && !blaze::IsSparseVector<RowType2>::value) {
             for(auto ait(a.cbegin()), eait(a.cend()); ait != eait; ++ait) {
                 ret += std::min(a->value(), b[a->index()]);
             }
-        } else if constexpr(!blaze::IsSparseVector<MatrixType1>::value && blaze::IsSparseVector<MatrixType2>::value) {
+        } else if constexpr(!blaze::IsSparseVector<RowType1>::value && blaze::IsSparseVector<RowType2>::value) {
             for(auto ait(b.cbegin()), eait(b.cend()); ait != eait; ++ait) {
                 ret += std::min(b->value(), a[b->index()]);
             }
-        } else { // blaze::IsSparseVector<MatrixType1>::value && blaze::IsSparseVector<MatrixType2>::value)
+        } else { // blaze::IsSparseVector<RowType1>::value && blaze::IsSparseVector<RowType2>::value)
             auto ait(a.cbegin()), eait(a.cend()), bit(b.cbegin()), ebit(b.cend());
             while(ait != eait && bit != ebit) {
                 if(ait->index() < bit->index()) {
@@ -362,8 +376,8 @@ struct ExponentialBesselKernel: KernelBase<FloatType> {
     // https://github.com/primaryobjects/Accord.NET/blob/master/Sources/Accord.Statistics/Kernels/Bessel.cs
     // https://github.com/DiegoCatalano/Catalano-Framework/blob/master/Catalano.Statistics/src/Catalano/Statistics/Kernels/Bessel.java
     const FloatType sigma_, order_;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         const auto norm(std::sqrt(diffnorm(a, b)));
         return cyl_bessel_j(order_, sigma_ * norm) /
             std::pow(norm, -norm * order_);
@@ -382,8 +396,8 @@ template<typename FloatType>
 struct CylindricalBesselKernel: KernelBase<FloatType> {
     // http://crsouza.com/2010/03/17/kernel-functions-for-machine-learning-applications/#bessel
     const FloatType sigma_, vp1_, minus_nvp1_;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         const auto norm(sigma_ * std::sqrt(diffnorm(a, b)));
         return cyl_bessel_j(vp1_, sigma_ * norm) / std::exp(norm, minus_nvp1_);
     }
@@ -402,8 +416,8 @@ struct CircularKernel: KernelBase<FloatType> {
     const FloatType sigma_inv_;
     const FloatType sigma_;
     static constexpr FloatType TWO_OVER_PI = 2 / M_PIl;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         const FloatType norm2(std::sqrt(diffnorm(a, b)) * sigma_inv_);
         return norm2 >= 1. ? 0.
                            : TWO_OVER_PI * (std::acos(-norm2) - norm2 *
@@ -420,8 +434,8 @@ template<typename FloatType>
 struct TanhKernel: KernelBase<FloatType>{
     const FloatType k_;
     const FloatType c_;
-    template<typename MatrixType1, typename MatrixType2>
-    FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
+    template<typename RowType1, typename RowType2>
+    INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return std::tanh(dot(a, b) * k_ + c_);
     }
     TanhKernel(FloatType k, FloatType c): k_(k), c_(c) {}
