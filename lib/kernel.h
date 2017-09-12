@@ -37,9 +37,9 @@ struct KernelBase {
         // It might be faster (SIMD), it might be slower (two passes, more to compete for cache).
         for(size_t i(0); i < d;) {
             // TODO: manually SIMD the sin calls using SIMD and template longer loop unrolling.
-            this->sample(tmp);
+            sample(tmp);
             out[i++] = std::sin(dot(tmp, in));
-            this->sample(tmp);
+            sample(tmp);
             out[i++] = std::cos(dot(tmp, in));
         }
     }
@@ -152,7 +152,7 @@ struct GaussianKernel: KernelBase<FloatType> {
     template<typename RowType>
     INLINE void sample(RowType &row) {
         // TODO: *this*
-        std::cerr << "Doing nothing in this sampling.";
+        std::cerr << "Doing nothing in this sampling.\n";
     }
     std::string str() const {
         return std::string("GaussianKernel:{") + std::to_string(-mgamma_) + '}';
