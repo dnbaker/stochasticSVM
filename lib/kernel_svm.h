@@ -244,13 +244,13 @@ private:
             cerr << "New variance: " << variance(col) << ". New mean: " << mean(col) <<'\n';
         }
     }
-    double predict(size_t index) const {
+    FloatType predict(size_t index) const {
         return predict(row(m_, index));
     }
 public:
     template<typename RowType>
-    double predict(const RowType &datapoint) const {
-        double ret(0.);
+    FloatType predict(const RowType &datapoint) const {
+        FloatType ret(0.);
         for(auto it(a_.cbegin()), e(a_.cend()); it != e; ++it) {
             if(kh_get(I, h_, it->value()) == kh_end(h_)) {
                 //std::fprintf(stderr, "Index: %zu. Value: %i. kernel: %lf. Inc value: %lf\n",
@@ -278,7 +278,7 @@ public:
         for(size_t index = 0; index < ns_; ++index) {
             mistakes += (classify(index) != v_[index]);
         }
-        return static_cast<double>(mistakes) / ns_;
+        return static_cast<FloatType>(mistakes) / ns_;
     }
     void train() {
         const size_t interval(max_iter_ / 10);
@@ -306,7 +306,7 @@ public:
             #pragma omp parallel for
             for(khiter_t ki = 0; ki < kh_end(h_); ++ki) {
                 if(kh_exist(h_, ki)) {
-                    const double prediction(predict(kh_key(h_, ki)));
+                    const FloatType prediction(predict(kh_key(h_, ki)));
                     if(prediction * v_[kh_key(h_, ki)] < 1.) {
                         #pragma omp critical
                         indices.insert(kh_key(h_, ki));
@@ -325,7 +325,7 @@ public:
                      << " Number incremented (bc < 1): " << ndiff
                      << " iteration: " << t_ << '\n';
             }
-            const double dnf(diffnorm(a_, last_alphas) / dot(a_, a_));
+            const FloatType dnf(diffnorm(a_, last_alphas) / dot(a_, a_));
 #if !NDEBUG
             cerr << "Diff norm: " << dnf << '\n';
 #endif
