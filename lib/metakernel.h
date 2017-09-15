@@ -25,21 +25,26 @@ struct MultiplicativeKernel: KernelBase<FloatType> {
 
 template<typename FloatType, typename Kernel1, typename Kernel2>
 struct AdditiveKernel: KernelBase<FloatType> {
-    const std::pair<Kernel1, Kernel2> kernels_;
-    const FloatType a_, b_, c_;
+    Kernel1 kernel1;
+    Kernel2 kernel2;
+    const FloatType a_, b_;
     template<typename MatrixType1, typename MatrixType2>
     FloatType operator()(const MatrixType1 &a, const MatrixType2 &b) const {
-        return kernels_.first(a, b) * a_ +kernels_.second(a, b) * b_ + c_;
+        return kernel1(a, b) * a_ +kernel2(a, b) * b_;
     }
-    AdditiveKernel(std::pair<Kernel1, Kernel2> kernels,
-                   FloatType a=1., FloatType b=1., FloatType c=0.):
-        kernels_(kernels), a_(a), b_(b), c_(c) {}
-    AdditiveKernel(Kernel1 kernel1, Kernel2 kernel2, FloatType a=1., FloatType b=1., FloatType c=0.):
-        AdditiveKernel(make_pair(kernel1, kernel2), a, b, c) {}
+    AdditiveKernel(Kernel1 kernel1, Kernel2 kernel2, FloatType a=1., FloatType b=1.):
+        kernel1{kernel1}, kernel2{kernel2}, a_(a), b_(b) {}
     std::string str() const {
         return std::string("AdditiveKernel:[") + std::to_string(a_) +
-            ", " + std::to_string(b_) + ", " + std::to_string(c_) + "]{" +
-            kernels_.first.str() + ", " + kernels_.second.str() + '}';
+            ", " + std::to_string(b_) + "]{" +
+            kernel1.str() + ", " + kernel2.str() + '}';
+    }
+    template<typename RowType>
+    INLINE void sample(RowType &row) const {
+        RowType tmp(row.size());
+        kernel1.sample(tmp);
+        kernel2.sample(row);
+        row = row * b_ + tmp * a_;
     }
 };
 

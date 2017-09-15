@@ -152,7 +152,7 @@ struct GaussianKernel: KernelBase<FloatType> {
     template<typename RowType>
     INLINE void sample(RowType &row) {
         // TODO: *this*
-        std::cerr << "Doing nothing in this sampling.\n";
+        std::cerr << "Warning: This has yet to be written. No sampling has been performed.\n";
     }
     std::string str() const {
         return std::string("GaussianKernel:{") + std::to_string(-mgamma_) + '}';
