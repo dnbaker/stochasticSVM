@@ -32,5 +32,8 @@ If you wish to use floats instead of doubles, which can be twice as fast in arit
 ## TODO
 
 0. Add simple streaming classifier using already-built SVM.
-1. Add a "budget", as in a [Randomized Budget Perceptron](http://www.dicom.uninsubria.it/~cgentile/shiftmemML.pdf).
-2. Expand to multiclass.
+1. Expand to multiclass.
+2. Add Random Fourier Feature extractor.
+  1. Add Hadamard/Fourier "FastFood" adaptor.
+  2. Consider attempting to outperform F2F.
+3. Consider compressive projections.

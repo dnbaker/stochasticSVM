@@ -12,7 +12,7 @@ struct KernelBase {
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const;
     template<typename RowType>
-    INLINE void sample(RowType &row) const {
+    INLINE void rff_sample_impl(RowType &row) const {
         throw NotImplementedError("Sampling must be overridden.");
     }
     template<typename RowType1, typename RowType2, typename TmpRowType, typename PRNGen=rng::RandTwister>
@@ -28,7 +28,7 @@ struct KernelBase {
                                       std::to_string(d)).data());
         }
         assert((d & 1) == 0); // Must be even
-        throw NotImplementedError("No rff_sample method provided, but only because I haven't figured it out yet!\n");
+        throw NotImplementedError("No rff_sample_impl method provided, but only because I haven't figured it out yet!\n");
         if(tmp.size() != in.size()) {
             std::cerr << "Resizing temporary array from " << tmp.size() << " to  " << in.size();
             tmp.resize(in.size());
@@ -37,9 +37,9 @@ struct KernelBase {
         // It might be faster (SIMD), it might be slower (two passes, more to compete for cache).
         for(size_t i(0); i < d;) {
             // TODO: manually SIMD the sin calls using SIMD and template longer loop unrolling.
-            sample(tmp);
+            rff_sample_impl(tmp);
             out[i++] = std::sin(dot(tmp, in));
-            sample(tmp);
+            rff_sample_impl(tmp);
             out[i++] = std::cos(dot(tmp, in));
         }
     }
@@ -57,8 +57,8 @@ struct LinearKernel: KernelBase<FloatType> {
         return dot(a, b);
     }
     template<typename RowType>
-    INLINE void sample(RowType &row) const {
-        throw NotImplementedError("No rff_sample method provided for linear kereel as it is redundant. [Won't Fix]\n");
+    INLINE void rff_sample_impl(RowType &row) const {
+        throw NotImplementedError("No rff_sample_impl method provided for linear kereel as it is redundant. [Won't Fix]\n");
     }
     LinearKernel() {}
     std::string str() const {return "LinearKernel";}
@@ -150,7 +150,7 @@ struct GaussianKernel: KernelBase<FloatType> {
                         diffnorm<RowType1, RowType2, FloatType>(a, b));
     }
     template<typename RowType>
-    INLINE void sample(RowType &row) {
+    INLINE void rff_sample_impl(RowType &row) {
         // TODO: *this*
         std::cerr << "Warning: This has yet to be written. No sampling has been performed.\n";
     }

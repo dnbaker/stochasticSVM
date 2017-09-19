@@ -40,10 +40,10 @@ struct AdditiveKernel: KernelBase<FloatType> {
             kernel1.str() + ", " + kernel2.str() + '}';
     }
     template<typename RowType>
-    INLINE void sample(RowType &row) const {
+    INLINE void rff_sample_impl(RowType &row) const {
         RowType tmp(row.size());
-        kernel1.sample(tmp);
-        kernel2.sample(row);
+        kernel1.rff_sample_impl(tmp);
+        kernel2.rff_sample_impl(row);
         row = row * b_ + tmp * a_;
     }
 };
