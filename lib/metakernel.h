@@ -39,12 +39,16 @@ struct AdditiveKernel: KernelBase<FloatType> {
             ", " + std::to_string(b_) + "]{" +
             kernel1.str() + ", " + kernel2.str() + '}';
     }
+    template<typename RowType1, typename RowType2>
+    INLINE void rff_sample_impl(RowType1 &ret, RowType2 &tmp) const {
+        kernel1.rff_sample_impl(ret);
+        kernel2.rff_sample_impl(tmp);
+        ret = ret * a_ + tmp * b_;
+    }
     template<typename RowType>
     INLINE void rff_sample_impl(RowType &row) const {
         RowType tmp(row.size());
-        kernel1.rff_sample_impl(tmp);
-        kernel2.rff_sample_impl(row);
-        row = row * b_ + tmp * a_;
+        rff_sample_impl<RowType, RowType>(row, tmp);
     }
 };
 

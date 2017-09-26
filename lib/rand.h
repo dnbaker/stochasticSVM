@@ -35,6 +35,10 @@ struct RandTwister {
         }
     }
     void reseed(ResultType seed) {twister_.seed(seed);}
+    using TwisterReference = std::add_lvalue_reference<std::mt19937_64>::type;
+    operator TwisterReference() {
+        return twister_;
+    }
 };
 
 struct ThreadsafeRandTwister: public RandTwister {

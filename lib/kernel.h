@@ -3,20 +3,29 @@
 #include "lib/rand.h"
 #include "lib/misc.h"
 #include "blaze/Math.h"
+#include <ctime>
 
 namespace svm {
+
+// These assume that data has been rescaled to unit variance and zero mean.
 
 template<typename FloatType>
 struct KernelBase {
     using float_type = FloatType;
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const;
-    template<typename RowType>
+    template<typename RowType, typename PRNGen=rng::RandTwister>
     INLINE void rff_sample_impl(RowType &row) const {
+        std::random_device dev;
+        PRNGen gen(dev());
+        rff_sample_impl(row, gen);
+    }
+    template<typename RowType, typename PRNGen=rng::RandTwister>
+    INLINE void rff_sample_impl(RowType &row, PRNGen &rng) const {
         throw NotImplementedError("Sampling must be overridden.");
     }
     template<typename RowType1, typename RowType2, typename TmpRowType, typename PRNGen=rng::RandTwister>
-    INLINE void rff_sample(const RowType1 &in, RowType2 &out, size_t d, TmpRowType &tmp, const PRNGen &rng=PRNGen{}) const {
+    INLINE void rff_sample(const RowType1 &in, RowType2 &out, size_t d, TmpRowType &tmp, PRNGen &rng=PRNGen{}) const {
         // samples from Gaussian distribution randomly for RFF generation.
         // in:  blaze::RowType of some kind, unmodifid.
         // out: blaze::RowType of some kind, set.
@@ -27,12 +36,14 @@ struct KernelBase {
                                       " does not match expected/required " +
                                       std::to_string(d)).data());
         }
-        assert((d & 1) == 0); // Must be even
-        throw NotImplementedError("No rff_sample_impl method provided, but only because I haven't figured it out yet!\n");
         if(tmp.size() != in.size()) {
             std::cerr << "Resizing temporary array from " << tmp.size() << " to  " << in.size();
             tmp.resize(in.size());
         }
+
+        assert((d & 1) == 0); // Must be even
+        rff_sample_impl(tmp, rng);
+
         // Consider caching an array of 0,PI/2,0,PI/2 and adding performing ::blaze::sin(pi_arr + <filled_random>)
         // It might be faster (SIMD), it might be slower (two passes, more to compete for cache).
         for(size_t i(0); i < d;) {
@@ -151,8 +162,13 @@ struct GaussianKernel: KernelBase<FloatType> {
     }
     template<typename RowType>
     INLINE void rff_sample_impl(RowType &row) {
-        // TODO: *this*
-        std::cerr << "Warning: This has yet to be written. No sampling has been performed.\n";
+        std::mt19937_64 gen(std::srand(std::random_device()()));
+        rff_sample_impl<RowType>(row, gen);
+    }
+    template<typename RowType, typename PRNGen>
+    INLINE void rff_sample_impl(RowType &row, std::mt19937_64 &gen) {
+        std::normal_distribution<FloatType> dist;
+        for(size_t i(0); i < row.size();) row[i++] = dist(gen);
     }
     std::string str() const {
         return std::string("GaussianKernel:{") + std::to_string(-mgamma_) + '}';
