@@ -12,4 +12,4 @@
 	url = https://github.com/pybind/pybind11
 [submodule "FFHT"]
 	path = FFHT
-	url = https://github.com/FALCONN-LIB/FFHT
+	url = https://github.com/dnbaker/FFHT
