@@ -10,6 +10,6 @@
 [submodule "pybind11"]
 	path = pybind11
 	url = https://github.com/pybind/pybind11
-[submodule "FFHT"]
-	path = FFHT
-	url = https://github.com/dnbaker/FFHT
+[submodule "kspp"]
+	path = kspp
+	url = https://github.com/dnbaker/kspp
