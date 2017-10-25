@@ -131,14 +131,12 @@ int main(int argc, char *argv[]) {\
     if(optind < argc - 1) std::cerr << "Test data at " << argv[optind + 1] << ".\n";\
     if(use_sparse) {\
         using OtherType = ::svm::KernelSVM<decltype(kernel), FLOAT_TYPE, ::blaze::CompressedMatrix<FLOAT_TYPE>>;\
-        /*TD<decltype(OtherType)> zomg; */\
         OtherType svm(\
                 nd_sparse ? OtherType(argv[optind], nd_sparse, lambda, kernel, batch_size, max_iter, eps, rescale, bias)\
                           : OtherType(argv[optind], lambda, kernel, batch_size, max_iter, eps, rescale, bias));\
         RUN_SPARSE_SVM;\
     } else { \
         using OtherType = ::svm::KernelSVM<decltype(kernel), FLOAT_TYPE>;\
-        /*TD<decltype(OtherType)> zomg; */\
         OtherType svm(\
                 nd_sparse ? OtherType(argv[optind], nd_sparse, lambda, kernel, batch_size, max_iter, eps, rescale, bias)\
                           : OtherType(argv[optind], lambda, kernel, batch_size, max_iter, eps, rescale, bias));\

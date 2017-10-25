@@ -10,7 +10,8 @@ STD=c++17
 endif
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
-		 -Wformat -Wcast-align -Wno-unused-function
+		 -Wformat -Wcast-align -Wno-unused-function -Wunused-variable \
+            -Wduplicated-cond -Wduplicated-branches  -Wlogical-op  -Wnull-dereference  -Wformat=2
 DBG:= # -DNDEBUG
 OPT:= -O3 -funroll-loops -pipe -fno-strict-aliasing -march=native -fopenmp -DUSE_FASTRANGE
 OS:=$(shell uname)
@@ -42,7 +43,7 @@ EX=$(patsubst src/%.fo,f%,$(EXEC_OBJS)) $(patsubst src/%.o,d%,$(EXEC_OBJS))
 # If compiling with c++ < 17 and your compiler does not provide
 # bessel functions with c++14, you must compile against boost.
 
-INCLUDE=-I. -Ilib -Iblaze
+INCLUDE=-I. -Ilib -Iblaze -I/usr//local/Cellar/openblas/0.2.20/include
 
 ifdef BOOST_INCLUDE_PATH
 INCLUDE += -I$(BOOST_INCLUDE_PATH)

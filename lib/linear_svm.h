@@ -196,7 +196,7 @@ private:
                 line.putc_(c);
                 continue;
             }
-            line->s[line->l] = 0;
+            line.terminate();
             if(line[0] == '#' || line[0] == '\n') {
                 line.clear();
                 continue;
