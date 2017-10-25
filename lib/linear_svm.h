@@ -35,7 +35,8 @@ public:
 template<typename FloatType=FLOAT_TYPE,
          class MatrixKind=DynamicMatrix<FloatType>,
          class LearningPolicy=PegasosLearningRate<FloatType>,
-         class LossFn=LossSubgradient<FloatType, HingeSubgradientCore<FloatType>>>
+         class LossFn=LossSubgradient<FloatType, HingeSubgradientCore<FloatType>>,
+         typename LabelType=std::int16_t>
 class LinearSVM {
 
     // Increase nd by 1 and set all the last entries to "1" to add
@@ -50,7 +51,7 @@ class LinearSVM {
     // Weights. one-dimensional for 2-class, nc_-dimensional for more.
     WMType                    w_;
     WMType                w_avg_;
-    DynamicVector<int>        v_;
+    DynamicVector<LabelType>  v_;
     MatrixKind                r_;
     // Labels [could be compressed by requiring sorted data and checking
     // an index is before or after a threshold. Likely unnecessary, but could
@@ -71,7 +72,7 @@ class LinearSVM {
     const bool          project_; // Whether or not to perform projection step.
     const bool            scale_; // Whether or not to scale to unit variance and 0 mean.
     const bool             bias_; // Whether or not to add an additional dimension to account for bias.
-    std::unordered_map<int, std::string> class_name_map_;
+    std::unordered_map<LabelType, std::string> class_name_map_;
 
 public:
     // Dense constructor
@@ -110,9 +111,9 @@ public:
 
 private:
     void normalize_labels() {
-        std::set<int> set;
+        std::set<LabelType> set;
         for(auto &pair: class_name_map_) set.insert(pair.first);
-        std::vector<int> vec(std::begin(set), std::end(set));
+        std::vector<LabelType> vec(std::begin(set), std::end(set));
         std::sort(std::begin(vec), std::end(vec));
         if(vec.size() != 2)
             throw std::runtime_error(
@@ -121,7 +122,7 @@ private:
                             "Number of classes found: ") +
                             std::to_string(nc_) + + "\")");
         //std::fprintf(stderr, "Map: {%i: %i, %i: %i}", vec[0], -1, vec[1], 1);
-        std::unordered_map<int, int> map;
+        std::unordered_map<LabelType, LabelType> map;
         map[vec[0]] = -1, map[vec[1]] = 1;
         for(auto &i: v_) {
             i = map[i];
@@ -132,7 +133,7 @@ private:
         nc_ = map.size();
 #if !NDEBUG
         for(const auto i: v_) assert(i == -1 || i == 1);
-        std::unordered_map<int, int> label_counts;
+        std::unordered_map<LabelType, LabelType> label_counts;
         for(const auto i: v_) ++label_counts[i];
         for(auto &pair: label_counts) cerr << "Label " << pair.first << " occurs " << pair.second << "times.\n";
 #endif
@@ -188,7 +189,7 @@ private:
         m_ = MatrixKind(ns_, nd_), m_.reset();
         v_ = decltype(v_)(ns_),    v_.reset();
         std::string class_name;
-        int  class_id(0);
+        LabelType class_id(0);
         int c, moffsets(16), *offsets((int *)malloc(moffsets * sizeof(int)));
         std::unordered_map<std::string, int> tmpmap;
         while((c = gzgetc(fp)) != EOF) {
@@ -208,12 +209,11 @@ private:
             v_[linenum] = m->second;
             for(int i(1); i < ntoks; ++i) {
                 p = line.data() + offsets[i];
-                char *q(strchr(p, ':'));
+                char *q(std::strchr(p, ':'));
                 if(q == nullptr) throw std::runtime_error("Malformed sparse file.");
                 *q++ = '\0';
-                const int index(atoi(p) - 1);
                 assert(linenum < m_.rows());
-                m_(linenum, index) = atof(q);
+                m_(linenum, atoi(p) - 1) = std::atof(q);
             }
             ++linenum;
             line.clear();
@@ -235,6 +235,7 @@ private:
         if(scale_) {
             rescale();
         }
+        //if(bias_) column(m_, nd_ - 1) = 1.;
         if(bias_) for(size_t i(0), e(m_.rows()); i < e; ++i) m_(i, nd_ - 1) = 1.;
     }
     template<typename RowType>

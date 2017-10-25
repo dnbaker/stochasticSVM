@@ -4,7 +4,7 @@
 using namespace svm;
 
 #ifndef NOTIFICATION_INTERVAL
-#define NOTIFICATION_INTERVAL 256uL
+#define NOTIFICATION_INTERVAL (1 << 16)
 #endif
 
 static int get_max_ind(const char *fn) {
@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {\
     unsigned nthreads(1);\
     std::FILE *ofp(stdout);\
     bool rescale(false), use_sparse(false), bias(true);\
-    while((c = getopt(argc, argv, KERNEL_GETOPT "5:e:M:s:p:b:l:o:Brh?")) >= 0) {\
+    while((c = getopt(argc, argv, KERNEL_GETOPT "e:M:s:p:b:l:o:5Brh?")) >= 0) {\
         switch(c) {\
             case '5': use_sparse = true;         break;\
             case 'B': bias       = false;        break;\

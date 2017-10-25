@@ -29,8 +29,8 @@ enum Policy:size_t{
 
 #define TRAIN_SVM(policy, MatrixType) \
         LinearSVM<FLOAT_TYPE, MatrixType<FLOAT_TYPE>, decltype(policy)> svm = \
-            nd_sparse ? LinearSVM<FLOAT_TYPE, MatrixType<FLOAT_TYPE>, decltype(policy)>(argv[optind], nd_sparse, lambda, policy, batch_size, max_iter, eps, 1000, project, rescale, bias) \
-                      : LinearSVM<FLOAT_TYPE, MatrixType<FLOAT_TYPE>, decltype(policy)>(argv[optind], lambda, policy, batch_size, max_iter, eps, 1000, project, rescale, bias)
+            nd_sparse ? LinearSVM<FLOAT_TYPE, MatrixType<FLOAT_TYPE>, decltype(policy)>(argv[optind], nd_sparse, lambda, policy, batch_size, max_iter, eps, avg_size, project, rescale, bias) \
+                      : LinearSVM<FLOAT_TYPE, MatrixType<FLOAT_TYPE>, decltype(policy)>(argv[optind], lambda, policy, batch_size, max_iter, eps, avg_size, project, rescale, bias)
 
 #define TRAIN_SPARSE_SVM(policy) TRAIN_SVM(policy, CompressedMatrix)
 #define TRAIN_DENSE_SVM(policy)  TRAIN_SVM(policy, DynamicMatrix)
@@ -39,6 +39,7 @@ int main(int argc, char *argv[]) {
     int c, batch_size(256), nd_sparse(0);
     FLOAT_TYPE lambda(0.5), eta(0.0), eps(1e-6);
     size_t max_iter(100000);
+    ssize_t avg_size(-1);
     unsigned nthreads(1);
     std::ios::sync_with_stdio(false);
     FILE *ofp(stdout);
@@ -48,8 +49,9 @@ int main(int argc, char *argv[]) {
     bool use_sparse(false);
     bool bias(true);
     for(char **p(argv + 1); *p; ++p) if(strcmp(*p, "--help") == 0) goto usage;
-    while((c = getopt(argc, argv, "E:e:M:s:P:p:b:l:o:BrFNh?")) >= 0) {
+    while((c = getopt(argc, argv, "5E:e:M:s:P:p:b:l:o:BrFNh?")) >= 0) {
         switch(c) {
+            case 'A': avg_size   = std::strtoull(optarg, 0, 10); break;
             case '5': use_sparse = true;         break;
             case 'B': bias       = false;        break;
             case 'E': eta        = atof(optarg); break;
@@ -110,5 +112,5 @@ int main(int argc, char *argv[]) {
             RUN_SVM
         }
     }
-    if(ofp != stdout) fclose(ofp);
+    if(ofp != stdout) std::fclose(ofp);
 }
