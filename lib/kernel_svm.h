@@ -362,7 +362,7 @@ public:
 #endif
     }
     void write(FILE *fp, bool scientific_notation=false) {
-        fprintf(fp, "#Dimensions: %zu.\n", nd_);
+        fprintf(fp, "#Dimensions: %zu.\n", (size_t)nd_);
         fprintf(fp, "#%s\n", kernel_.str().data());
         ks::KString line;
         line.resize(5 * a_.nonZeros());
