@@ -32,7 +32,7 @@ std::tuple<DynamicMatrix<MatrixType>, DynamicVector<VectorType>, std::unordered_
             line.putc_(c);
             continue;
         }
-        line->s[line->l] = 0;
+        line.terminate();
         if(line[0] == '#' || line[0] == '\n') {
             line.clear();
             continue;
@@ -44,7 +44,7 @@ std::tuple<DynamicMatrix<MatrixType>, DynamicVector<VectorType>, std::unordered_
         unsigned ind(0);
         for(ind = 0; ind < dims.nd_; ++ind) {
             while(std::isspace(*p)) ++p;
-            m(linenum, ind) = atof(p);
+            m(linenum, ind) = std::atof(p);
             while(!std::isspace(*p)) ++p;
 #if !NDEBUG
             if(p >= line_end) {

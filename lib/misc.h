@@ -24,7 +24,8 @@
 #include <unordered_map>
 #include <zlib.h>
 #include "logutil.h"
-#include "lib/ks.h"
+#include "kspp/ks.h"
+#include "klib/kstring.h"
 #include "blaze/Math.h"
 #include "lib/rand.h"
 #include "klib/khash.h"

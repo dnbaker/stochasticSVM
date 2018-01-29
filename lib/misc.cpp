@@ -1,4 +1,5 @@
 #include "misc.h"
+#include "klib/kstring.h"
 
 namespace svm {
 

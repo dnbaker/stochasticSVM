@@ -4,7 +4,7 @@
 using namespace svm;
 
 #ifndef NOTIFICATION_INTERVAL
-#define NOTIFICATION_INTERVAL 256uL
+#define NOTIFICATION_INTERVAL (1 << 16)
 #endif
 
 static int get_max_ind(const char *fn) {
@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {\
     unsigned nthreads(1);\
     std::FILE *ofp(stdout);\
     bool rescale(false), use_sparse(false), bias(true);\
-    while((c = getopt(argc, argv, KERNEL_GETOPT "5:e:M:s:p:b:l:o:Brh?")) >= 0) {\
+    while((c = getopt(argc, argv, KERNEL_GETOPT "e:M:s:p:b:l:o:5Brh?")) >= 0) {\
         switch(c) {\
             case '5': use_sparse = true;         break;\
             case 'B': bias       = false;        break;\
@@ -131,14 +131,12 @@ int main(int argc, char *argv[]) {\
     if(optind < argc - 1) std::cerr << "Test data at " << argv[optind + 1] << ".\n";\
     if(use_sparse) {\
         using OtherType = ::svm::KernelSVM<decltype(kernel), FLOAT_TYPE, ::blaze::CompressedMatrix<FLOAT_TYPE>>;\
-        /*TD<decltype(OtherType)> zomg; */\
         OtherType svm(\
                 nd_sparse ? OtherType(argv[optind], nd_sparse, lambda, kernel, batch_size, max_iter, eps, rescale, bias)\
                           : OtherType(argv[optind], lambda, kernel, batch_size, max_iter, eps, rescale, bias));\
         RUN_SPARSE_SVM;\
     } else { \
         using OtherType = ::svm::KernelSVM<decltype(kernel), FLOAT_TYPE>;\
-        /*TD<decltype(OtherType)> zomg; */\
         OtherType svm(\
                 nd_sparse ? OtherType(argv[optind], nd_sparse, lambda, kernel, batch_size, max_iter, eps, rescale, bias)\
                           : OtherType(argv[optind], lambda, kernel, batch_size, max_iter, eps, rescale, bias));\

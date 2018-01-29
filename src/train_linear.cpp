@@ -27,25 +27,32 @@ enum Policy:size_t{
     FIXED   = 2
 };
 
-#define TRAIN_SVM(policy) \
-        LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)> svm = \
-            nd_sparse ? LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)>(argv[optind], nd_sparse, lambda, policy, batch_size, max_iter, eps, 1000, project, rescale, bias) \
-                      : LinearSVM<FLOAT_TYPE, DynamicMatrix<FLOAT_TYPE>, decltype(policy)>(argv[optind], lambda, policy, batch_size, max_iter, eps, 1000, project, rescale, bias)
+#define TRAIN_SVM(policy, MatrixType) \
+        LinearSVM<FLOAT_TYPE, MatrixType<FLOAT_TYPE>, decltype(policy)> svm = \
+            nd_sparse ? LinearSVM<FLOAT_TYPE, MatrixType<FLOAT_TYPE>, decltype(policy)>(argv[optind], nd_sparse, lambda, policy, batch_size, max_iter, eps, avg_size, project, rescale, bias) \
+                      : LinearSVM<FLOAT_TYPE, MatrixType<FLOAT_TYPE>, decltype(policy)>(argv[optind], lambda, policy, batch_size, max_iter, eps, avg_size, project, rescale, bias)
+
+#define TRAIN_SPARSE_SVM(policy) TRAIN_SVM(policy, CompressedMatrix)
+#define TRAIN_DENSE_SVM(policy)  TRAIN_SVM(policy, DynamicMatrix)
 
 int main(int argc, char *argv[]) {
     int c, batch_size(256), nd_sparse(0);
     FLOAT_TYPE lambda(0.5), eta(0.0), eps(1e-6);
     size_t max_iter(100000);
+    ssize_t avg_size(-1);
     unsigned nthreads(1);
     std::ios::sync_with_stdio(false);
     FILE *ofp(stdout);
     Policy policy(PEGASOS);
     bool project(false);
     bool rescale(false);
+    bool use_sparse(false);
     bool bias(true);
     for(char **p(argv + 1); *p; ++p) if(strcmp(*p, "--help") == 0) goto usage;
-    while((c = getopt(argc, argv, "E:e:M:s:P:p:b:l:o:BrFNh?")) >= 0) {
+    while((c = getopt(argc, argv, "5E:e:M:s:P:p:b:l:o:BrFNh?")) >= 0) {
         switch(c) {
+            case 'A': avg_size   = std::strtoull(optarg, 0, 10); break;
+            case '5': use_sparse = true;         break;
             case 'B': bias       = false;        break;
             case 'E': eta        = atof(optarg); break;
             case 'e': eps        = atof(optarg); break;
@@ -58,10 +65,10 @@ int main(int argc, char *argv[]) {
             case 'N': policy     = NORMA;        break; // Guerra, Guerra!
             case 'F': policy     = FIXED;        break;
             case 'r': rescale    = true;         break;
-            case 'o': ofp        = fopen(optarg, "w");
-                if(ofp == nullptr) throw std::runtime_error(
-                    std::string("Could not open file at ") + optarg);
-                break;
+            case 'o': if((ofp     = fopen(optarg, "w")) == nullptr)
+                          throw std::runtime_error(
+                              std::string("Could not open file at ") + optarg);
+                                                 break;
             case 'h': case '?': usage: return usage(*argv);
         }
     }
@@ -81,14 +88,29 @@ int main(int argc, char *argv[]) {
     NormaLearningRate<FLOAT_TYPE>   nlp(eta);
     FixedLearningRate<FLOAT_TYPE>   flp(eta);
     if(policy == NORMA) {
-        TRAIN_SVM(nlp);
-        RUN_SVM
+        if(use_sparse) {
+            TRAIN_SPARSE_SVM(nlp);
+            RUN_SVM
+        } else {
+            TRAIN_DENSE_SVM(nlp);
+            RUN_SVM
+        }
     } else if(policy == FIXED) {
-        TRAIN_SVM(flp);
-        RUN_SVM
+        if(use_sparse) {
+            TRAIN_SPARSE_SVM(flp);
+            RUN_SVM
+        } else {
+            TRAIN_DENSE_SVM(flp);
+            RUN_SVM
+        }
     } else {
-        TRAIN_SVM(plp);
-        RUN_SVM
+        if(use_sparse) {
+            TRAIN_SPARSE_SVM(plp);
+            RUN_SVM
+        } else {
+            TRAIN_DENSE_SVM(plp);
+            RUN_SVM
+        }
     }
-    if(ofp != stdout) fclose(ofp);
+    if(ofp != stdout) std::fclose(ofp);
 }
