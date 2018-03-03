@@ -141,7 +141,8 @@ private:
     void load_data(const char *path) {
         dims_t dims(path);
         ns_ = dims.ns_; nd_ = dims.nd_;
-        std::tie(m_, v_, class_name_map_) = parse_problem<FloatType, int>(path, dims);
+        auto results = parse_problem<FloatType, int>(path, dims);
+        std::tie(m_, v_, class_name_map_) = parse_problem<FloatType, LabelType>(path, dims);
         if(bias_) ++nd_; // bias term
 #if !NDEBUG
         if(m_.rows() < 1000) cout << "Input matrix: \n" << m_ << '\n';
