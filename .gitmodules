@@ -13,9 +13,6 @@
 [submodule "kspp"]
 	path = kspp
 	url = https://github.com/dnbaker/kspp
-[submodule "gfrp"]
-	path = gfrp
-	url = https://github.com/dnbaker/gfrp
 [submodule "frp"]
 	path = frp
 	url = https://github.com/dnbaker/frp
