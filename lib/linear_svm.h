@@ -141,7 +141,6 @@ private:
     void load_data(const char *path) {
         dims_t dims(path);
         ns_ = dims.ns_; nd_ = dims.nd_;
-        auto results = parse_problem<FloatType, int>(path, dims);
         std::tie(m_, v_, class_name_map_) = parse_problem<FloatType, LabelType>(path, dims);
         if(bias_) ++nd_; // bias term
 #if !NDEBUG
@@ -267,7 +266,7 @@ private:
     }
 public:
     // Only use the "predict" functions if you know what you're doing!
-    // These unctions do not rescale data and are only appropriate if
+    // These functions do not rescale data and are only appropriate if
     // it has not been normalized.
     template<typename RowType>
     FloatType predict(const RowType &datapoint) const {
@@ -275,13 +274,6 @@ public:
     }
 
     FloatType predict(const FloatType *datapoint) const {
-#if 0
-        const FloatType ret(blas_dot(nd_, datapoint, 1, &w_.weights_(0, 0), 1));
-        FloatType tmp(0.);
-        auto wr(row(w_.weights_, 0));
-        for(size_t i(0); i < nd_; ++i) tmp += datapoint[i] * w_[i];
-        assert(tmp == ret);
-#endif
         return kernel_(row(w_.weights_, 0), datapoint);
     }
 
