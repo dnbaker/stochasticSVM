@@ -302,19 +302,19 @@ public:
         const FloatType batchsz_inv(1./max_end_index);
 
         // Allocate weight vectors and initialize row views.
-        decltype(w_.weights_) tmpsum(1, nd_);
-        decltype(w_.weights_) last_weights(1, nd_);
-        auto wrow(row(w_.weights_, 0));
+        decltype(w_.weights_) tmpsum(1, nd_), last_weights(1, nd_);
         auto trow(row(tmpsum, 0));
+        auto wrow(row(w_.weights_, 0));
 
         // Allocate hash set
         khash_t(I) *h(kh_init(I));
-        kh_resize(I, h, mbs_ * 1.5);
+        kh_resize(I, h, mbs_ * 1.3);
 
         //size_t avgs_used(0);
 #if USE_OLD_WAY
         FloatType eta;
 #endif
+        const FloatType div = 1./mbs_;
         for(size_t avgs_used = t_ = 0; avgs_used < avg_size_; ++t_) {
 #if !NDEBUG
             if((t_ % interval) == 0) {
@@ -338,8 +338,9 @@ public:
                 if(norm > 1. / lambda_)
                     w_.scale(std::sqrt(1.0 / (lambda_ * norm)));
             }
+            wrow += trow * div * lp_(t_ + 1);
             if(t_ >= max_iter_ || (eps_ >= 0 &&
-                                   diffnorm(row(last_weights, 0), row(w_.weights_, 0)) < eps_)) {
+                                   diffnorm(row(last_weights, 0), wrow) < eps_)) {
                 if(w_avg_.weights_.rows() == 0)
                     w_avg_ = WMType(nd_, nc_ == 2 ? 1: nc_, lambda_), w_avg_.weights_.reset();
                 row(w_avg_.weights_, 0) += wrow;

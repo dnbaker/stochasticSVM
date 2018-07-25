@@ -11,7 +11,8 @@ endif
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
 		 -Wformat -Wcast-align -Wno-unused-function -Wunused-variable \
-            -Wduplicated-cond -Wduplicated-branches  -Wlogical-op  -Wnull-dereference  -Wformat=2 -Wsuggest-attribute=malloc
+        -DBOOST_NO_RTTI  \
+            #-Wduplicated-cond -Wduplicated-branches  -Wlogical-op  -Wnull-dereference  -Wformat=2 -Wsuggest-attribute=malloc
 DBG:= -DNDEBUG
 OPT:= -O3 -funroll-loops -pipe -fno-strict-aliasing -march=native -fopenmp -DUSE_FASTRANGE
 OS:=$(shell uname)
@@ -27,7 +28,7 @@ ifneq (,$(findstring g++,$(CXX)))
 	endif
 endif
 OPT:=$(OPT) $(FLAGS)
-XXFLAGS=-fno-rtti
+XXFLAGS=#-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=$(STD) $(WARNINGS)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread
