@@ -121,7 +121,6 @@ int main(int argc, char *argv[]) {\
         }\
     }\
     KERNEL_INIT;\
-    static_assert(sizeof(kernel) == sizeof(kernel));\
     if(nd_sparse < 0) get_max_ind(argv[optind], argv[optind + 1]);\
 \
     if(optind == argc) goto usage;\
@@ -145,5 +144,5 @@ int main(int argc, char *argv[]) {\
     if(ofp != stdout) fclose(ofp);\
 }
 
-//#define DECLARE_KERNEL_SVM(KERNEL_INIT, KERNEL_ARGS, KERNEL_PARAMS, KERNEL_USAGE, KERNEL_GETOPT) \
-//    DECLARE_KERNEL_SVM_NAME(main, KERNEL_INIT, KERNEL_ARGS, KERNEL_PARAMS, KERNEL_USAGE, KERNEL_GETOPT)
+/*#define DECLARE_KERNEL_SVM(KERNEL_INIT, KERNEL_ARGS, KERNEL_PARAMS, KERNEL_USAGE, KERNEL_GETOPT) \
+    DECLARE_KERNEL_SVM_NAME(main, KERNEL_INIT, KERNEL_ARGS, KERNEL_PARAMS, KERNEL_USAGE, KERNEL_GETOPT) */

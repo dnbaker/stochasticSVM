@@ -11,8 +11,8 @@ endif
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
 		 -Wformat -Wcast-align -Wno-unused-function -Wunused-variable \
-        -DBOOST_NO_RTTI  \
-            #-Wduplicated-cond -Wduplicated-branches  -Wlogical-op  -Wnull-dereference  -Wformat=2 -Wsuggest-attribute=malloc
+		-DBOOST_NO_RTTI  \
+			#-Wduplicated-cond -Wduplicated-branches  -Wlogical-op  -Wnull-dereference  -Wformat=2 -Wsuggest-attribute=malloc
 DBG:= -DNDEBUG
 OPT:= -O3 -funroll-loops -pipe -fno-strict-aliasing -march=native -fopenmp -DUSE_FASTRANGE
 OS:=$(shell uname)
@@ -32,13 +32,14 @@ XXFLAGS=#-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=$(STD) $(WARNINGS)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread
-LD=-L.
+LD=-L. -LstochasticSVM/frp/vec/sleef/build/lib/
 
 OBJS=$(patsubst %.cpp,%.o,$(wildcard lib/*.cpp))
 TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
 EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard src/t*.cpp)) $(patsubst %.cpp,%.fo,$(wildcard src/t*.cpp))
+EX=$(patsubst src/%.cpp,%,$(wildcard src/t*.cpp)) $(patsubst src/%.cpp,f%,$(wildcard src/t*.cpp))
 
-EX=$(patsubst src/%.fo,f%,$(EXEC_OBJS)) $(patsubst src/%.o,%,$(EXEC_OBJS))
+#EX=$(patsubst src/%.fo,f%,$(EXEC_OBJS)) $(patsubst src/%.o,%,$(EXEC_OBJS))
 
 
 # If compiling with c++ < 17 and your compiler does not provide
@@ -52,10 +53,10 @@ endif
 
 OBJS:=$(OBJS) klib/kstring.o
 
-all: $(OBJS) $(EX) unit
+all: $(EX) unit
 print-%  : ; @echo $* = $($*)
 
-obj: $(OBJS) $(EXEC_OBJS)
+obj: $(OBJS)
 
 test/%.o: test/%.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(LD) $(OBJS) -c $< -o $@ $(LIB)
@@ -69,11 +70,14 @@ klib/kstring.o:
 %: src/%.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
-f%: src/%.fo $(OBJS)
+f%: src/%.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=float $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
 %.o: %.c
 	$(CC) $(CCFLAGS) -Wno-sign-compare $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
+
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -Wno-sign-compare $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 
 tests: clean unit
