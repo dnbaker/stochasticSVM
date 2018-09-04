@@ -87,7 +87,8 @@ int main(int argc, char *argv[]) {
     PegasosLearningRate<FLOAT_TYPE> plp(lambda);
     NormaLearningRate<FLOAT_TYPE>   nlp(eta);
     FixedLearningRate<FLOAT_TYPE>   flp(eta);
-    if(policy == NORMA) {
+    switch(policy) {
+    case NORMA:
         if(use_sparse) {
             TRAIN_SPARSE_SVM(nlp);
             RUN_SVM
@@ -95,7 +96,8 @@ int main(int argc, char *argv[]) {
             TRAIN_DENSE_SVM(nlp);
             RUN_SVM
         }
-    } else if(policy == FIXED) {
+    break;
+    case FIXED:
         if(use_sparse) {
             TRAIN_SPARSE_SVM(flp);
             RUN_SVM
@@ -103,7 +105,8 @@ int main(int argc, char *argv[]) {
             TRAIN_DENSE_SVM(flp);
             RUN_SVM
         }
-    } else {
+    break;
+    default:
         if(use_sparse) {
             TRAIN_SPARSE_SVM(plp);
             RUN_SVM

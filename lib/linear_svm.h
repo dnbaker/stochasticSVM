@@ -278,6 +278,18 @@ public:
     }
 
     template<typename RowType>
+    int predict_external(RowType &data) const {
+        if(r_.rows()) rescale_point(data);
+        return predict(data);
+    }
+    template<typename RowType>
+    int predict_external(const RowType &data) const {
+        RowType tmp = data;
+        if(r_.rows()) rescale_point(tmp);
+        return predict(tmp);
+    }
+
+    template<typename RowType>
     int classify_external(RowType &data) const {
         if(r_.rows()) rescale_point(data);
         return classify(data);

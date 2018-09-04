@@ -24,6 +24,13 @@ static int get_max_ind(const char *fn) {
     gzclose(fp);
     return cmax;
 }
+template<typename T>
+std::string line2str(const T &vec) {
+    auto it = vec.begin();
+    std::string ret;
+    for(ret = std::to_string(*it++); it < vec.end(); ret += "," + std::to_string(*it++));
+    return ret;
+}
 
 static int get_max_ind(const char *fn1, const char *fn2) {
     return fn2 ? std::max(get_max_ind(fn1), get_max_ind(fn2)): get_max_ind(fn1);
@@ -55,6 +62,8 @@ static int get_max_ind(const char *fn1, const char *fn2) {
                 }\
                 /*std::cerr << vec;*/\
                 if(svm.classify_external(vec) != label) {\
+                    const double v = svm.predict_external(vec);\
+                    std::cout << label << '\t' << (label < 0 ? -1: 1) << '\t' << v << '\t' << line2str(vec).data() << '\n';\
                     ++nerror, counter.add(label);\
                 }\
                 if(++nlines % NOTIFICATION_INTERVAL == 0) std::cerr << "Processed " << nlines << " lines.\n";\
