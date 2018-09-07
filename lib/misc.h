@@ -262,6 +262,33 @@ double variance(const Container &c) {
     return variance(c, mean(c));
 }
 
+class ConfusionMatrix {
+    std::array<::std::uint64_t, 4> arr_;
+    bool emit_at_destruction_;
+public:
+    ConfusionMatrix(): arr_{0,0,0,0}, emit_at_destruction_(true) {}
+    void add(int foundval, int trueval) {
+        ++arr_[(trueval > 0) | foundval == trueval];
+    }
+    std::string str() {
+        emit_at_destruction_ = false;
+        return static_cast<const ConfusionMatrix *>(this)->str();
+    }
+    std::string str() const {
+        char buf[512];
+        return std::string(buf,
+            std::sprintf(buf, "#\tExpected True\tExpected False\nLabeled True\t%" PRIu64 "\t%" PRIu64 "\n"
+                              "Labeled False\t%" PRIu64 "\t%" PRIu64 "\n",
+                         arr_[3], arr_[0], arr_[2], arr_[1]));
+    }
+    void force_emission() {emit_at_destruction_ = true;}
+    ~ConfusionMatrix() {
+        if(emit_at_destruction_)
+            ::std::cerr << str();
+    }
+};
+
+
 } // namespace svm
 
 

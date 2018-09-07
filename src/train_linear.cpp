@@ -50,6 +50,7 @@ int main(int argc, char *argv[]) {
     bool bias(true);
     bool has_ids(true);
     const char *serial_path;
+    ConfusionMatrix cm;
     for(char **p(argv + 1); *p; ++p) if(strcmp(*p, "--help") == 0) goto usage;
     while((c = getopt(argc, argv, "=:5E:e:M:s:P:p:b:l:o:HBrFNh?")) >= 0) {
         switch(c) {

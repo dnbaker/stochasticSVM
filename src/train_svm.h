@@ -63,6 +63,7 @@ static int get_max_ind(const char *fn1, const char *fn2) {
             std::ifstream is(argv[optind + 1]);\
             int label;\
             for(std::string line;std::getline(is, line);) {\
+                static const int arr[]{-1, 1};\
                 /*std::cerr << line << '\n';*/\
                 vec.reset();\
                 if(svm.get_bias()) vec[vec.size() - 1] = 1.;\
@@ -72,17 +73,15 @@ static int get_max_ind(const char *fn1, const char *fn2) {
                     const char *p(line.data() + offsets[i]);\
                     vec[atoi(p) - 1] = std::atof(strchr(p, ':') + 1);\
                 }\
-                if(svm.classify_external(vec) != label) {\
-                    const double v = svm.predict_external(vec);\
-                    if(has_ids) std::cerr << (line.data() + offsets[0]) << '\t';\
-                    std::cout << label << '\t' << (v < 0 ? -1: 1) << '\t' << v << '\t' << line2str(vec).data() << '\n';\
-                    ++nerror, counter.add(label);\
-                }\
+                if(has_ids) std::cerr << (line.data() + offsets[0]) << '\t';\
+                const double v = svm.predict_external(vec);\
+                std::cout << label << '\t' << arr[v > 0] << '\t' << v << '\t' << line2str(vec).data() << '\n';\
+                cm.add(arr[v > 0], label);\
                 if(++nlines % NOTIFICATION_INTERVAL == 0) std::cerr << "Processed " << nlines << " lines.\n";\
             }\
             std::free(offsets);\
             cout << "Test error rate: " << 100. * nerror / nlines << "%\n";\
-            cout << "Mislabeling: " << counter.str() << '\n';\
+            cout << "Mislabeling: " << cm.str() << '\n';\
         }
 
 #define RUN_DENSE_SVM  RUN_SVM_MATRIX(DynamicMatrix)
@@ -102,6 +101,8 @@ int usage(char *ex) {\
     std::sprintf(buf, "Usage: %s <opts> data\n"\
                        "Flags:\n\n-p:\tNumber of processes [1]\n"\
                        "-l:\tSet lambda parameter. [0.5]\n"\
+                       "-=:\tWrite output model to <path>\n"\
+                       "-H:\tView the test file as containing values which need classification.\n"\
                        KERNEL_USAGE \
                        "-M:\tMax iter [100000]\n"\
                        "-b:\tBatch size [256]\n"\
@@ -115,6 +116,7 @@ int usage(char *ex) {\
 }\
 \
 int main(int argc, char *argv[]) {\
+    \
     int c, batch_size(256), nd_sparse(0);\
     FLOAT_TYPE lambda(0.5), eps(1e-6);\
     KERNEL_PARAMS\
@@ -123,6 +125,7 @@ int main(int argc, char *argv[]) {\
     std::FILE *ofp(stdout);\
     const char *serial_path = nullptr;\
     bool rescale(false), use_sparse(false), bias(true), has_ids(false);\
+    ConfusionMatrix cm;\
     while((c = getopt(argc, argv, KERNEL_GETOPT "=:e:M:s:p:b:l:o:5Brh?H")) >= 0) {\
         switch(c) {\
             case '5': use_sparse = true;         break;\
