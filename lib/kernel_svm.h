@@ -6,6 +6,7 @@
 #include <mutex>
 
 namespace svm {
+using namespace std::literals;
 
 template<class Kernel,
          typename FloatType=float,
@@ -21,26 +22,104 @@ class KernelSVM {
     MatrixKind                   m_; // Training Data
     // Weights. one-dimensional for 2-class, nc_-dimensional for more.
     CompressedVector<int>        a_;
-    DynamicVector<int>           v_; // Labels
+    DynamicVector<int>   v_; // Labels
     MatrixKind                   r_; // Renormalization values. Subtraction, then multiplication
-    const FloatType         lambda_; // Lambda Parameter
-    const Kernel            kernel_;
+    FloatType                    lambda_; // Lambda Parameter
+    Kernel                       kernel_;
     //DynamicMatrix<FloatType>     w_; // Final weights: only used at completion.
-    SizeType                    nc_; // Number of classes
-    const SizeType             mbs_; // Mini-batch size
-    SizeType                    ns_; // Number samples
-    SizeType                    nd_; // Number of dimensions
-    const SizeType        max_iter_; // Maximum iterations.
+    SizeType                     nc_; // Number of classes
+    SizeType                     mbs_; // Mini-batch size
+    SizeType                     ns_; // Number samples
+    SizeType                     nd_; // Number of dimensions
+    SizeType                     max_iter_; // Maximum iterations.
     SizeType                     t_; // Timepoint.
-    const FloatType            eps_; // epsilon termination.
+    FloatType                    eps_; // epsilon termination.
     std::unordered_map<int, std::string> class_name_map_;
     khash_t(I)                  *h_; // Hash set of elements being used.
-    const uint32_t         scale_:1;
-    const uint32_t          bias_:1;
+    uint32_t                    scale_:1;
+    uint32_t                     bias_:1;
 
 public:
     KernelSVM(const KernelSVM &other) = default;
     KernelSVM(KernelSVM      &&other) = default;
+    void serialize(std::FILE *fp) const {
+        if(::std::fwrite(this, sizeof(*this), 1, fp) != 1) throw std::runtime_error("Could not write to file.");
+        const uint64_t mr = m_.rows(), mc = m_.columns(), ntups = a_.nonZeros(); // MC Escher, that's my favorite MC.
+        ::std::fwrite(&mr, sizeof(mr), 1, fp);
+        ::std::fwrite(&mc, sizeof(mc), 1, fp);
+        ::std::fwrite(&ntups, sizeof(ntups), 1, fp);
+        uint64_t ind;
+        int32_t coeffs;
+        for(const auto &p: a_) {
+            ind = p.index(), coeffs = p.value();
+            ::std::fwrite(&ind, sizeof(ind), 1, fp);
+            ::std::fwrite(&coeffs, sizeof(coeffs), 1, fp);
+        }
+        int32_t s = class_name_map_.size();
+        ::std::fwrite(&s, sizeof(s), 1, fp);
+        for(const auto &pair: class_name_map_) {
+            s = pair.first;
+            ::std::fwrite(&s, sizeof(s), 1, fp);
+            std::fputs(pair.second.data(), fp);
+        }
+        ind = r_.rows();
+        ::std::fwrite(&ind, sizeof(ind), 1, fp);
+        ind = r_.columns();
+        ::std::fwrite(&ind, sizeof(ind), 1, fp);
+        for(uint32_t i(0); i < m_.rows(); ++i) {
+            ::std::fwrite(&m_(i, 0), sizeof(m_(i, 0)), m_.columns(), fp);
+        }
+        for(uint32_t i(0); i < r_.rows(); ++i) {
+            ::std::fwrite(&r_(i, 0), sizeof(r_(i, 0)), r_.columns(), fp);
+        }
+        ::std::fwrite(&v_[0], sizeof(v_[0]), v_.size(), fp);
+    }
+    KernelSVM(const char *path) {
+        std::FILE *fp = std::fopen(path, "rb");
+        if(!fp) throw std::runtime_error("Could not open file at "s + path);
+        deserialize(fp);
+        std::fclose(fp);
+    }
+    void deserialize(std::FILE *fp) {
+#define __fr(x, fp) ::std::fread(&x, sizeof(x), 1, fp)
+        if(::std::fread(this, sizeof(*this), 1, fp) != 1) throw std::runtime_error("Could not read from file.");
+        uint64_t mr, mc, ntups;
+        __fr(mr, fp); __fr(mc, fp); __fr(ntups, fp);
+        std::memset(&m_, 0, sizeof(m_));
+        std::memset(&class_name_map_, 0, sizeof(class_name_map_));
+        std::memset(&r_, 0, sizeof(r_));
+        std::memset(&h_, 0, sizeof(h_));
+        m_.resize(mr, mc);
+        a_.reserve(mr);
+        v_.resize(mr);
+        uint64_t ind; int32_t coeffs;
+        for(size_t i(ntups); i--;) {
+            __fr(ind, fp);
+            __fr(coeffs, fp);
+            a_[ind] = coeffs;
+        }
+        int32_t s;
+        __fr(s, fp);
+        class_name_map_.reserve(s);
+        for(size_t i(s); i--;) {
+            char buf[2048];
+            __fr(s, fp);
+            std::fgets(buf, sizeof(buf) - 1, fp);
+            class_name_map_.emplace(s, buf);
+            std::fprintf(stderr, "Class %i has name %s\n", s, buf);
+        }
+        size_t nrrows, nrcols;
+        __fr(nrrows, fp); __fr(nrcols, fp);
+        r_.resize(nrrows, nrcols);
+        for(unsigned i(0); i < nrrows;++i) {
+            ::std::fread(&m_(i, 0), sizeof(m_(i, 0)), m_.columns(), fp);
+        }
+        for(unsigned i(0); i < nrrows;++i) {
+            ::std::fread(&r_(i, 0), sizeof(r_(i, 0)), r_.columns(), fp);
+        }
+        ::std::fread(&v_[0], sizeof(v_[0]), 1, fp);
+#undef _fr
+    }
     // Dense constructor
     KernelSVM(const char *path,
               const FloatType lambda,
@@ -249,6 +328,10 @@ private:
     }
 public:
     template<typename RowType>
+    FloatType predict_external(const RowType &datapoint) const {
+        return predict((datapoint - row(r_, 0)) * row(r_, 1));
+    }
+    template<typename RowType>
     FloatType predict(const RowType &datapoint) const {
         FloatType ret(0.);
         for(auto it(a_.cbegin()), e(a_.cend()); it != e; ++it) {
@@ -361,7 +444,16 @@ public:
         */
 #endif
     }
-    void write(FILE *fp, bool scientific_notation=false) {
+    void deserialize(const char *path) {
+#define PERF_SWAP(x)\
+        {decltype(x) tmp; std::swap(tmp, x);}
+        PERF_SWAP(v_); PERF_SWAP(r_); PERF_SWAP(m_); PERF_SWAP(class_name_map_);
+        if(h_) kh_destroy(I, h_), std::memset(h_, 0, sizeof(*h));
+        std::FILE *fp = std::fopen(path, "rb"); if(!fp) throw 1;
+        deserialize(fp);
+        std::fclose(fp);
+    }
+    void write(FILE *fp, bool scientific_notation=false) const {
         fprintf(fp, "#Dimensions: %zu.\n", (size_t)nd_);
         fprintf(fp, "#%s\n", kernel_.str().data());
         ks::KString line;

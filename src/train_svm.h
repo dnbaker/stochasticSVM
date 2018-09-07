@@ -1,6 +1,11 @@
 #include "lib/kernel_svm.h"
 #include <getopt.h>
 #include <iostream>
+#ifndef VEC_H__
+#  define NO_SLEEF
+#  define NOSVML
+#  include "frp/vec/vec.h"
+#endif
 using namespace svm;
 
 #ifndef NOTIFICATION_INTERVAL
@@ -28,7 +33,13 @@ template<typename T>
 std::string line2str(const T &vec) {
     auto it = vec.begin();
     std::string ret;
-    for(ret = std::to_string(*it++); it < vec.end(); ret += "," + std::to_string(*it++));
+    if constexpr(IS_COMPRESSED_BLAZE(T)) {
+        for(ret = std::to_string(it->index()) + ':' + std::to_string(it->value());
+            it < vec.end();
+            ret += ',', ret += std::to_string(it->index()), ret += ':', ret += std::to_string(it->value()));
+    } else {
+        for(ret = std::to_string(*it++); it < vec.end(); ret += ',', ret += std::to_string(*it++));
+    }
     return ret;
 }
 
@@ -41,6 +52,7 @@ static int get_max_ind(const char *fn1, const char *fn2) {
 #define RUN_SVM_MATRIX(MatrixKind) \
         svm.train();\
         svm.write(ofp);\
+        if(serial_path) svm.deserialize(serial_path);\
         if(argc > optind + 1) {\
             int moffsets(svm.get_ndims() + 1), *offsets(static_cast<int *>(malloc(moffsets * sizeof(int))));\
             IntCounter counter;\
@@ -55,15 +67,15 @@ static int get_max_ind(const char *fn1, const char *fn2) {
                 vec.reset();\
                 if(svm.get_bias()) vec[vec.size() - 1] = 1.;\
                 const int ntoks(ksplit_core(static_cast<char *>(&line[0]), 0, &moffsets, &offsets));\
-                label = atoi(line.data());\
-                for(int i(1); i < ntoks; ++i) {\
+                label = atoi(line.data() + offsets[has_ids]);\
+                for(int i(has_ids + 1); i < ntoks; ++i) {\
                     const char *p(line.data() + offsets[i]);\
                     vec[atoi(p) - 1] = std::atof(strchr(p, ':') + 1);\
                 }\
-                /*std::cerr << vec;*/\
                 if(svm.classify_external(vec) != label) {\
                     const double v = svm.predict_external(vec);\
-                    std::cout << label << '\t' << (label < 0 ? -1: 1) << '\t' << v << '\t' << line2str(vec).data() << '\n';\
+                    if(has_ids) std::cerr << (line.data() + offsets[0]) << '\t';\
+                    std::cout << label << '\t' << (v < 0 ? -1: 1) << '\t' << v << '\t' << line2str(vec).data() << '\n';\
                     ++nerror, counter.add(label);\
                 }\
                 if(++nlines % NOTIFICATION_INTERVAL == 0) std::cerr << "Processed " << nlines << " lines.\n";\
@@ -109,8 +121,9 @@ int main(int argc, char *argv[]) {\
     size_t max_iter(100000);\
     unsigned nthreads(1);\
     std::FILE *ofp(stdout);\
-    bool rescale(false), use_sparse(false), bias(true);\
-    while((c = getopt(argc, argv, KERNEL_GETOPT "e:M:s:p:b:l:o:5Brh?")) >= 0) {\
+    const char *serial_path = nullptr;\
+    bool rescale(false), use_sparse(false), bias(true), has_ids(false);\
+    while((c = getopt(argc, argv, KERNEL_GETOPT "=:e:M:s:p:b:l:o:5Brh?")) >= 0) {\
         switch(c) {\
             case '5': use_sparse = true;         break;\
             case 'B': bias       = false;        break;\
@@ -123,6 +136,7 @@ int main(int argc, char *argv[]) {\
             case 'r': rescale    = true; break;\
             KERNEL_ARGS\
             case 'o': ofp        = fopen(optarg, "w"); break;\
+            case '=': serial_path = optarg;            break;\
                 if(ofp == nullptr) throw std::runtime_error(\
                     std::string("Could not open file at ") + optarg);\
                 break;\
@@ -152,6 +166,7 @@ int main(int argc, char *argv[]) {\
         RUN_DENSE_SVM;\
     }\
     if(ofp != stdout) fclose(ofp);\
+    \
 }
 
 //#define DECLARE_KERNEL_SVM(KERNEL_INIT, KERNEL_ARGS, KERNEL_PARAMS, KERNEL_USAGE, KERNEL_GETOPT) \

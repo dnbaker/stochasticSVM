@@ -48,8 +48,9 @@ int main(int argc, char *argv[]) {
     bool rescale(false);
     bool use_sparse(false);
     bool bias(true);
+    bool has_ids(true);
     for(char **p(argv + 1); *p; ++p) if(strcmp(*p, "--help") == 0) goto usage;
-    while((c = getopt(argc, argv, "5E:e:M:s:P:p:b:l:o:BrFNh?")) >= 0) {
+    while((c = getopt(argc, argv, "5E:e:M:s:P:p:b:l:o:HBrFNh?")) >= 0) {
         switch(c) {
             case 'A': avg_size   = std::strtoull(optarg, 0, 10); break;
             case '5': use_sparse = true;         break;
@@ -57,6 +58,7 @@ int main(int argc, char *argv[]) {
             case 'E': eta        = atof(optarg); break;
             case 'e': eps        = atof(optarg); break;
             case 'p': nthreads   = atoi(optarg); break;
+            case 'H': has_ids    = true;         break;
             case 'P': project    = true;         break;
             case 'M': max_iter   = strtoull(optarg, 0, 10); break;
             case 'b': batch_size = atoi(optarg); break;
@@ -87,33 +89,13 @@ int main(int argc, char *argv[]) {
     PegasosLearningRate<FLOAT_TYPE> plp(lambda);
     NormaLearningRate<FLOAT_TYPE>   nlp(eta);
     FixedLearningRate<FLOAT_TYPE>   flp(eta);
+#define TRAIN_AND_RUN(pol, name) \
+    case pol: if(use_sparse) {TRAIN_SPARSE_SVM(name); RUN_SVM} else {TRAIN_DENSE_SVM(name); RUN_SVM} break
     switch(policy) {
-    case NORMA:
-        if(use_sparse) {
-            TRAIN_SPARSE_SVM(nlp);
-            RUN_SVM
-        } else {
-            TRAIN_DENSE_SVM(nlp);
-            RUN_SVM
-        }
-    break;
-    case FIXED:
-        if(use_sparse) {
-            TRAIN_SPARSE_SVM(flp);
-            RUN_SVM
-        } else {
-            TRAIN_DENSE_SVM(flp);
-            RUN_SVM
-        }
-    break;
-    default:
-        if(use_sparse) {
-            TRAIN_SPARSE_SVM(plp);
-            RUN_SVM
-        } else {
-            TRAIN_DENSE_SVM(plp);
-            RUN_SVM
-        }
+        TRAIN_AND_RUN(NORMA, nlp);
+        TRAIN_AND_RUN(FIXED, flp);
+        TRAIN_AND_RUN(PEGASOS, plp);
+        default: __builtin_unreachable();
     }
     if(ofp != stdout) std::fclose(ofp);
 }
