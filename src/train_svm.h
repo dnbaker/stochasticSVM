@@ -52,6 +52,7 @@ static int get_max_ind(const char *fn1, const char *fn2) {
 #define RUN_SVM_MATRIX(MatrixKind) \
         svm.train();\
         svm.write(ofp);\
+        std::fprintf(stderr, "Writing to serial path at %s\n", serial_path);\
         if(serial_path) svm.serialize(serial_path);\
         if(argc > optind + 1) {\
             int moffsets(svm.get_ndims() + 1), *offsets(static_cast<int *>(malloc(moffsets * sizeof(int))));\

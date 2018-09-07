@@ -74,12 +74,7 @@ public:
         }
         ::std::fwrite(&v_[0], sizeof(v_[0]), v_.size(), fp);
     }
-    KernelSVM(const char *path) {
-        std::FILE *fp = std::fopen(path, "rb");
-        if(!fp) throw std::runtime_error("Could not open file at "s + path);
-        deserialize(fp);
-        std::fclose(fp);
-    }
+    KernelSVM(const char *path) {deserialize(path);}
     void deserialize(std::FILE *fp) {
 #define __fr(x, fp) ::std::fread(&x, sizeof(x), 1, fp)
         if(::std::fread(this, sizeof(*this), 1, fp) != 1) throw std::runtime_error("Could not read from file.");
@@ -450,12 +445,13 @@ public:
         {decltype(x) tmp; std::swap(tmp, x);}
         PERF_SWAP(v_); PERF_SWAP(r_); PERF_SWAP(m_); PERF_SWAP(class_name_map_);
         if(h_) kh_destroy(I, h_), std::memset(h_, 0, sizeof(*h_));
-        std::FILE *fp = std::fopen(path, "rb"); if(!fp) throw 1;
+        std::FILE *fp = std::fopen(path, "rb"); if(!fp) throw std::runtime_error("Could not open path for reading at "s + path);
         deserialize(fp);
         std::fclose(fp);
     }
     void serialize(const char *path) const {
-        std::FILE *fp = fopen(path, "rb"); if(!fp) throw 1;
+        std::FILE *fp = std::fopen(path, "wb");
+        if(!fp) throw std::runtime_error((std::string("Could not open path for writing at ") + (path ? path: "NO FILE")));
         serialize(fp);
         std::fclose(fp);
     }

@@ -398,14 +398,14 @@ public:
     const auto &m()  const {return m_;}
     const auto &lp() const {return lp_;}
     void serialize(const char *path) const {
-        std::FILE *fp = std::fopen((std::string(path) + ".struct").data(), "wb"); if(!fp) throw 1;
+        std::FILE *fp = std::fopen((std::string(path) + ".struct").data(), "wb"); if(!fp) throw std::runtime_error("Could not open path for writing at "s + path);
         std::fwrite(this, sizeof(*this), 1, fp);
         std::fclose(fp);
         blaze::Archive<::std::ofstream> arch;
         arch << w_.weights_ << r_;
     }
     void deserialize(const char *path) {
-        std::FILE *fp = std::fopen((std::string(path) + ".struct").data(), "rb"); if(!fp) throw 1;
+        std::FILE *fp = std::fopen((std::string(path) + ".struct").data(), "rb"); if(!fp) throw std::runtime_error("Could not open path for reading at "s + path);
         std::fread(this, sizeof(*this), 1, fp);
         std::fclose(fp);
         blaze::Archive<::std::ifstream> arch;
