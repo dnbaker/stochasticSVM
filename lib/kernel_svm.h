@@ -1,4 +1,4 @@
-#ifndef _KERNEL_SVM_H_
+ifndef _KERNEL_SVM_H_
 #define _KERNEL_SVM_H_
 #include "lib/linear_svm.h"
 #include "lib/kernel.h"
@@ -43,33 +43,59 @@ public:
     KernelSVM(const KernelSVM &other) = default;
     KernelSVM(KernelSVM      &&other) = default;
     void serialize(std::FILE *fp) const {
+        LOG_INFO("Got here\n");
+        std::fflush(stderr);
         if(::std::fwrite(this, sizeof(*this), 1, fp) != 1) throw std::runtime_error("Could not write to file.");
+        LOG_INFO("Got here\n");
         const uint64_t mr = m_.rows(), mc = m_.columns(), ntups = a_.nonZeros(); // MC Escher, that's my favorite MC.
+        LOG_INFO("Got here\n");
         ::std::fwrite(&mr, sizeof(mr), 1, fp);
+        LOG_INFO("Got here\n");
         ::std::fwrite(&mc, sizeof(mc), 1, fp);
+        LOG_INFO("Got here\n");
         ::std::fwrite(&ntups, sizeof(ntups), 1, fp);
+        LOG_INFO("Got here\n");
         uint64_t ind;
+        LOG_INFO("Got here\n");
         int32_t coeffs;
+        LOG_INFO("Got here\n");
+        std::unordered_set<size_t> indices_to_write;
+        LOG_INFO("Got here\n");
         for(const auto &p: a_) {
+        LOG_INFO("Got here\n");
             ind = p.index(), coeffs = p.value();
+        LOG_INFO("Got here\n");
+            indices_to_write.insert(ind);
+        LOG_INFO("Got here\n");
             ::std::fwrite(&ind, sizeof(ind), 1, fp);
+        LOG_INFO("Got here\n");
             ::std::fwrite(&coeffs, sizeof(coeffs), 1, fp);
+        LOG_INFO("Got here\n");
         }
+        LOG_INFO("Got here\n");
         int32_t s = class_name_map_.size();
+        LOG_INFO("Got here\n");
         ::std::fwrite(&s, sizeof(s), 1, fp);
+        LOG_INFO("Got here\n");
         for(const auto &pair: class_name_map_) {
+        LOG_INFO("Got here\n");
             s = pair.first;
+        LOG_INFO("Got here\n");
             ::std::fwrite(&s, sizeof(s), 1, fp);
             std::fputs(pair.second.data(), fp);
         }
+        LOG_INFO("Got here\n");
         ind = r_.rows();
         ::std::fwrite(&ind, sizeof(ind), 1, fp);
         ind = r_.columns();
         ::std::fwrite(&ind, sizeof(ind), 1, fp);
-        for(uint32_t i(0); i < m_.rows(); ++i) {
+        LOG_INFO("Got here\n");
+        for(const auto i: indices_to_write) {
+            std::fprintf(stderr, "Accessing %zu/0 for matrix stuff with %zu columns\n", size_t(i), m_.columns());
             ::std::fwrite(&m_(i, 0), sizeof(m_(i, 0)), m_.columns(), fp);
         }
         for(uint32_t i(0); i < r_.rows(); ++i) {
+            std::fprintf(stderr, "For rescale: %zu/0 for matrix stuff with %zu columns\n", size_t(i), m_.columns());
             ::std::fwrite(&r_(i, 0), sizeof(r_(i, 0)), r_.columns(), fp);
         }
         ::std::fwrite(&v_[0], sizeof(v_[0]), v_.size(), fp);
