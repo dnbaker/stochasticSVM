@@ -22,6 +22,7 @@
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include "blaze/Util.h"
 #include <zlib.h>
 #include "logutil.h"
 #include "kspp/ks.h"

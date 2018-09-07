@@ -52,7 +52,7 @@ static int get_max_ind(const char *fn1, const char *fn2) {
 #define RUN_SVM_MATRIX(MatrixKind) \
         svm.train();\
         svm.write(ofp);\
-        if(serial_path) svm.deserialize(serial_path);\
+        if(serial_path) svm.serialize(serial_path);\
         if(argc > optind + 1) {\
             int moffsets(svm.get_ndims() + 1), *offsets(static_cast<int *>(malloc(moffsets * sizeof(int))));\
             IntCounter counter;\
@@ -123,7 +123,7 @@ int main(int argc, char *argv[]) {\
     std::FILE *ofp(stdout);\
     const char *serial_path = nullptr;\
     bool rescale(false), use_sparse(false), bias(true), has_ids(false);\
-    while((c = getopt(argc, argv, KERNEL_GETOPT "=:e:M:s:p:b:l:o:5Brh?")) >= 0) {\
+    while((c = getopt(argc, argv, KERNEL_GETOPT "=:e:M:s:p:b:l:o:5Brh?H")) >= 0) {\
         switch(c) {\
             case '5': use_sparse = true;         break;\
             case 'B': bias       = false;        break;\
@@ -134,6 +134,7 @@ int main(int argc, char *argv[]) {\
             case 'l': lambda     = std::atof(optarg); break;\
             case 's': nd_sparse  = std::atoi(optarg); break;\
             case 'r': rescale    = true; break;\
+            case 'H': has_ids    = true; break;\
             KERNEL_ARGS\
             case 'o': ofp        = fopen(optarg, "w"); break;\
             case '=': serial_path = optarg;            break;\

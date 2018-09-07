@@ -329,7 +329,8 @@ private:
 public:
     template<typename RowType>
     FloatType predict_external(const RowType &datapoint) const {
-        return predict((datapoint - row(r_, 0)) * row(r_, 1));
+        blaze::DynamicVector<FloatType, blaze::rowVector> tmp = (datapoint - row(r_, 0)) * row(r_, 1);
+        return predict(tmp);
     }
     template<typename RowType>
     FloatType predict(const RowType &datapoint) const {
@@ -448,9 +449,14 @@ public:
 #define PERF_SWAP(x)\
         {decltype(x) tmp; std::swap(tmp, x);}
         PERF_SWAP(v_); PERF_SWAP(r_); PERF_SWAP(m_); PERF_SWAP(class_name_map_);
-        if(h_) kh_destroy(I, h_), std::memset(h_, 0, sizeof(*h));
+        if(h_) kh_destroy(I, h_), std::memset(h_, 0, sizeof(*h_));
         std::FILE *fp = std::fopen(path, "rb"); if(!fp) throw 1;
         deserialize(fp);
+        std::fclose(fp);
+    }
+    void serialize(const char *path) const {
+        std::FILE *fp = fopen(path, "rb"); if(!fp) throw 1;
+        serialize(fp);
         std::fclose(fp);
     }
     void write(FILE *fp, bool scientific_notation=false) const {

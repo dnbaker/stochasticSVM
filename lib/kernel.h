@@ -213,9 +213,9 @@ struct GeneralHistogramKernel: KernelBase<FloatType> {
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         if(a.size() != b.size())
             throw std::out_of_range(std::string("Could not calculate min between arrays of different sizes (") + std::to_string(a.size()) + ", " + std::to_string(b.size()) + ")");
-        auto ait(a.cbegin()), bit(b.cbegin());
+        auto ait(a.begin()), bit(b.begin());
         FloatType ret(std::min(*ait, *bit));
-        while(++ait != a.cend()) ret += std::min(std::abs(std::pow(*ait, a_)), std::abs(std::pow(*++bit, b_)));
+        while(++ait != a.end()) ret += std::min(std::abs(std::pow(*ait, a_)), std::abs(std::pow(*++bit, b_)));
         return ret;
     }
     GeneralHistogramKernel(FloatType a, FloatType b): a_(a), b_(b) {}
@@ -342,9 +342,9 @@ struct WaveletKernel: KernelBase<FloatType> {
     WaveletFunction fn_;
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
-        auto ait(a.cbegin()), bit(b.cbegin());
+        auto ait(a.begin()), bit(b.begin());
         FloatType ret(fn_((*ait - c_) * a_inv_) * fn_((*bit - c_) * a_inv_));
-        while(++ait != a.cend() && ++bit != b.cend()) ret *= fn_((*ait - c_) * a_inv_) * fn_((*bit - c_) * a_inv_);
+        while(++ait != a.end() && ++bit != b.end()) ret *= fn_((*ait - c_) * a_inv_) * fn_((*bit - c_) * a_inv_);
         return ret;
     }
     WaveletKernel(FloatType a, FloatType c): a_inv_(1. / a), c_(c) {}
@@ -373,19 +373,19 @@ struct HistogramKernel: KernelBase<FloatType> {
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         FloatType ret(0.);
         if constexpr(!blaze::IsSparseVector<RowType1>::value && !blaze::IsSparseVector<RowType2>::value) {
-            for(auto ait(a.cbegin()), bit(b.cbegin()), eait(a.cend()); ait != eait; ++ait, ++bit) {
+            for(auto ait(a.begin()), bit(b.begin()), eait(a.end()); ait != eait; ++ait, ++bit) {
                 ret += std::min(*ait, *bit);
             }
         } else if constexpr(blaze::IsSparseVector<RowType1>::value && !blaze::IsSparseVector<RowType2>::value) {
-            for(auto ait(a.cbegin()), eait(a.cend()); ait != eait; ++ait) {
-                ret += std::min(a->value(), b[a->index()]);
+            for(auto ait(a.begin()), eait(a.end()); ait != eait; ++ait) {
+                ret += std::min(ait->value(), b[ait->index()]);
             }
         } else if constexpr(!blaze::IsSparseVector<RowType1>::value && blaze::IsSparseVector<RowType2>::value) {
-            for(auto ait(b.cbegin()), eait(b.cend()); ait != eait; ++ait) {
-                ret += std::min(b->value(), a[b->index()]);
+            for(auto bit(b.begin()), ebit(b.end()); bit != ebit; ++bit) {
+                ret += std::min(bit->value(), a[bit->index()]);
             }
         } else { // blaze::IsSparseVector<RowType1>::value && blaze::IsSparseVector<RowType2>::value)
-            auto ait(a.cbegin()), eait(a.cend()), bit(b.cbegin()), ebit(b.cend());
+            auto ait(a.begin()), eait(a.end()), bit(b.begin()), ebit(b.end());
             while(ait != eait && bit != ebit) {
                 if(ait->index() < bit->index()) {
                     ++ait;
@@ -404,9 +404,9 @@ struct HistogramKernel: KernelBase<FloatType> {
                 "Could not calculate min for arrays of different sizes (") +
                 std::to_string(a.size()) + ", " +
                 std::to_string(b.size()) + ')');
-        auto ait(a.cbegin()), bit(b.cbegin());
+        auto ait(a.begin()), bit(b.begin());
         FloatType ret(std::min(*ait, *bit));
-        while(++ait != a.cend()) ret += std::min(*ait, *++bit);
+        while(++ait != a.end()) ret += std::min(*ait, *++bit);
         return ret;
 #endif
     }

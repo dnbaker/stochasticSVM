@@ -56,22 +56,22 @@ class LinearSVM {
     // Labels [could be compressed by requiring sorted data and checking
     // an index is before or after a threshold. Likely unnecessary, but could
     // aid cache efficiency.
-    const FloatType      lambda_; // Lambda Parameter
-    const KernelType     kernel_;
-    const LossFn       &loss_fn_;
-    size_t                   nc_; // Number of classes
-    const size_t            mbs_; // Mini-batch size
-    size_t                   ns_; // Number samples
-    size_t                   nd_; // Number of dimensions
-    const size_t       max_iter_; // Maximum iterations.
-                                  // If -1, use epsilon termination conditions.
-    size_t                    t_; // Timepoint.
-    const LearningPolicy     lp_; // Calculates learning rate at a timestep t.
-    const FloatType         eps_; // epsilon termination.
-    const size_t       avg_size_; // Number to average at end.
-    const bool          project_; // Whether or not to perform projection step.
-    const bool            scale_; // Whether or not to scale to unit variance and 0 mean.
-    const bool             bias_; // Whether or not to add an additional dimension to account for bias.
+    FloatType      lambda_; // Lambda Parameter
+    KernelType     kernel_;
+    LossFn        loss_fn_;
+    size_t             nc_; // Number of classes
+    size_t            mbs_; // Mini-batch size
+    size_t             ns_; // Number samples
+    size_t             nd_; // Number of dimensions
+    size_t       max_iter_; // Maximum iterations.
+                            // If -1, use epsilon termination conditions.
+    size_t              t_; // Timepoint.
+    LearningPolicy     lp_; // Calculates learning rate at a timestep t.
+    FloatType         eps_; // epsilon termination.
+    size_t       avg_size_; // Number to average at end.
+    bool          project_; // Whether or not to perform projection step.
+    bool            scale_; // Whether or not to scale to unit variance and 0 mean.
+    bool             bias_; // Whether or not to add an additional dimension to account for bias.
     std::unordered_map<LabelType, std::string> class_name_map_;
 
 public:
@@ -397,6 +397,20 @@ public:
     const auto &v()  const {return v_;}
     const auto &m()  const {return m_;}
     const auto &lp() const {return lp_;}
+    void serialize(const char *path) const {
+        std::FILE *fp = std::fopen((std::string(path) + ".struct").data(), "wb"); if(!fp) throw 1;
+        std::fwrite(this, sizeof(*this), 1, fp);
+        std::fclose(fp);
+        blaze::Archive<::std::ofstream> arch;
+        arch << w_.weights_ << r_;
+    }
+    void deserialize(const char *path) {
+        std::FILE *fp = std::fopen((std::string(path) + ".struct").data(), "rb"); if(!fp) throw 1;
+        std::fread(this, sizeof(*this), 1, fp);
+        std::fclose(fp);
+        blaze::Archive<::std::ifstream> arch;
+        arch >> w_.weights_ >> r_;
+    }
 }; // LinearSVM
 
 } // namespace svm

@@ -49,8 +49,9 @@ int main(int argc, char *argv[]) {
     bool use_sparse(false);
     bool bias(true);
     bool has_ids(true);
+    const char *serial_path;
     for(char **p(argv + 1); *p; ++p) if(strcmp(*p, "--help") == 0) goto usage;
-    while((c = getopt(argc, argv, "5E:e:M:s:P:p:b:l:o:HBrFNh?")) >= 0) {
+    while((c = getopt(argc, argv, "=:5E:e:M:s:P:p:b:l:o:HBrFNh?")) >= 0) {
         switch(c) {
             case 'A': avg_size   = std::strtoull(optarg, 0, 10); break;
             case '5': use_sparse = true;         break;
@@ -67,6 +68,7 @@ int main(int argc, char *argv[]) {
             case 'N': policy     = NORMA;        break; // Guerra, Guerra!
             case 'F': policy     = FIXED;        break;
             case 'r': rescale    = true;         break;
+            case '=': serial_path = optarg; break;
             case 'o': if((ofp     = fopen(optarg, "w")) == nullptr)
                           throw std::runtime_error(
                               std::string("Could not open file at ") + optarg);
