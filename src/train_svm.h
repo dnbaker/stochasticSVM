@@ -52,13 +52,18 @@ static int get_max_ind(const char *fn1, const char *fn2) {
 #define RUN_SVM_MATRIX(MatrixKind) \
         svm.train();\
         svm.write(ofp);\
-        std::fprintf(stderr, "Writing to serial path at %s\n", serial_path);\
-        if(serial_path) svm.serialize(serial_path);\
+        if(serial_path) {\
+            std::fprintf(stderr, "Writing to serial path at %s\n", serial_path);\
+            svm.serialize(serial_path);\
+            decltype(svm) bfastserial (serial_path);\
+            \
+        }\
         if(argc > optind + 1) {\
             int moffsets(svm.get_ndims() + 1), *offsets(static_cast<int *>(malloc(moffsets * sizeof(int))));\
             IntCounter counter;\
             size_t nlines(0), nerror(0);\
             MatrixKind<FLOAT_TYPE> vecmat(1, svm.get_ndims());\
+            assert(vecmat.rows());\
             auto vec(row(vecmat, 0));\
             if(svm.get_bias()) vec[vec.size() - 1] = 1.;\
             std::ifstream is(argv[optind + 1]);\
@@ -67,6 +72,7 @@ static int get_max_ind(const char *fn1, const char *fn2) {
                 static const int arr[]{-1, 1};\
                 /*std::cerr << line << '\n';*/\
                 vec.reset();\
+                assert(vec.size());\
                 if(svm.get_bias()) vec[vec.size() - 1] = 1.;\
                 const int ntoks(ksplit_core(static_cast<char *>(&line[0]), 0, &moffsets, &offsets));\
                 label = atoi(line.data() + offsets[has_ids]);\

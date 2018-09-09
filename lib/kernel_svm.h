@@ -1,7 +1,14 @@
-ifndef _KERNEL_SVM_H_
+#ifndef _KERNEL_SVM_H_
 #define _KERNEL_SVM_H_
 #include "lib/linear_svm.h"
+#include <sstream>
 #include "lib/kernel.h"
+#ifndef _VEC_H__
+#  ifndef NO_SLEEF
+#    define NO_SLEEF
+#  endif
+#  include "frp/vec/vec.h"
+#endif
 #include <unordered_set>
 #include <mutex>
 
@@ -22,7 +29,7 @@ class KernelSVM {
     MatrixKind                   m_; // Training Data
     // Weights. one-dimensional for 2-class, nc_-dimensional for more.
     CompressedVector<int>        a_;
-    DynamicVector<int>   v_; // Labels
+    DynamicVector<int>           v_; // Labels
     MatrixKind                   r_; // Renormalization values. Subtraction, then multiplication
     FloatType                    lambda_; // Lambda Parameter
     Kernel                       kernel_;
@@ -40,68 +47,93 @@ class KernelSVM {
     uint32_t                     bias_:1;
 
 public:
+    bool passes_comparisons(const KernelSVM &cmp) {
+#define TC(cond)    if(!cond)  return false;
+#define TCatt(att) TC(att != cmp.att)
+        TCatt(scale_);
+        TCatt(bias_);
+        TCatt(nc_);
+        TCatt(mbs_);
+        TCatt(mbs_);
+        TCatt(max_iter_);
+        TCatt(eps_);
+    }
+    void print_stats(std::FILE *fp=stderr) const {
+#if !NDEBUG
+        std::stringstream ss;
+        ss << m_;
+        ss << a_;
+        ss << r_;
+        ss << "m_ dims: " << m_.rows() << ", " << m_.columns() << '\n';
+        ss << "a_ dims: " << a_.size() << '\n';
+        ss << "r_ dims: " << r_.rows() << ", " << r_.columns() << '\n';
+#endif
+    }
     KernelSVM(const KernelSVM &other) = default;
     KernelSVM(KernelSVM      &&other) = default;
     void serialize(std::FILE *fp) const {
-        LOG_INFO("Got here\n");
+        print_stats();
         std::fflush(stderr);
         if(::std::fwrite(this, sizeof(*this), 1, fp) != 1) throw std::runtime_error("Could not write to file.");
-        LOG_INFO("Got here\n");
         const uint64_t mr = m_.rows(), mc = m_.columns(), ntups = a_.nonZeros(); // MC Escher, that's my favorite MC.
-        LOG_INFO("Got here\n");
         ::std::fwrite(&mr, sizeof(mr), 1, fp);
-        LOG_INFO("Got here\n");
         ::std::fwrite(&mc, sizeof(mc), 1, fp);
-        LOG_INFO("Got here\n");
         ::std::fwrite(&ntups, sizeof(ntups), 1, fp);
-        LOG_INFO("Got here\n");
         uint64_t ind;
-        LOG_INFO("Got here\n");
         int32_t coeffs;
-        LOG_INFO("Got here\n");
-        std::unordered_set<size_t> indices_to_write;
-        LOG_INFO("Got here\n");
+        std::vector<size_t> indices_to_write;
         for(const auto &p: a_) {
-        LOG_INFO("Got here\n");
             ind = p.index(), coeffs = p.value();
-        LOG_INFO("Got here\n");
-            indices_to_write.insert(ind);
-        LOG_INFO("Got here\n");
+            if(unlikely(ind >= m_.rows())) throw std::runtime_error("ZOMG TOO MANY COLUMNS");
+            indices_to_write.push_back(ind);
             ::std::fwrite(&ind, sizeof(ind), 1, fp);
-        LOG_INFO("Got here\n");
             ::std::fwrite(&coeffs, sizeof(coeffs), 1, fp);
-        LOG_INFO("Got here\n");
         }
-        LOG_INFO("Got here\n");
         int32_t s = class_name_map_.size();
-        LOG_INFO("Got here\n");
         ::std::fwrite(&s, sizeof(s), 1, fp);
-        LOG_INFO("Got here\n");
         for(const auto &pair: class_name_map_) {
-        LOG_INFO("Got here\n");
             s = pair.first;
-        LOG_INFO("Got here\n");
             ::std::fwrite(&s, sizeof(s), 1, fp);
             std::fputs(pair.second.data(), fp);
         }
-        LOG_INFO("Got here\n");
         ind = r_.rows();
         ::std::fwrite(&ind, sizeof(ind), 1, fp);
         ind = r_.columns();
         ::std::fwrite(&ind, sizeof(ind), 1, fp);
-        LOG_INFO("Got here\n");
         for(const auto i: indices_to_write) {
-            std::fprintf(stderr, "Accessing %zu/0 for matrix stuff with %zu columns\n", size_t(i), m_.columns());
-            ::std::fwrite(&m_(i, 0), sizeof(m_(i, 0)), m_.columns(), fp);
+            std::fprintf(stderr, "Accessing %zu/0 for matrix stuff with %zu columns and %zu rows\n", size_t(i), m_.columns(), m_.rows());
+            assert(i < m_.rows());
+            //if(unlikely(&m_(i, 0) + 1 != &m_(i, 1))) throw std::runtime_error("This is not correct.");
+            try {
+                auto r = ::blaze::row(m_, i);
+                assert(r.size());
+                ::std::fwrite(&r[0], sizeof(r[0]), r.size(), fp);
+            } catch(const std::invalid_argument &ex) {
+                ::std::cerr << ex.what() << '\n' <<
+                    "Failed to get row " << i << " from matrix with " << m_.rows() << " rows.\n";
+                throw;
+            }
         }
         for(uint32_t i(0); i < r_.rows(); ++i) {
-            std::fprintf(stderr, "For rescale: %zu/0 for matrix stuff with %zu columns\n", size_t(i), m_.columns());
-            ::std::fwrite(&r_(i, 0), sizeof(r_(i, 0)), r_.columns(), fp);
+            try {
+                char buf[128];
+                std::sprintf(buf, "For rescale: %zu/0 for matrix stuff with %zu columns and %zu rows\n", size_t(i), r_.columns(), r_.rows());
+                ::std::cerr << buf;
+                ::std::fwrite(&r_(i, 0), sizeof(r_(i, 0)), r_.columns(), fp);
+            } catch(const std::invalid_argument &ex) {
+                ::std::cerr << ex.what() << '\n' <<
+                    "Failed to get rescale row " << i << " from matrix with " << r_.rows() << " rows.\n";
+                throw;
+            }
+            
         }
         ::std::fwrite(&v_[0], sizeof(v_[0]), v_.size(), fp);
     }
     KernelSVM(const char *path) {deserialize(path);}
     void deserialize(std::FILE *fp) {
+        if constexpr(IS_COMPRESSED_BLAZE(MatrixKind)) {
+            throw std::runtime_error("Not implemented.");
+        } else {
 #define __fr(x, fp) ::std::fread(&x, sizeof(x), 1, fp)
         if(::std::fread(this, sizeof(*this), 1, fp) != 1) throw std::runtime_error("Could not read from file.");
         uint64_t mr, mc, ntups;
@@ -133,13 +165,16 @@ public:
         __fr(nrrows, fp); __fr(nrcols, fp);
         r_.resize(nrrows, nrcols);
         for(unsigned i(0); i < nrrows;++i) {
-            ::std::fread(&m_(i, 0), sizeof(m_(i, 0)), m_.columns(), fp);
+            auto r = blaze::row(m_, i);
+            ::std::fread(&r[0], sizeof(r[0]), r.size(), fp);
         }
         for(unsigned i(0); i < nrrows;++i) {
-            ::std::fread(&r_(i, 0), sizeof(r_(i, 0)), r_.columns(), fp);
+            auto r = blaze::row(r_, i);
+            ::std::fread(&r[0], sizeof(r[0]), r.size(), fp);
         }
-        ::std::fread(&v_[0], sizeof(v_[0]), 1, fp);
+        ::std::fread(&v_[0], sizeof(v_[0]), v_.size(), fp);
 #undef _fr
+        } // If not compressed blaze
     }
     // Dense constructor
     KernelSVM(const char *path,
@@ -349,9 +384,19 @@ private:
     }
 public:
     template<typename RowType>
+    FloatType predict_external(RowType &datapoint) const {
+        if(r_.rows())
+            datapoint = (datapoint - row(r_, 0)) * row(r_, 1);
+        return predict(datapoint);
+    }
+    template<typename RowType>
     FloatType predict_external(const RowType &datapoint) const {
-        blaze::DynamicVector<FloatType, blaze::rowVector> tmp = (datapoint - row(r_, 0)) * row(r_, 1);
-        return predict(tmp);
+        if(r_.rows()) {
+            blaze::DynamicVector<FloatType, blaze::rowVector> tmp = (datapoint - row(r_, 0)) * row(r_, 1);
+            return predict(tmp);
+        } else {
+            return predict(datapoint);
+        }
     }
     template<typename RowType>
     FloatType predict(const RowType &datapoint) const {
@@ -432,7 +477,7 @@ public:
             }
             const FloatType dnf(diffnorm(a_, last_alphas) / dot(a_, a_));
 #if !NDEBUG
-            cerr << "Diff norm: " << dnf << '\n';
+            if((t_ & 0xFFFF) == 0) cerr << "Diff norm: " << dnf << '\n';
 #endif
             if(dnf < eps_) break;
             // TODO: Add new termination conditions based on the change of loss.
@@ -471,7 +516,7 @@ public:
         {decltype(x) tmp; std::swap(tmp, x);}
         PERF_SWAP(v_); PERF_SWAP(r_); PERF_SWAP(m_); PERF_SWAP(class_name_map_);
         if(h_) kh_destroy(I, h_), std::memset(h_, 0, sizeof(*h_));
-        std::FILE *fp = std::fopen(path, "rb"); if(!fp) throw std::runtime_error("Could not open path for reading at "s + path);
+        std::FILE *fp = std::fopen(path, "rb"); if(!fp) throw std::runtime_error(std::string("Could not open path for reading at ") + path);
         deserialize(fp);
         std::fclose(fp);
     }

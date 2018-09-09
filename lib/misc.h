@@ -263,12 +263,18 @@ double variance(const Container &c) {
 }
 
 class ConfusionMatrix {
+    enum tbl {
+        TRUE_POSITIVE = 3,
+        FALSE_NEGATIVE = 2,
+        TRUE_NEGATIVE = 1,
+        FALSE_POSITIVE = 0
+    };
     std::array<::std::uint64_t, 4> arr_;
     bool emit_at_destruction_;
 public:
     ConfusionMatrix(): arr_{0,0,0,0}, emit_at_destruction_(true) {}
     void add(int foundval, int trueval) {
-        ++arr_[(trueval > 0) | foundval == trueval];
+        ++arr_[((trueval > 0) << 1) | (foundval == trueval)];
     }
     std::string str() {
         emit_at_destruction_ = false;

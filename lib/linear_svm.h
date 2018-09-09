@@ -90,6 +90,7 @@ public:
     {
         load_data(path);
     }
+    LinearSVM(const char *path) {deserialize(path);}
     LinearSVM(const char *path, size_t ndims,
                const FloatType lambda,
                LearningPolicy lp,
@@ -398,14 +399,14 @@ public:
     const auto &m()  const {return m_;}
     const auto &lp() const {return lp_;}
     void serialize(const char *path) const {
-        std::FILE *fp = std::fopen((std::string(path) + ".struct").data(), "wb"); if(!fp) throw std::runtime_error("Could not open path for writing at "s + path);
+        std::FILE *fp = std::fopen((std::string(path) + ".struct").data(), "wb"); if(!fp) throw std::runtime_error(std::string("Could not open path for writing at ") + path);
         std::fwrite(this, sizeof(*this), 1, fp);
         std::fclose(fp);
         blaze::Archive<::std::ofstream> arch;
         arch << w_.weights_ << r_;
     }
     void deserialize(const char *path) {
-        std::FILE *fp = std::fopen((std::string(path) + ".struct").data(), "rb"); if(!fp) throw std::runtime_error("Could not open path for reading at "s + path);
+        std::FILE *fp = std::fopen((std::string(path) + ".struct").data(), "rb"); if(!fp) throw std::runtime_error(std::string("Could not open path for reading at ") + path);
         std::fread(this, sizeof(*this), 1, fp);
         std::fclose(fp);
         blaze::Archive<::std::ifstream> arch;

@@ -77,9 +77,10 @@ struct LinearKernel: KernelBase<FloatType> {
 
 template<typename FloatType>
 struct PolyKernel: KernelBase<FloatType> {
-    const FloatType a_;
-    const FloatType c_;
-    const FloatType d_;
+    FloatType a_;
+    FloatType c_;
+    FloatType d_;
+    PolyKernel() {}
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return std::pow(a_ * dot(a, b) + c_, d_);
@@ -94,13 +95,14 @@ struct PolyKernel: KernelBase<FloatType> {
 
 template<typename FloatType>
 struct LaplacianKernel: KernelBase<FloatType> {
-    const FloatType msigma_;
+    FloatType msigma_;
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return std::exp(msigma_ * std::sqrt(
             diffnorm<RowType1, RowType2, FloatType>(a, b)));
     }
     LaplacianKernel(FloatType sigma): msigma_(-sigma) {}
+    LaplacianKernel() {}
     std::string str() const {
         return std::string("LaplacianKernel:{") +
             std::to_string(-msigma_) + '}';
@@ -109,13 +111,14 @@ struct LaplacianKernel: KernelBase<FloatType> {
 
 template<typename FloatType>
 struct RationalQuadKernel: KernelBase<FloatType> {
-    const FloatType c_;
+    FloatType c_;
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         const FloatType dn(diffnorm(a, b));
         return 1. - (dn / dn + c_);
     }
     RationalQuadKernel(FloatType c): c_(c) {}
+    RationalQuadKernel() {}
     std::string str() const {
         return std::string("RationalQuadKernel:{") +
             std::to_string(c_) + '}';
@@ -124,12 +127,13 @@ struct RationalQuadKernel: KernelBase<FloatType> {
 
 template<typename FloatType>
 struct MultiQuadKernel: KernelBase<FloatType> {
-    const FloatType c2_;
+    FloatType c2_;
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return std::sqrt(diffnorm(a, b) + c2_);
     }
     MultiQuadKernel(FloatType c): c2_(c * c) {}
+    MultiQuadKernel() {}
     std::string str() const {
         return std::string("MultiQuadKernel:{") +
             std::to_string(std::sqrt(c2_)) + '}';
@@ -138,12 +142,13 @@ struct MultiQuadKernel: KernelBase<FloatType> {
 
 template<typename FloatType>
 struct InvMultiQuadKernel: KernelBase<FloatType> {
-    const FloatType c2_;
+    FloatType c2_;
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return 1. / (std::sqrt(diffnorm(a, b) + c2_));
     }
     InvMultiQuadKernel(FloatType c): c2_(c * c) {}
+    InvMultiQuadKernel() {}
     std::string str() const {
         return std::string("InvMultiQuadKernel:{") +
             std::to_string(std::sqrt(c2_)) + '}';
@@ -152,8 +157,11 @@ struct InvMultiQuadKernel: KernelBase<FloatType> {
 
 template<typename FloatType>
 struct GaussianKernel: KernelBase<FloatType> {
-    const FloatType mgamma_;
+    FloatType mgamma_;
     GaussianKernel(FloatType gamma): mgamma_(-gamma * 0.5) {}
+    GaussianKernel() {}
+    GaussianKernel(const GaussianKernel &o) = default;
+    GaussianKernel(GaussianKernel &&o) = default;
 
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
@@ -177,13 +185,14 @@ struct GaussianKernel: KernelBase<FloatType> {
 
 template<typename FloatType>
 struct ExpKernel: KernelBase<FloatType> {
-    const FloatType mgamma_;
+    FloatType mgamma_;
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return std::exp(mgamma_ * std::sqrt(
             diffnorm<RowType1, RowType2, FloatType>(a, b)));
     }
     ExpKernel(FloatType gamma): mgamma_(-gamma) {}
+    ExpKernel() {}
     std::string str() const {
         return std::string("ExpKernel:{") + std::to_string(-mgamma_) + '}';
     }
@@ -191,8 +200,8 @@ struct ExpKernel: KernelBase<FloatType> {
 
 template<typename FloatType>
 struct SphericalKernel: KernelBase<FloatType> {
-    const FloatType sigma_inv_;
-    const FloatType sigma_;
+    FloatType sigma_inv_;
+    FloatType sigma_;
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         const FloatType norm2(std::sqrt(diffnorm(a, b)) * sigma_inv_);
@@ -200,6 +209,9 @@ struct SphericalKernel: KernelBase<FloatType> {
                            : 1. - 1.5 * norm2 + (norm2 * norm2 * norm2) * .5;
     }
     SphericalKernel(FloatType sigma): sigma_inv_(1 / sigma), sigma_(sigma) {}
+    SphericalKernel() {
+        LOG_DEBUG("Warning: Don't use this until you set its parameters...\n");
+    }
     std::string str() const {
         return std::string("SphericalKernel:{") + std::to_string(sigma_) + '}';
     }
@@ -207,8 +219,8 @@ struct SphericalKernel: KernelBase<FloatType> {
 
 template<typename FloatType>
 struct GeneralHistogramKernel: KernelBase<FloatType> {
-    const FloatType a_;
-    const FloatType b_;
+    FloatType a_;
+    FloatType b_;
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         if(a.size() != b.size())
@@ -219,6 +231,7 @@ struct GeneralHistogramKernel: KernelBase<FloatType> {
         return ret;
     }
     GeneralHistogramKernel(FloatType a, FloatType b): a_(a), b_(b) {}
+    GeneralHistogramKernel() {}
     std::string str() const {
         return std::string("GeneralHistogramKernel:{") +
             std::to_string(a_) + ", " + std::to_string(b_) + '}';
@@ -227,11 +240,12 @@ struct GeneralHistogramKernel: KernelBase<FloatType> {
 
 template<typename FloatType>
 struct CauchyKernel: KernelBase<FloatType> {
-    const FloatType sigma_sq_inv_;
+    FloatType sigma_sq_inv_;
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return 1. / (1. + diffnorm(a, b) * sigma_sq_inv_);
     }
+    CauchyKernel() {}
     CauchyKernel(FloatType sigma): sigma_sq_inv_(1. / (sigma * sigma)) {}
     std::string str() const {
         return std::string("CauchyKernel:{") +
@@ -264,12 +278,13 @@ struct ChiSqKernel: KernelBase<FloatType> {
 
 template<typename FloatType>
 struct StudentKernel: KernelBase<FloatType> {
-    const FloatType d_;
+    FloatType d_;
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return 1. / (1 + std::pow(diffnorm(a, b), d_));
     }
     StudentKernel(FloatType d): d_(d / 2.) {} // Divide by 2 to get the n-nom.
+    StudentKernel() {}
     std::string str() const {
         return std::string("StudentKernel:{") + std::to_string(d_) + '}';
     }
@@ -277,13 +292,14 @@ struct StudentKernel: KernelBase<FloatType> {
 
 template<typename FloatType>
 struct ANOVAKernel: KernelBase<FloatType> {
-    const FloatType d_, k_, sigma_;
+    FloatType d_, k_, sigma_;
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return std::pow(
             -sigma_ * diffnorm(blaze::pow(a, k_), blaze::pow(b, k_)), d_);
     }
     ANOVAKernel(FloatType d, FloatType k, FloatType sigma): d_(d / 2.), k_(k), sigma_(sigma) {}
+    ANOVAKernel() {}
     std::string str() const {
         return std::string("ANOVAKernel:{") + std::to_string(d_ * 2.) +
             ", " + std::to_string(k_) + ", " + std::to_string(sigma_) + '}';
@@ -338,7 +354,7 @@ struct DefaultWaveletFunction {
 
 template<typename FloatType, class WaveletFunction=DefaultWaveletFunction<FloatType>>
 struct WaveletKernel: KernelBase<FloatType> {
-    const FloatType a_inv_, c_;
+    FloatType a_inv_, c_;
     WaveletFunction fn_;
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
@@ -347,6 +363,7 @@ struct WaveletKernel: KernelBase<FloatType> {
         while(++ait != a.end() && ++bit != b.end()) ret *= fn_((*ait - c_) * a_inv_) * fn_((*bit - c_) * a_inv_);
         return ret;
     }
+    WaveletKernel() {}
     WaveletKernel(FloatType a, FloatType c): a_inv_(1. / a), c_(c) {}
     std::string str() const {
         return std::string("WaveletKernel:{") + std::to_string(1. / a_inv_) +
@@ -356,11 +373,12 @@ struct WaveletKernel: KernelBase<FloatType> {
 
 template<typename FloatType>
 struct LogarithmicKernel: KernelBase<FloatType> {
-    const FloatType d_;
+    FloatType d_;
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return -std::log(std::pow(diffnorm(a, b), d_) + 1);
     }
+    LogarithmicKernel() {}
     LogarithmicKernel(FloatType d): d_(d / 2.) {} // Divide by 2 to get the n-norm.
     std::string str() const {
         return std::string("LogarithmicKernel:{") + std::to_string(d_) + '}';
@@ -398,17 +416,6 @@ struct HistogramKernel: KernelBase<FloatType> {
             }
         }
         return ret;
-#if 0
-        if(a.size() != b.size())
-            throw std::out_of_range(std::string(
-                "Could not calculate min for arrays of different sizes (") +
-                std::to_string(a.size()) + ", " +
-                std::to_string(b.size()) + ')');
-        auto ait(a.begin()), bit(b.begin());
-        FloatType ret(std::min(*ait, *bit));
-        while(++ait != a.end()) ret += std::min(*ait, *++bit);
-        return ret;
-#endif
     }
     std::string str() const {
         return "HistogramKernel";
@@ -420,13 +427,14 @@ template<typename FloatType>
 struct ExponentialBesselKernel: KernelBase<FloatType> {
     // https://github.com/primaryobjects/Accord.NET/blob/master/Sources/Accord.Statistics/Kernels/Bessel.cs
     // https://github.com/DiegoCatalano/Catalano-Framework/blob/master/Catalano.Statistics/src/Catalano/Statistics/Kernels/Bessel.java
-    const FloatType sigma_, order_;
+    FloatType sigma_, order_;
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         const auto norm(std::sqrt(diffnorm(a, b)));
         return cyl_bessel_j(order_, sigma_ * norm) /
             std::pow(norm, -norm * order_);
     }
+    ExponentialBesselKernel() {}
     ExponentialBesselKernel(FloatType sigma, FloatType order):
         sigma_(sigma), order_(order) {}
     std::string str() const {
@@ -440,12 +448,13 @@ struct ExponentialBesselKernel: KernelBase<FloatType> {
 template<typename FloatType>
 struct CylindricalBesselKernel: KernelBase<FloatType> {
     // http://crsouza.com/2010/03/17/kernel-functions-for-machine-learning-applications/#bessel
-    const FloatType sigma_, vp1_, minus_nvp1_;
+    FloatType sigma_, vp1_, minus_nvp1_;
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         const auto norm(sigma_ * std::sqrt(diffnorm(a, b)));
         return cyl_bessel_j(vp1_, sigma_ * norm) / std::exp(norm, minus_nvp1_);
     }
+    CylindricalBesselKernel() {}
     CylindricalBesselKernel(FloatType sigma, FloatType n, FloatType v):
         sigma_(sigma), vp1_(v + 1), minus_nvp1_(-n * vp1_) {}
     std::string str() const {
@@ -458,8 +467,8 @@ struct CylindricalBesselKernel: KernelBase<FloatType> {
 
 template<typename FloatType>
 struct CircularKernel: KernelBase<FloatType> {
-    const FloatType sigma_inv_;
-    const FloatType sigma_;
+    FloatType sigma_inv_;
+    FloatType sigma_;
     static constexpr FloatType TWO_OVER_PI = 2 / M_PIl;
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
@@ -469,6 +478,7 @@ struct CircularKernel: KernelBase<FloatType> {
                                             std::sqrt(1 - norm2 * norm2));
     }
     CircularKernel(FloatType sigma): sigma_inv_(1 / sigma), sigma_(sigma) {}
+    CircularKernel() {}
     std::string str() const {
         return std::string("CircularKernel:{") +
             std::to_string(sigma_) + '}';
@@ -477,12 +487,12 @@ struct CircularKernel: KernelBase<FloatType> {
 
 template<typename FloatType>
 struct TanhKernel: KernelBase<FloatType>{
-    const FloatType k_;
-    const FloatType c_;
+    FloatType k_, c_;
     template<typename RowType1, typename RowType2>
     INLINE FloatType operator()(const RowType1 &a, const RowType2 &b) const {
         return std::tanh(dot(a, b) * k_ + c_);
     }
+    TanhKernel() {}
     TanhKernel(FloatType k, FloatType c): k_(k), c_(c) {}
     std::string str() const {
         return std::string("TanhKernel:{") +

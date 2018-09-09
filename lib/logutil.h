@@ -7,7 +7,7 @@
 #include <cstdarg>
 
 #define _FUNCTION_MACRO_ __PRETTY_FUNCTION__
-#define LOG_INFO(...) log_info(__func__, ##__VA_ARGS__);
+#define LOG_INFO(...) log_info(_FUNCTION_MACRO_, __FILE__, __LINE__, ##__VA_ARGS__);
 #define LOG_WARNING(...) log_warning(_FUNCTION_MACRO_, ##__VA_ARGS__);
 #define LOG_EXIT(...) log_error(_FUNCTION_MACRO_, __LINE__, ##__VA_ARGS__);
 #if !NDEBUG
@@ -33,10 +33,10 @@ static inline void log_warning(const char *func, const char *fmt, ...) {
     va_end(args);
 }
 
-static inline void log_info(const char *func, const char *fmt, ...) {
+static inline void log_info(const char *func, const char *file, int line, const char *fmt, ...) {
     std::va_list args;
     va_start(args, fmt);
-    std::fprintf(stderr, "[%s] ", func);
+    std::fprintf(stderr, "[%s:%s:%d] ", func, file, line);
     std::vfprintf(stderr, fmt, args);
     va_end(args);
 }
