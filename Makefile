@@ -36,6 +36,7 @@ LD=-L.
 OBJS=$(patsubst %.cpp,%.o,$(wildcard lib/*.cpp))
 TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
 EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard src/t*.cpp)) $(patsubst %.cpp,%.fo,$(wildcard src/t*.cpp))
+HEADERS=$(wildcard src/*.h) $(wildcard lib/*.h)
 
 EX=$(patsubst src/%.fo,f%,$(EXEC_OBJS)) $(patsubst src/%.o,%,$(EXEC_OBJS))
 
@@ -62,10 +63,10 @@ test/%.o: test/%.cpp $(OBJS)
 klib/kstring.o:
 	cd klib && make kstring.o && cd ..
 
-%.fo: %.cpp
+%.fo: %.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=float $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
-%.o: %.cpp
+%.o: %.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS) -DFLOAT_TYPE=double $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 %: src/%.o $(OBJS)
