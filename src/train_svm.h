@@ -58,7 +58,9 @@ static int get_max_ind(const char *fn1, const char *fn2) {
             decltype(svm) bfastserial (serial_path);\
             \
         }\
-        if(argc > optind + 1) {\
+        while(argc > optind + 1) {\
+            ::std::cout << "#Processing file " << argv[optind + 1] << '\n';\
+            ConfusionMatrix cm;\
             int moffsets(svm.get_ndims() + 1), *offsets(static_cast<int *>(malloc(moffsets * sizeof(int))));\
             IntCounter counter;\
             size_t nlines(0), nerror(0);\
@@ -87,8 +89,9 @@ static int get_max_ind(const char *fn1, const char *fn2) {
                 if(++nlines % NOTIFICATION_INTERVAL == 0) std::cerr << "Processed " << nlines << " lines.\n";\
             }\
             std::free(offsets);\
-            cout << "Test error rate: " << 100. * nerror / nlines << "%\n";\
+            cout << "Test error rate for file at " << argv[optind + 1] << ": " << 100. * nerror / nlines << "%\n";\
             cout << "Mislabeling: " << cm.str() << '\n';\
+            ++optind;\
         }
 
 #define RUN_DENSE_SVM  RUN_SVM_MATRIX(DynamicMatrix)
@@ -132,7 +135,6 @@ int main(int argc, char *argv[]) {\
     std::FILE *ofp(stdout);\
     const char *serial_path = nullptr;\
     bool rescale(false), use_sparse(false), bias(true), has_ids(false);\
-    ConfusionMatrix cm;\
     while((c = getopt(argc, argv, KERNEL_GETOPT "=:e:M:s:p:b:l:o:5Brh?H")) >= 0) {\
         switch(c) {\
             case '5': use_sparse = true;         break;\
@@ -157,6 +159,7 @@ int main(int argc, char *argv[]) {\
     KERNEL_INIT;\
     static_assert(sizeof(kernel) == sizeof(kernel));\
     if(nd_sparse < 0) get_max_ind(argv[optind], argv[optind + 1]);\
+    LOG_DEBUG("nd_sparse: %u\n", unsigned(nd_sparse));\
 \
     if(optind == argc) goto usage;\
     blaze::setNumThreads(nthreads);\

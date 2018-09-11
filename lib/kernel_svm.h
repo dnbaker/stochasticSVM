@@ -129,7 +129,10 @@ public:
         }
         ::std::fwrite(&v_[0], sizeof(v_[0]), v_.size(), fp);
     }
-    KernelSVM(const char *path) {deserialize(path);}
+    KernelSVM(const char *path) {
+        std::memset(this, 0, sizeof(*this));
+        deserialize(path);
+    }
     void deserialize(std::FILE *fp) {
         if constexpr(IS_COMPRESSED_BLAZE(MatrixKind)) {
             throw std::runtime_error("Not implemented.");
@@ -222,7 +225,7 @@ private:
                 std::string("raise NotImplementedError(\"Only binary "
                             "classification currently supported. "
                             "Number of classes found: ") +
-                            std::to_string(nc_) + ".\")");
+                            std::to_string(vec.size()) + ".\")");
         std::unordered_map<int, int> map;
         //std::fprintf(stderr, "Map: {%i: %i, %i: %i}", vec[0], -1, vec[1], 1);
         map[vec[0]] = -1, map[vec[1]] = 1;
@@ -241,6 +244,7 @@ private:
 #endif
     }
     void load_data(const char *path) {
+        LOG_INFO("Performing dense load from path %s\n", path);
         dims_t dims(path);
         ns_ = dims.ns_; nd_ = dims.nd_;
         std::tie(m_, v_, class_name_map_) = parse_problem<FloatType, int>(path, dims);
@@ -259,6 +263,7 @@ private:
         LOG_DEBUG("Number of datapoints: %zu. Number of dimensions: %zu\n", ns_, nd_);
     }
     void sparse_load(const char *path) {
+        LOG_INFO("Performing sparse load from path %s\n", path);
         if(bias_) ++nd_; // bias term, in case used.
         gzFile fp(gzopen(path, "rb"));
         if(fp == nullptr)
@@ -475,7 +480,8 @@ public:
                      << " Number incremented (bc < 1): " << ndiff
                      << " iteration: " << t_ << '\n';
             }
-            const FloatType dnf(diffnorm(a_, last_alphas) / dot(a_, a_));
+            const FloatType anorm = dot(a_, a_);
+            const FloatType dnf(diffnorm(a_, last_alphas) / (anorm ? anorm: 1.)); /* avoid divide by 0 */
 #if !NDEBUG
             if((t_ & 0xFFFF) == 0) cerr << "Diff norm: " << dnf << '\n';
 #endif
