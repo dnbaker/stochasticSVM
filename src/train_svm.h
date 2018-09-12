@@ -47,6 +47,11 @@ static int get_max_ind(const char *fn1, const char *fn2) {
     return fn2 ? std::max(get_max_ind(fn1), get_max_ind(fn2)): get_max_ind(fn1);
 }
 
+void emit_header(std::ostream &os, const bool has_ids) {
+    if(has_ids) os << (has_ids ? "#ID\t": "#")
+                   << "Expected label\tFound label\tMargin\tFeatures...\n";
+}
+
 // Macro for running SVM and testing it.
 
 #define RUN_SVM_MATRIX(MatrixKind) \
@@ -58,6 +63,8 @@ static int get_max_ind(const char *fn1, const char *fn2) {
             decltype(svm) bfastserial (serial_path);\
             \
         }\
+        emit_header(::std::cout, has_ids);\
+        \
         while(argc > optind + 1) {\
             ::std::cout << "#Processing file " << argv[optind + 1] << '\n';\
             ConfusionMatrix cm;\
@@ -82,7 +89,7 @@ static int get_max_ind(const char *fn1, const char *fn2) {
                     const char *p(line.data() + offsets[i]);\
                     vec[atoi(p) - 1] = std::atof(strchr(p, ':') + 1);\
                 }\
-                if(has_ids) std::cerr << (line.data() + offsets[0]) << '\t';\
+                if(has_ids) std::cout << (line.data() + offsets[0]) << '\t';\
                 const double v = svm.predict_external(vec);\
                 std::cout << label << '\t' << arr[v > 0] << '\t' << v << '\t' << line2str(vec).data() << '\n';\
                 cm.add(arr[v > 0], label);\

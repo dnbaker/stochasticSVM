@@ -406,14 +406,10 @@ public:
     template<typename RowType>
     FloatType predict(const RowType &datapoint) const {
         FloatType ret(0.);
-        for(auto it(a_.cbegin()), e(a_.cend()); it != e; ++it) {
-            if(kh_get(I, h_, it->value()) == kh_end(h_)) {
-                //std::fprintf(stderr, "Index: %zu. Value: %i. kernel: %lf. Inc value: %lf\n",
-                //             it->index(), it->value(), kernel_(row(m_, it->index()), datapoint),
-                //             v_[it->index()] * it->value() * kernel_(row(m_, it->index()), datapoint));
-                ret += v_[it->index()] * it->value() * kernel_(row(m_, it->index()), datapoint);
-            }
-        }
+        auto e = a_.cend();
+        #pragma omp parallel for reduction(+:ret)
+        for(auto it = a_.cbegin(); it < e; ++it)
+            ret += v_[it->index()] * it->value() * kernel_(row(m_, it->index()), datapoint);
         ret /= (lambda_ * (t_ + 1));
         return ret;
     }
@@ -429,7 +425,6 @@ public:
     }
     FloatType loss() const {
         size_t mistakes(0);
-        #pragma omp parallel for reduction(+:mistakes)
         for(size_t index = 0; index < ns_; ++index) {
             mistakes += (classify(index) != v_[index]);
         }
@@ -450,27 +445,21 @@ public:
             size_t ndiff(0);
             //std::vector<std::mutex> muts(nd_ >> 6);
             //cerr << "Filling random entries. Number in batch: " << mbs_ << '\n';
-            while(kh_size(h_) < per_batch) {
-                // Could probably speed up by changing loop iteration:
-                // Iterating through all alphas and processing each element for it.
+            while(kh_size(h_) < per_batch)
                 kh_put(I, h_, RANGE_SELECT(ns_), &khr);
-                //cerr << "Size of hash: " << kh_size(h_) << '\n';
-                //cerr << "Number of elements in training data: " << ns_ << '\n';
-            }
-            // TODO: This is the portion which needs to be templatized for various loss functions.
-            #pragma omp parallel for
+            // Could probably speed up by changing loop iteration:
+            // Iterating through all alphas and processing each element for it.
             for(khiter_t ki = 0; ki < kh_end(h_); ++ki) {
                 if(kh_exist(h_, ki)) {
-                    const FloatType prediction(predict(kh_key(h_, ki)));
-                    if(prediction * v_[kh_key(h_, ki)] < 1.) {
-                        #pragma omp critical
-                        indices.insert(kh_key(h_, ki));
+                    const auto kkey = kh_key(h_, ki);
+                    const FloatType prediction(predict(kkey));
+                    if(prediction * v_[kkey] < 1.) {
+                        indices.insert(kkey);
                         ++ndiff;
                         //cerr << "Prediction * v: " << prediction * v_[kh_key(h_, ki)] << '\n';
                     }
                 }
             }
-            //cerr << "Got elements to update\n";
             if(t_ == 0) assert(a_.nonZeros() == 0);
             for(const auto index: indices) ++a_[index];
             kh_clear(I, h_);
