@@ -48,8 +48,8 @@ class KernelSVM {
 
 public:
     bool passes_comparisons(const KernelSVM &cmp) {
-#define TC(cond)    if(!cond)  return false;
-#define TCatt(att) TC(att != cmp.att)
+#define TC(cond)    if(!(cond))  return false;
+#define TCatt(att) TC((att) != (cmp.att))
         TCatt(scale_);
         TCatt(bias_);
         TCatt(nc_);
